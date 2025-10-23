@@ -1,4 +1,4 @@
-package com.goodee.coreconnect.user;
+package com.goodee.coreconnect.user.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -24,9 +24,6 @@ public class User {
     
     @Column(nullable=false) 
     private String name;
-    
-    @ManyToOne(fetch = FetchType.LAZY) 
-    private Dept dept;
     
     @Enumerated(EnumType.STRING) 
     private Role role;

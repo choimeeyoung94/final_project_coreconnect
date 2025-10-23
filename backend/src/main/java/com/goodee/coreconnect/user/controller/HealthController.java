@@ -1,8 +1,9 @@
-package com.goodee.coreconnect.controller;
+package com.goodee.coreconnect.user.controller;
 
 
 import org.springframework.web.bind.annotation.*;
-import com.goodee.coreconnect.common.ApiResponse;
+
+import com.goodee.coreconnect.department.dto.response.ApiResponse;
 
 @RestController
 @RequestMapping("/api")

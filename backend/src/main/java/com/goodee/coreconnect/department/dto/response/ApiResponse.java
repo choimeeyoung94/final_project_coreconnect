@@ -1,4 +1,4 @@
-package com.goodee.coreconnect.common;
+package com.goodee.coreconnect.department.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

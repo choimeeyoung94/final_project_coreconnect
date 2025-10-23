@@ -2,7 +2,8 @@ package com.goodee.coreconnect.auth;
 
 import lombok.Data;
 import org.springframework.web.bind.annotation.*;
-import com.goodee.coreconnect.common.ApiResponse;
+
+import com.goodee.coreconnect.department.dto.response.ApiResponse;
 
 @RestController
 @RequestMapping("/api/auth")
