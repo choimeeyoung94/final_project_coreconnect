@@ -1,0 +1,86 @@
+:root {
+  --brand: #00a0e9;
+  --border: #d1d5db;
+  --text: #111827;
+  --muted: #6b7280;
+  --radius: 8px;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  font-family: "Noto Sans KR", system-ui, sans-serif;
+  background: #fff;
+  color: var(--text);
+}
+
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: #fff;
+}
+
+.login-box {
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.login-box h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 30px;
+}
+
+/* 폼 */
+.login-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-form input {
+  padding: 10px 14px;
+  font-size: 15px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  outline: none;
+  transition: border 0.2s, box-shadow 0.2s;
+}
+
+.login-form input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px rgba(0, 160, 233, 0.2);
+}
+
+.login-btn {
+  background: var(--brand);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  padding: 10px 0;
+  cursor: pointer;
+  font-size: 15px;
+  transition: background 0.2s;
+}
+
+.login-btn:hover {
+  background: #0090d2;
+}
+
+.error-msg {
+  color: red;
+  font-size: 13px;
+}
+
+.lang-select {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 24px;
+}
