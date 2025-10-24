@@ -1,21 +1,29 @@
-import { Routes, Route, Link } from 'react-router-dom'
-import Home from './pages/Home'
-import Login from './pages/Login'
-import Notices from './pages/Notices'
+import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import useAuth from "./hooks/useAuth";
+import LoginPage from "./pages/LoginPage";
+import HomePage from "./pages/HomePage";
+
+const ProtectedRoute = ({ isLoggedIn, children }) => {
+  if (!isLoggedIn) return <Navigate to="/login" replace />;
+  return children;
+};
 
 export default function App() {
+  const { isLoggedIn, setIsLoggedIn, logout } = useAuth();
+
   return (
-    <div className="container py-3">
-      <nav className="mb-3 d-flex gap-3">
-        <Link to="/">대시보드</Link>
-        <Link to="/login">로그인</Link>
-        <Link to="/notices">공지</Link>
-      </nav>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/notices" element={<Notices />} />
-      </Routes>
-    </div>
-  )
+    <Routes>
+      <Route path="/login" element={<LoginPage setIsLoggedIn={setIsLoggedIn} />} />
+      <Route
+        path="/home"
+        element={
+          <ProtectedRoute isLoggedIn={isLoggedIn}>
+            <HomePage onLogout={logout} />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/home" replace />} />
+    </Routes>
+  );
 }
