@@ -1,5 +1,10 @@
 package com.goodee.coreconnect.user.entity;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import com.goodee.coreconnect.chat.entity.ChatRoomUser;
+
 import jakarta.persistence.*;
 import lombok.*;
 

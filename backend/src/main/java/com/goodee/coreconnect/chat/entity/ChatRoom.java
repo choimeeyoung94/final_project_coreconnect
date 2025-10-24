@@ -1,7 +1,5 @@
 package com.goodee.coreconnect.chat.entity;
 
-import java.time.LocalDateTime;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -18,23 +16,23 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "chat_message")
-public class Chat {
+@Table(name = "chat_room")
+public class ChatRoom {
+
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
-
-	@Column(name = "message_content")
-	private String messageContent;
 	
-	@Column(name = "sent_at")
-	private LocalDateTime sendAt;
+	@Column(name = "room_name")
+	private String roomName;
 	
-	@Column(name = "file_yn")
-	private Boolean fileYn;
+	@Column(name = "room_type")
+	private String roomType;
 	
-	@Column(name = "file_url")
-	private String fileUrl;
-		
+	@Column(name = "favorite_status")
+	private Boolean favoriteStatus;
+	
+	
+	
 }

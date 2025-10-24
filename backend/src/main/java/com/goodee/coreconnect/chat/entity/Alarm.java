@@ -18,23 +18,31 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "chat_message")
-public class Chat {
+@Table(name = "alarm")
+public class Alarm {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
-
-	@Column(name = "message_content")
-	private String messageContent;
 	
-	@Column(name = "sent_at")
-	private LocalDateTime sendAt;
+	@Column(name = "alarm_read_yn")
+	private Boolean alarmReadYn;
 	
-	@Column(name = "file_yn")
-	private Boolean fileYn;
+	@Column(name = "alarm_type")
+	private String alarmType;
 	
-	@Column(name = "file_url")
-	private String fileUrl;
-		
+	@Column(name = "alarm_read_at")
+	private LocalDateTime alarmReadAt;
+	
+	@Column(name = "alarm_sent_at")
+	private LocalDateTime alarmSentAt;
+	
+	@Column(name = "alarm_sent_yn")
+	private Boolean alarmSentYn;
+	
+	
+	
+	
+	
+	
 }
