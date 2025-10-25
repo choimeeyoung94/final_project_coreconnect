@@ -53,11 +53,14 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 		chat.setMessageContent(chatContent);
 		chat.setSendAt(LocalDateTime.now());
 		chat.setFileYn(false);
+		// 메시지 발신자 정보 저장
+	    chat.setSender(sender);
 		chatRepository.save(chat);
 		
 		// 참여자 목록 조회 및 알람 생성
 		List<ChatRoomUser> participants = chatRommUserRepository.findByChatRoomId(roomId);
 		for (ChatRoomUser participant: participants) {
+			User receiver = participant.getUser();
 			Alarm alarm = new Alarm();
 			alarm.setChat(chat);
 			alarm.setAlarmType("1:1");
@@ -65,6 +68,8 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 			alarm.setAlarmReadYn(false);
 			alarm.setAlarmSentAt(LocalDateTime.now());
 			alarm.setAlarmReadAt(null);
+			// 메시지 수신자 정보 저장
+			alarm.setUser(receiver);
 			alarmRepository.save(alarm);
 		}
 	}

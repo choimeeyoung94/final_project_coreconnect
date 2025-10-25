@@ -2,6 +2,8 @@ package com.goodee.coreconnect.chat.entity;
 
 import java.time.LocalDateTime;
 
+import com.goodee.coreconnect.user.entity.User;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -49,6 +51,11 @@ public class Alarm {
 	@JoinColumn(name = "chat_message_id")
 	private Chat chat;
 	
+	// N : 1 관계 (user 테이블과 매핑)
+	// 알림 수신자
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "user_id")
+	private User user; 
 	
 	
 }
