@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.goodee.coreconnect.chat.entity.Alarm;
 import com.goodee.coreconnect.chat.entity.Chat;
@@ -31,6 +32,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	private final UserRepository userRepository;
 
 	// 채팅방의 참여자 user_id 리스트 조회
+	@Transactional(readOnly = true)
 	@Override
 	public List<Integer> getParticipantIds(Integer roomId) {
 		List<ChatRoomUser> users = chatRommUserRepository.findByChatRoomId(roomId);
@@ -40,6 +42,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	}
 
 	// 메시지 저장 및 알람 생성
+	@Transactional(readOnly = true)
 	@Override
 	public void saveMessageAndAlarm(Integer roomId, Integer senderId, String chatContent) {
 		ChatRoom chatRoom = chatRoomRepository.findById(roomId)
@@ -83,5 +86,25 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 				.collect(Collectors.toList());
 	}
 
+	// 채팅방을 처음 생성 할때 주소록에서 채팅방에 초대할 사용자를 한명이상 선택
+	@Transactional
+	public ChatRoom createChatRoom(String name, List<Integer> userIds) {
+		ChatRoom chatRoom = new ChatRoom();
+		chatRoom.setRoomName(name);
+		chatRoomRepository.save(chatRoom);
+		
+		for (Integer userID : userIds) {
+			User user = userRepository.findById(userID).orElseThrow();
+			ChatRoomUser chatRoomUser = new ChatRoomUser();
+			chatRoomUser.setChatRoom(chatRoom);
+			chatRoomUser.setUser(user);
+			chatRommUserRepository.save(chatRoomUser);
+			chatRoom.getChatRoomUsers().add(chatRoomUser);
+			user.getChatRoomUsers().add(chatRoomUser);
+		}
+		return chatRoom;		
+	}
+	
+	
 	
 }
