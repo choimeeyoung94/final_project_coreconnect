@@ -25,7 +25,7 @@ public class ChatRoomUser {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+	private Integer id;
 	
 	// N : 1 관계 매핑 (user테이블과 매핑)
 	// 객체를 처음 select 할떄는 연관된 엔티티를 조회해오지 않는다

@@ -26,7 +26,7 @@ public class Alarm {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+	private Integer id;
 	
 	@Column(name = "alarm_read_yn")
 	private Boolean alarmReadYn;

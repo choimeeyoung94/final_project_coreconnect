@@ -30,7 +30,7 @@ public class Chat {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+	private Integer id;
 
 	@Column(name = "message_content")
 	private String messageContent;
