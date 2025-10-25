@@ -210,16 +210,10 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 		for (int i = 0; i < userIds.size(); i++) {
 			Integer userId = userIds.get(i);
 			Integer alarmId = (alarmIds != null && alarmIds.size() > i) ? alarmIds.get(i) : null;
-			
+			sendAlarmToUser(userId, alarmType, message, alarmId);
 		}
-		
-		
-		
-		
 	}
 		
-	
-	
 	
 	// 알림이 채팅, 이메일, 전자결제, 일정, 공지에서 발생한 경우 사용자에게 알림을 보낼수 있도록 하는 메서드
 	public void sendAlarmToUser(Integer userId, String alarmType, String message, Integer alarmId ) {
