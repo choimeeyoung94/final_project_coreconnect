@@ -54,4 +54,10 @@ public class User {
 
     public enum Role { ADMIN, MANAGER, USER }
     public enum Status { ACTIVE, INACTIVE, SUSPENDED }
+    
+    
+    // 1:N 관계 매핑 (chat_room_user 테이과 매핑)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<ChatRoomUser> chatRoomUsers = new ArrayList<>();
+
 }
