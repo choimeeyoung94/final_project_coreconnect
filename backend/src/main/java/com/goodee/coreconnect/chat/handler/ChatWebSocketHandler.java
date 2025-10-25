@@ -1,8 +1,10 @@
 package com.goodee.coreconnect.chat.handler;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +16,9 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.goodee.coreconnect.chat.entity.Alarm;
+import com.goodee.coreconnect.chat.repository.AlarmRepository;
 import com.goodee.coreconnect.chat.service.ChatRoomService;
 import com.goodee.coreconnect.security.jwt.JwtProvider;
 import com.goodee.coreconnect.user.entity.User;
@@ -34,7 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ChatWebSocketHandler extends TextWebSocketHandler {
 	
 	// 사용자ID와 세션 매핑 (추후 Redis로 확장 가능)
-	private final Map<Long, WebSocketSession> userSessions = new ConcurrentHashMap<>();
+	private final Map<Integer, WebSocketSession> userSessions = new ConcurrentHashMap<>();
 	
 	private final JwtProvider jwtProvider;
 	
@@ -42,16 +47,18 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 		
 	private final ChatRoomService chatRoomService;
 	
+	private final AlarmRepository alarmRepository;
+	
 	// JSON 파싱용 ObjectMapper
 	private final ObjectMapper objectMapper = new ObjectMapper();
 	
 	// 사용자별 구독 중인 채팅방 목록을 관리 (userId -> List of roomIds)
-	private final Map<Long, List<Long>> userSubscriptions = new ConcurrentHashMap<>();
+	private final Map<Integer, List<Integer>> userSubscriptions = new ConcurrentHashMap<>();
 	
 	// 클라이언트 연결 시 사용자 세션 저장
 	@Override
 	public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-		Long userId = getUserIdFromSession(session); // JWT/Principal에서 추출
+		Integer userId = getUserIdFromSession(session); // JWT/Principal에서 추출
 		if (userId != null) {
 			userSessions.put(userId, session);
 		}		
@@ -61,7 +68,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 	// 클라이언트 연결 해제 시 세션 제거
 	@Override
 	public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
-		Long userId = getUserIdFromSession(session);
+		Integer userId = getUserIdFromSession(session);
 		if (userId != null) {
 			userSessions.remove(userId);
 		}
@@ -69,7 +76,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 	
 	
 	// JWT, Principal 에서 userId 추출하는 로직
-	private Long getUserIdFromSession(WebSocketSession session) {
+	private Integer getUserIdFromSession(WebSocketSession session) {
 		// 1. JWT 토큰 추출 (클라이언트가 "Authorization: Bearer xxx"로 보내야 함)
 		String token = null;
 		
@@ -96,7 +103,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 			String email = jwtProvider.getSubject(token);
 			// 3. email로 userId 조회
 			User user = userRepository.findByEmail(email).orElse(null);
-			return user != null ? user.getId().longValue() : null;
+			return user != null ? user.getId().intValue() : null;
 		} catch (Exception e) {
 			return null;
 		}
@@ -126,7 +133,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 		Long roomId = extractRoomId(payload);
 		
 		// JWT에서 userId/email 추출
-		Long senderId = getUserIdFromSession(session);
+		Integer senderId = getUserIdFromSession(session);
 		
 		// payload에서 메시지 내용 추출
 		String chatContent = extractChatContent(payload);
@@ -137,14 +144,14 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 		// email로도 관리 하므로 email 정보도 조회
 		List<String> participatnEmails = chatRoomService.getParticipantEmail(roomId != null ? roomId.intValue() : null);
 		
-		Long userId = getUserIdFromSession(session);
+		Integer userId = getUserIdFromSession(session);
 		
 		
 		//  구독 요청 처리
 		if ("subscribe".equals(type)) {
 			roomId = node.has("roomId") ? node.get("roomId").asLong() : null;
 			if (userId != null && roomId != null) {
-				userSubscriptions.computeIfAbsent(userId, key -> new ArrayList<>()).add(roomId);
+				userSubscriptions.computeIfAbsent(userId, key -> new ArrayList<>()).add(roomId.intValue());
 			}
 		}
 		
@@ -197,6 +204,63 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 	}
 	
 	
+	// 알림을 받아야 하는 사용자가 여러명 일때 
+	public void sendAlarmToUsers(List<Integer> userIds, String alarmType, String message, List<Integer> alarmIds) {
+		
+		for (int i = 0; i < userIds.size(); i++) {
+			Integer userId = userIds.get(i);
+			Integer alarmId = (alarmIds != null && alarmIds.size() > i) ? alarmIds.get(i) : null;
+			
+		}
+		
+		
+		
+		
+	}
+		
+	
+	
+	
+	// 알림이 채팅, 이메일, 전자결제, 일정, 공지에서 발생한 경우 사용자에게 알림을 보낼수 있도록 하는 메서드
+	public void sendAlarmToUser(Integer userId, String alarmType, String message, Integer alarmId ) {
+		WebSocketSession session = userSessions.get(userId);
+		String title = "";
+		boolean sentSuccess = false;
+		if (session != null && session.isOpen()) {
+			ObjectNode json = objectMapper.createObjectNode();
+			json.put("type", "alarm");
+			json.put("alarmType", alarmType); // mail, message, calendar, board, schedule, approval
+			json.put("recipientId", userId); // 알람 수신자
+			json.put("title", title); // "전자결개 승인 요청이 있습니다", "새로운 일정이 등록되었습니다", "채팅 메시지가 도착했습니다", "이메일이 도착했습니다", "공지가 등록되었습니다."
+			json.put("message", message);    
+			json.put("alarmId", alarmId);
+			try {
+				
+			} catch (Exception e) {
+				log.error("[sendAlarmToUser] 알림 전송 오류: " + e.getMessage());
+				sentSuccess = false;
+			}
+		}
+		  updateAlarmSentYn(alarmId, sentSuccess);		
+	}
+	
+	
+	// 알림 전송 성공/실패 상태 DB에 저장
+	public void updateAlarmSentYn(Integer alarmId, boolean sentSuccess) {
+		if (alarmId == null) return;
+		try {
+			Optional<Alarm> alarmOpt = alarmRepository.findById(alarmId);
+			if (alarmOpt.isPresent()) {
+				Alarm alarm = alarmOpt.get();
+				alarm.setAlarmSentYn(sentSuccess); // 알람 전송 성공/실패
+				alarm.setAlarmSentAt(LocalDateTime.now()); // 전송 시각
+				alarmRepository.save(alarm);
+			}
+			
+		} catch (Exception e) {
+			log.error("[updatedAlarmSentYn] 알림 전송 상태 저장 오류: " + e.getMessage());
+		}
+	}
 	
 	
 }
