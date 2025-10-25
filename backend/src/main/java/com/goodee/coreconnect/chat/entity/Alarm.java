@@ -4,9 +4,12 @@ import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -41,7 +44,10 @@ public class Alarm {
 	private Boolean alarmSentYn;
 	
 	
-	
+	// N : 1 관계 (채팅메시지 테이블과 매핑)
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "chat_message_id")
+	private Chat chat;
 	
 	
 	
