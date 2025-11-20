@@ -56,4 +56,36 @@ public class ResponseDTO<T> {
                 .data(null)
                 .build();
     }
+
+    public static <T> ResponseDTO<T> created(T data) {
+        return ResponseDTO.<T>builder()
+                .status(201)
+                .message("생성 성공")
+                .data(data)
+                .build();
+    }
+
+    public static <T> ResponseDTO<T> unsupportedMediaType(String message) {
+        return ResponseDTO.<T>builder()
+                .status(415)
+                .message(message)
+                .data(null)
+                .build();
+    }
+
+    public static <T> ResponseDTO<T> payloadTooLarge(String message) {
+        return ResponseDTO.<T>builder()
+                .status(413)
+                .message(message)
+                .data(null)
+                .build();
+    }
+
+    public static <T> ResponseDTO<T> forbidden(String message) {
+        return ResponseDTO.<T>builder()
+                .status(403)
+                .message(message)
+                .data(null)
+                .build();
+    }
 }	
