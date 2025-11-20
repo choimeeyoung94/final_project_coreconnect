@@ -99,4 +99,36 @@ public class S3Service {
         // 4. DB에 저장할 'URL'을 반환 (File 엔티티가 fileUrl을 필요로 하므로)
         return getFileUrl(key);
     }
+    
+    /**
+     * 채팅 파일 업로드
+     * @param file 업로드할 파일
+     * @param userId 업로드하는 사용자 ID
+     * @return S3 객체 키 (key)
+     */
+    public String uploadFile(MultipartFile file, Integer userId) throws IOException {
+        if (file == null || file.isEmpty()) {
+            return null;
+        }
+
+        // 1. 고유한 키 생성 (경로: chat/userId/UUID_파일명)
+        String originalFileName = file.getOriginalFilename();
+        String uniqueFileName = UUID.randomUUID().toString() + "_" + originalFileName;
+        String key = "chat/" + userId + "/" + uniqueFileName;
+
+        // 2. S3 업로드 요청 생성
+        PutObjectRequest request = PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .contentType(file.getContentType())
+                .build();
+
+        // 3. 파일 업로드
+        s3Client.putObject(request, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+        
+        log.info("[S3Service] 채팅 파일 업로드 성공 - key: {}, size: {}", key, file.getSize());
+
+        // 4. S3 객체 키 반환
+        return key;
+    }
 }

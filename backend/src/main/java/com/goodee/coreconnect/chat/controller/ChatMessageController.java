@@ -1076,6 +1076,145 @@ public class ChatMessageController {
     	return ResponseEntity.ok().build();    	
     }
     
+    // 21. 다중 파일/이미지 업로드
+    @Operation(summary = "채팅방 다중 파일/이미지 업로드", description = "채팅방에 여러 파일/이미지를 한 번에 업로드합니다 (최대 50MB)")
+    @PostMapping("/{roomId}/messages/files")
+    public ResponseEntity<ResponseDTO<List<ChatResponseDTO>>> uploadMultipleFiles(
+            @PathVariable("roomId") Integer roomId,
+            @AuthenticationPrincipal CustomUserDetails user,
+            @RequestParam("files") MultipartFile[] files) throws java.io.IOException {
+        
+        String email = user.getEmail();
+        // LazyInitializationException 방지: Department를 함께 로드하는 메서드 사용
+        User sender = userRepository.findByEmailWithDepartment(email).orElseThrow();
+        
+        // 1. 파일 배열 유효성 검사
+        if (files == null || files.length == 0) {
+            return ResponseEntity.badRequest()
+                    .body(ResponseDTO.badRequest("업로드할 파일이 없습니다"));
+        }
+        
+        // 2. 총 파일 크기 검사 (50MB = 50 * 1024 * 1024 bytes)
+        long totalSize = 0;
+        for (MultipartFile file : files) {
+            totalSize += file.getSize();
+        }
+        long maxSize = 50L * 1024 * 1024; // 50MB
+        if (totalSize > maxSize) {
+            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                    .body(ResponseDTO.badRequest("총 파일 크기가 50MB를 초과합니다 (현재: " + (totalSize / 1024 / 1024) + "MB)"));
+        }
+        
+        // 3. 각 파일이 이미지인지 검사
+        for (MultipartFile file : files) {
+            String contentType = file.getContentType();
+            if (contentType == null || !contentType.startsWith("image/")) {
+                return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                        .body(ResponseDTO.badRequest("이미지 파일만 업로드 가능합니다. 잘못된 파일: " + file.getOriginalFilename()));
+            }
+        }
+        
+        // 4. 각 파일을 S3에 업로드하고 Chat 메시지 생성
+        List<ChatResponseDTO> responseDTOs = new ArrayList<>();
+        
+        for (MultipartFile file : files) {
+            try {
+                // S3에 업로드
+                String s3Key = s3Service.uploadFile(file, sender.getId());
+                String fileUrl = s3Service.getFileUrl(s3Key);
+                
+                // MessageFile 엔티티 생성
+                MessageFile fileEntity = MessageFile.createMessageFile(
+                        file.getOriginalFilename(),
+                        (double) file.getSize(),
+                        s3Key,  // s3ObjectKey로 저장
+                        null    // chat은 sendChatMessage에서 연결됨
+                );
+                
+                // Chat 메시지 생성 및 저장
+                Chat chat = chatRoomService.sendChatMessage(roomId, sender.getId(), fileEntity);
+                if (chat == null) {
+                    log.error("[uploadMultipleFiles] 파일 메시지 저장 실패 - 파일명: {}", file.getOriginalFilename());
+                    continue;
+                }
+                
+                // MessageFile 엔티티를 명시적으로 Chat과 연결 후 저장
+                fileEntity = MessageFile.createMessageFile(
+                        file.getOriginalFilename(),
+                        (double) file.getSize(),
+                        s3Key,
+                        chat
+                );
+                messageFileRepository.save(fileEntity);
+                
+                // ChatResponseDTO 생성
+                ChatResponseDTO dto = ChatResponseDTO.fromEntity(chat);
+                
+                // unreadCount 설정
+                int realUnreadCount = chat.getUnreadCount() != null ? chat.getUnreadCount() : 0;
+                dto.setUnreadCount(realUnreadCount);
+                
+                // senderEmail 설정
+                dto.setSenderEmail(sender.getEmail());
+                
+                // fileUrl 설정
+                dto.setFileUrl(fileUrl);
+                
+                // 프로필 이미지 URL 설정
+                if (sender != null) {
+                    if (sender.getProfileImageKey() != null && !sender.getProfileImageKey().isBlank()) {
+                        String profileImageUrl = s3Service.getFileUrl(sender.getProfileImageKey());
+                        dto.setSenderProfileImageUrl(profileImageUrl);
+                    } else {
+                        dto.setSenderProfileImageUrl("");
+                    }
+                    
+                    // 직급 설정
+                    dto.setSenderJobGrade(sender.getJobGrade());
+                    
+                    // 부서명 설정
+                    if (sender.getDepartment() != null) {
+                        dto.setSenderDeptName(sender.getDepartment().getDeptName());
+                    } else {
+                        dto.setSenderDeptName("");
+                    }
+                }
+                
+                responseDTOs.add(dto);
+                
+                log.info("[uploadMultipleFiles] 파일 업로드 및 메시지 저장 성공 - 파일명: {}, chatId: {}", 
+                        file.getOriginalFilename(), chat.getId());
+                
+            } catch (IOException e) {
+                log.error("[uploadMultipleFiles] 파일 업로드 실패 - 파일명: {}, 에러: {}", 
+                        file.getOriginalFilename(), e.getMessage());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(ResponseDTO.internalError("파일 S3 업로드 실패: " + e.getMessage()));
+            }
+        }
+        
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ResponseDTO.success(responseDTOs, "파일 업로드 성공 (" + responseDTOs.size() + "개)"));
+    }
     
+    // 22. 파일 다운로드
+    @Operation(summary = "채팅 파일 다운로드", description = "채팅방에 업로드된 파일을 다운로드합니다")
+    @GetMapping("/files/{fileId}/download")
+    public ResponseEntity<org.springframework.core.io.Resource> downloadFile(
+            @PathVariable("fileId") Integer fileId) {
+        
+        // 1. MessageFile 조회
+        MessageFile messageFile = messageFileRepository.findById(fileId)
+                .orElseThrow(() -> new IllegalArgumentException("파일을 찾을 수 없습니다: " + fileId));
+        
+        // 2. S3에서 파일 URL 가져오기
+        String fileUrl = s3Service.getFileUrl(messageFile.getS3ObjectKey());
+        
+        // 3. 리다이렉트 응답 반환 (S3 URL로 리다이렉트)
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header("Location", fileUrl)
+                .header("Content-Disposition", "attachment; filename=\"" + messageFile.getFileName() + "\"")
+                .build();
+    }
     
 }
