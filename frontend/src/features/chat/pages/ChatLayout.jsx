@@ -664,6 +664,60 @@ export default function ChatLayout() {
     e.target.value = "";
   };
 
+  // ---------- 다중 파일 업로드 ----------
+  const handleMultipleFilesUpload = async (formData) => {
+    if (!selectedRoomId) {
+      alert("채팅방을 선택해주세요.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/v1/chat/${selectedRoomId}/messages/files`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: formData
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || `파일 업로드 실패 (${res.status})`);
+      }
+
+      const result = await res.json();
+      const chatMessages = result.data; // List<ChatResponseDTO>
+
+      if (Array.isArray(chatMessages)) {
+        // Add all uploaded file messages to the messages list
+        chatMessages.forEach(chatMessage => {
+          // Check for duplicates
+          setMessages((prev) => {
+            const exists = prev.some(m => {
+              const mId = m?.id;
+              const newId = chatMessage?.id;
+              if (mId == null || newId == null) return false;
+              return Number(mId) === Number(newId);
+            });
+            if (exists) {
+              console.log("📨 [ChatLayout] 중복 메시지 무시 (다중 파일 업로드):", {
+                messageId: chatMessage.id,
+                messageContent: chatMessage.messageContent
+              });
+              return prev;
+            }
+            return [...prev, chatMessage];
+          });
+        });
+
+        console.log(`✅ [ChatLayout] 다중 파일 업로드 성공: ${chatMessages.length}개 파일`);
+      }
+    } catch (err) {
+      console.error("[ChatLayout] 다중 파일 업로드 실패:", err);
+      throw err; // Re-throw to let ChatFileUploader handle the error
+    }
+  };
+
   // ---------- 메시지 보내기 ----------
   const handleSend = () => {
     const message = inputRef.current.value;
@@ -1132,6 +1186,7 @@ export default function ChatLayout() {
             inputRef={inputRef}
             onSend={handleSend}
             onFileUpload={handleFileUpload}
+            onMultipleFilesUpload={handleMultipleFilesUpload}
             socketConnected={socketConnected}
             onScrollTop={handleLoadMoreMessages}
             isLoadingMore={isLoadingMore}
