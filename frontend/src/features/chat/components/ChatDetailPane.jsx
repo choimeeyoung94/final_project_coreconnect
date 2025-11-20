@@ -7,16 +7,18 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import ChatMessageList from "./ChatMessageList";
 import ChatMessageInputBox from "./ChatMessageInputBox";
 import ChatRoomParticipantsDialog from "./ChatRoomParticipantsDialog";
+import ChatFileUploader from "./ChatFileUploader";
 
 // 오른쪽 채팅방 상세패널(상단 Room, 메시지, 입력창)
 function ChatDetailPane({
   selectedRoom, messages,
   unreadCount, firstUnreadIdx, formatTime, // eslint-disable-line no-unused-vars
-  inputRef, onSend, onFileUpload, socketConnected,
+  inputRef, onSend, onFileUpload, onMultiFileUpload, socketConnected,
   onScrollTop, isLoadingMore, hasMoreAbove
 }) {
   const messagesEndRef = useRef(null);
   const [participantsDialogOpen, setParticipantsDialogOpen] = useState(false);
+  const [showFileUploader, setShowFileUploader] = useState(false);
 
   useEffect(() => {
     if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({behavior: "smooth"});
@@ -73,10 +75,23 @@ function ChatDetailPane({
         loadingAbove={isLoadingMore}
       />
       <div ref={messagesEndRef} />
+      
+      {/* Multi-file uploader (show when button clicked) */}
+      {showFileUploader && (
+        <ChatFileUploader
+          onUpload={async (formData) => {
+            await onMultiFileUpload(formData);
+            setShowFileUploader(false);
+          }}
+          disabled={!socketConnected}
+        />
+      )}
+      
       <ChatMessageInputBox
         inputRef={inputRef}
         onSend={onSend}
         onFileUpload={onFileUpload}
+        onMultiFileUploadClick={() => setShowFileUploader(!showFileUploader)}
         socketConnected={socketConnected}
       />
       

@@ -731,6 +731,165 @@ public class ChatMessageController {
 		return ResponseEntity.status(HttpStatus.CREATED).body(ResponseDTO.success(dto, "파일/이미지 업로드 성공"));
 	}
 	
+	/**
+	 * 8-2. 다중 파일/이미지 업로드 (최대 50MB)
+	 * @throws java.io.IOException 
+	 * */
+	@Operation(summary = "채팅방 다중 파일/이미지 업로드", description = "채팅방에 여러 파일/이미지를 업로드합니다 (최대 50MB)")
+	@PostMapping("/{roomId}/messages/files")
+	public ResponseEntity<ResponseDTO<List<ChatResponseDTO>>> uploadMultipleFiles(
+			@PathVariable("roomId") Integer roomId, 
+			@AuthenticationPrincipal CustomUserDetails user, 
+			@RequestParam("files") MultipartFile[] files) throws java.io.IOException {
+		
+		String email = user.getEmail();
+		User sender = userRepository.findByEmailWithDepartment(email).orElseThrow();
+		
+		// 1. 파일 유효성 검증
+		if (files == null || files.length == 0) {
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+					.body(ResponseDTO.badRequest("업로드할 파일이 없습니다"));
+		}
+		
+		// 2. 총 파일 크기 계산 및 검증 (50MB = 52,428,800 bytes)
+		long totalSize = 0;
+		final long MAX_TOTAL_SIZE = 50 * 1024 * 1024; // 50MB in bytes
+		
+		for (MultipartFile file : files) {
+			totalSize += file.getSize();
+		}
+		
+		if (totalSize > MAX_TOTAL_SIZE) {
+			return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+					.body(ResponseDTO.badRequest("총 파일 크기가 50MB를 초과합니다. 현재: " + (totalSize / 1024 / 1024) + "MB"));
+		}
+		
+		// 3. 각 파일의 MIME 타입 검증 (이미지만 허용)
+		for (MultipartFile file : files) {
+			String contentType = file.getContentType();
+			if (contentType == null || !contentType.startsWith("image/")) {
+				return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+						.body(ResponseDTO.badRequest("이미지 파일만 업로드 가능합니다. 파일: " + file.getOriginalFilename()));
+			}
+		}
+		
+		// 4. 각 파일 업로드 및 메시지 생성
+		List<ChatResponseDTO> responses = new ArrayList<>();
+		
+		for (MultipartFile file : files) {
+			String s3Key;
+			String fileUrl;
+			
+			try {
+				// S3에 업로드
+				s3Key = s3Service.uploadChatFile(file, sender.getName());
+				fileUrl = s3Service.getFileUrl(s3Key);
+				
+			} catch (IOException e) {
+				log.error("파일 S3 업로드 실패: {}", e.getMessage());
+				continue; // 실패한 파일은 건너뛰고 계속 진행
+			}
+			
+			// MessageFile 엔티티 생성
+			MessageFile fileEntity = MessageFile.createMessageFile(
+					file.getOriginalFilename(),
+					(double) file.getSize(),
+					s3Key,
+					null // chat은 sendChatMessage에서 연결됨
+			);
+			
+			// Chat 메시지 생성
+			Chat chat = chatRoomService.sendChatMessage(roomId, sender.getId(), fileEntity);
+			if (chat == null) {
+				log.error("파일 메시지 저장 실패: {}", file.getOriginalFilename());
+				continue;
+			}
+			
+			// MessageFile 저장
+			messageFileRepository.save(fileEntity);
+			
+			// DTO 생성
+			ChatResponseDTO dto = ChatResponseDTO.fromEntity(chat);
+			
+			// unreadCount 설정
+			int realUnreadCount = chat.getUnreadCount() != null ? chat.getUnreadCount() : 0;
+			dto.setUnreadCount(realUnreadCount);
+			
+			// senderEmail 설정
+			dto.setSenderEmail(sender.getEmail());
+			
+			// fileUrl 설정
+			dto.setFileUrl(fileUrl);
+			
+			// 프로필 이미지 URL 설정
+			if (sender != null) {
+				if (sender.getProfileImageKey() != null && !sender.getProfileImageKey().isBlank()) {
+					String profileImageUrl = s3Service.getFileUrl(sender.getProfileImageKey());
+					dto.setSenderProfileImageUrl(profileImageUrl);
+				} else {
+					dto.setSenderProfileImageUrl("");
+				}
+				
+				// 직급 설정
+				dto.setSenderJobGrade(sender.getJobGrade());
+				
+				// 부서명 설정
+				if (sender.getDepartment() != null) {
+					dto.setSenderDeptName(sender.getDepartment().getDeptName());
+				} else {
+					dto.setSenderDeptName("");
+				}
+			}
+			
+			responses.add(dto);
+		}
+		
+		if (responses.isEmpty()) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(ResponseDTO.internalError("모든 파일 업로드 실패"));
+		}
+		
+		return ResponseEntity.status(HttpStatus.CREATED).body(ResponseDTO.success(responses, "다중 파일 업로드 성공"));
+	}
+	
+	/**
+	 * 8-3. 파일 다운로드
+	 * */
+	@Operation(summary = "채팅 파일 다운로드", description = "채팅방에 업로드된 파일을 다운로드합니다")
+	@GetMapping("/files/{fileId}/download")
+	public ResponseEntity<?> downloadFile(
+			@PathVariable("fileId") Integer fileId,
+			@AuthenticationPrincipal CustomUserDetails user) {
+		
+		// 파일 정보 조회
+		MessageFile messageFile = messageFileRepository.findById(fileId)
+				.orElseThrow(() -> new IllegalArgumentException("파일을 찾을 수 없습니다: " + fileId));
+		
+		// 인증 확인 (해당 채팅방의 참여자인지 확인)
+		if (messageFile.getChat() != null && messageFile.getChat().getChatRoom() != null) {
+			Integer roomId = messageFile.getChat().getChatRoom().getId();
+			String email = user.getEmail();
+			User authUser = userRepository.findByEmail(email).orElseThrow();
+			
+			// 참여자 확인
+			List<ChatRoomUser> participants = chatRoomUserRepository.findByChatRoomId(roomId);
+			boolean isParticipant = participants.stream()
+					.anyMatch(cru -> cru.getUser().getId().equals(authUser.getId()));
+			
+			if (!isParticipant) {
+				return ResponseEntity.status(HttpStatus.FORBIDDEN)
+						.body(ResponseDTO.badRequest("파일 다운로드 권한이 없습니다"));
+			}
+		}
+		
+		// S3 URL로 리다이렉트 (브라우저가 직접 S3에서 다운로드)
+		String fileUrl = messageFile.getS3ObjectKey();
+		
+		return ResponseEntity.status(HttpStatus.FOUND)
+				.header("Location", fileUrl)
+				.build();
+	}
+	
 	  // 9. 채팅방 초대/참여
     @Operation(summary = "채팅방에 사용자 초대", description = "채팅방에 사용자를 초대하고 참여 메시지를 전송합니다.")
     @PostMapping("/{roomId}/invite")

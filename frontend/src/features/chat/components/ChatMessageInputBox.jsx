@@ -2,9 +2,10 @@ import React from "react";
 import { Box, TextField, IconButton, Button } from "@mui/material";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import SendIcon from "@mui/icons-material/Send";
+import CollectionsIcon from "@mui/icons-material/Collections";
 
 // 채팅 입력창 + 파일업로드
-function ChatMessageInputBox({ inputRef, onSend, onFileUpload, socketConnected }) {
+function ChatMessageInputBox({ inputRef, onSend, onFileUpload, onMultiFileUploadClick, socketConnected }) {
   return (
     <Box sx={{
       width: "100%",
@@ -25,6 +26,16 @@ function ChatMessageInputBox({ inputRef, onSend, onFileUpload, socketConnected }
           if (e.key === "Enter") onSend();
         }}
       />
+      {/* Multi-file upload button */}
+      <IconButton 
+        color="primary" 
+        onClick={onMultiFileUploadClick}
+        sx={{ bgcolor: "#fff" }}
+        title="여러 이미지 업로드"
+      >
+        <CollectionsIcon />
+      </IconButton>
+      {/* Single file upload */}
       <label htmlFor="chat-file-upload">
         <input
           type="file"

@@ -664,6 +664,75 @@ export default function ChatLayout() {
     e.target.value = "";
   };
 
+  // ---------- 다중 파일 업로드 ----------
+  const handleMultiFileUpload = async (formData) => {
+    if (!selectedRoomId) {
+      throw new Error("채팅방이 선택되지 않았습니다.");
+    }
+
+    try {
+      const res = await fetch(`/api/v1/chat/${selectedRoomId}/messages/files`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: formData
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "파일 업로드 실패");
+      }
+
+      const result = await res.json();
+      const chatMessages = result.data; // Array of ChatResponseDTO
+
+      // Add all uploaded messages to the message list
+      setMessages((prev) => {
+        const newMessages = chatMessages.filter(newMsg => {
+          // Check for duplicates
+          const exists = prev.some(m => {
+            const mId = m?.id;
+            const newId = newMsg?.id;
+            if (mId == null || newId == null) return false;
+            return Number(mId) === Number(newId);
+          });
+          return !exists;
+        });
+
+        if (newMessages.length > 0) {
+          console.log("📨 [ChatLayout] 다중 파일 업로드 성공:", {
+            uploadedCount: newMessages.length,
+            totalCount: chatMessages.length
+          });
+        }
+
+        return [...prev, ...newMessages];
+      });
+
+      // Update room list with latest message
+      if (chatMessages.length > 0) {
+        const lastMessage = chatMessages[chatMessages.length - 1];
+        setRoomList((prevList) => {
+          const updated = prevList.map((room) => {
+            if (room && room.roomId === selectedRoomId) {
+              return {
+                ...room,
+                lastMessageContent: lastMessage.messageContent || "이미지",
+                lasMessageTime: lastMessage.sendAt,
+              };
+            }
+            return room;
+          });
+          return sortRoomList(updated);
+        });
+      }
+    } catch (err) {
+      console.error("다중 파일 업로드 실패:", err);
+      throw err; // Re-throw to let component handle it
+    }
+  };
+
   // ---------- 메시지 보내기 ----------
   const handleSend = () => {
     const message = inputRef.current.value;
@@ -1132,6 +1201,7 @@ export default function ChatLayout() {
             inputRef={inputRef}
             onSend={handleSend}
             onFileUpload={handleFileUpload}
+            onMultiFileUpload={handleMultiFileUpload}
             socketConnected={socketConnected}
             onScrollTop={handleLoadMoreMessages}
             isLoadingMore={isLoadingMore}
