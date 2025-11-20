@@ -883,7 +883,8 @@ public class ChatMessageController {
 		}
 		
 		// S3 URL로 리다이렉트 (브라우저가 직접 S3에서 다운로드)
-		String fileUrl = messageFile.getS3ObjectKey();
+		String s3Key = messageFile.getS3ObjectKey();
+		String fileUrl = s3Service.getFileUrl(s3Key);
 		
 		return ResponseEntity.status(HttpStatus.FOUND)
 				.header("Location", fileUrl)
