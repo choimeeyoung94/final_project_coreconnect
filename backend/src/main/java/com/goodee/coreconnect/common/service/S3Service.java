@@ -1,6 +1,7 @@
 package com.goodee.coreconnect.common.service;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.UUID;
 
@@ -10,8 +11,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetUrlRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
@@ -98,5 +102,54 @@ public class S3Service {
 
         // 4. DB에 저장할 'URL'을 반환 (File 엔티티가 fileUrl을 필요로 하므로)
         return getFileUrl(key);
+    }
+    
+    /**
+     * 채팅 이미지 파일 업로드
+     * @param file 업로드할 파일
+     * @param roomId 채팅방 ID
+     * @return S3 객체 키 (key)
+     */
+    public String uploadChatImage(MultipartFile file, Integer roomId) throws IOException {
+        if (file == null || file.isEmpty()) {
+            return null;
+        }
+
+        // 1. 고유한 키 생성 (경로: chat/roomId/UUID_파일명)
+        String originalFileName = file.getOriginalFilename();
+        String uniqueFileName = UUID.randomUUID().toString() + "_" + originalFileName;
+        String key = "chat/" + roomId + "/" + uniqueFileName;
+
+        // 2. S3 업로드 요청 생성
+        PutObjectRequest request = PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .contentType(file.getContentType())
+                .build();
+
+        // 3. 파일 업로드
+        s3Client.putObject(request, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+        
+        log.info("[S3Service] 채팅 이미지 업로드 성공 - key: {}, size: {}", key, file.getSize());
+
+        return key;
+    }
+    
+    /**
+     * S3 객체 스트림 가져오기 (파일 다운로드용)
+     * @param key S3 객체 키
+     * @return InputStream
+     */
+    public ResponseInputStream<GetObjectResponse> getObjectStream(String key) {
+        if (key == null || key.isBlank()) {
+            throw new IllegalArgumentException("S3 key는 null이거나 빈 문자열일 수 없습니다.");
+        }
+        
+        GetObjectRequest request = GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .build();
+        
+        return s3Client.getObject(request);
     }
 }
