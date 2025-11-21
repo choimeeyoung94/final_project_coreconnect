@@ -51,3 +51,23 @@ export async function fetchChatRoomUsers(roomId) {
   // 실제 리스트는 res.data.data에 있음
   return res.data?.data || res.data || [];
 }
+
+// 다중 파일(이미지) 업로드 API
+export async function uploadMultipleFiles(roomId, files) {
+  const formData = new FormData();
+  files.forEach(file => formData.append('files', file));
+  
+  const res = await http.post(`/chat/${roomId}/messages/files`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  // ResponseDTO 구조: { status: 201, message: "...", data: List<ChatResponseDTO> }
+  return res.data?.data || res.data || [];
+}
+
+// 파일 다운로드 API
+export async function downloadChatFile(fileId) {
+  const res = await http.get(`/chat/files/${fileId}/download`, {
+    responseType: 'blob'
+  });
+  return res.data; // Blob
+}

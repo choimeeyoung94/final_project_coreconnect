@@ -13,6 +13,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@fortawesome/fontawesome-free": "^7.1.0",
+    "@fullcalendar/core": "^6.1.19",
     "@fullcalendar/daygrid": "^6.1.19",
     "@fullcalendar/interaction": "^6.1.19",
     "@fullcalendar/list": "^6.1.19",
@@ -37,6 +38,8 @@
     "react-grid-layout": "^1.5.2",
     "react-number-format": "^5.4.4",
     "react-router-dom": "^7.9.4",
+    "react-swipeable-views": "^0.14.1",
+    "react-swipeable-views-utils": "^0.14.1",
     "sockjs-client": "^1.6.1"
   },
   "devDependencies": {
