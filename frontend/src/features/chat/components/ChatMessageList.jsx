@@ -17,6 +17,15 @@ const formatTime = (time) => {
   return date.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
 };
 
+// 메시지 목록에서 모든 이미지 URL 추출 및 현재 이미지 인덱스 찾기
+const getImageUrlsAndIndex = (messages, currentFileUrl) => {
+  const imageUrls = messages
+    .filter(m => m.fileYn && m.fileUrl && isImageFile(m.fileUrl))
+    .map(m => m.fileUrl);
+  const currentIndex = imageUrls.indexOf(currentFileUrl);
+  return { imageUrls, currentIndex: currentIndex >= 0 ? currentIndex : 0 };
+};
+
 function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbove, loadingAbove, onImageClick }) {
   // 👇 로그인 정보 받기!
   const { userProfile } = useContext(UserProfileContext) || {};
@@ -205,12 +214,8 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
                           alt="첨부 이미지"
                           onClick={() => {
                             if (onImageClick) {
-                              // 현재 메시지의 모든 이미지 파일 URL을 수집
-                              const imageUrls = messages
-                                .filter(m => m.fileYn && m.fileUrl && isImageFile(m.fileUrl))
-                                .map(m => m.fileUrl);
-                              const currentIndex = imageUrls.indexOf(msg.fileUrl);
-                              onImageClick(imageUrls, currentIndex >= 0 ? currentIndex : 0);
+                              const { imageUrls, currentIndex } = getImageUrlsAndIndex(messages, msg.fileUrl);
+                              onImageClick(imageUrls, currentIndex);
                             }
                           }}
                           sx={{
@@ -441,12 +446,8 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
                           alt="첨부 이미지"
                           onClick={() => {
                             if (onImageClick) {
-                              // 현재 메시지의 모든 이미지 파일 URL을 수집
-                              const imageUrls = messages
-                                .filter(m => m.fileYn && m.fileUrl && isImageFile(m.fileUrl))
-                                .map(m => m.fileUrl);
-                              const currentIndex = imageUrls.indexOf(msg.fileUrl);
-                              onImageClick(imageUrls, currentIndex >= 0 ? currentIndex : 0);
+                              const { imageUrls, currentIndex } = getImageUrlsAndIndex(messages, msg.fileUrl);
+                              onImageClick(imageUrls, currentIndex);
                             }
                           }}
                           sx={{

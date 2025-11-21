@@ -56,6 +56,7 @@ function ImageCarouselDialog({ open, onClose, images = [], initialIndex = 0 }) {
       maxWidth="lg"
       fullWidth
       onKeyDown={handleKeyDown}
+      aria-label="이미지 캐러셀 뷰어"
       PaperProps={{
         sx: {
           bgcolor: "rgba(0, 0, 0, 0.95)",
