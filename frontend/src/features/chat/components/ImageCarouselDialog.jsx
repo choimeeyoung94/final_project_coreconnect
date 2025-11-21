@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   IconButton,
@@ -52,15 +52,24 @@ const ImageCarouselDialog = ({
   };
 
   // 키보드 이벤트 핸들러
-  const handleKeyDown = (event) => {
-    if (event.key === 'ArrowLeft') {
-      handlePrev();
-    } else if (event.key === 'ArrowRight') {
-      handleNext();
-    } else if (event.key === 'Escape') {
-      onClose();
-    }
-  };
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'ArrowLeft') {
+        handlePrev();
+      } else if (event.key === 'ArrowRight') {
+        handleNext();
+      } else if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open, activeStep, images.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!images || images.length === 0) {
     return null;
@@ -76,7 +85,6 @@ const ImageCarouselDialog = ({
           bgcolor: 'rgba(0, 0, 0, 0.95)',
         },
       }}
-      onKeyDown={handleKeyDown}
     >
       {/* 헤더: 닫기 버튼 */}
       <Box sx={{

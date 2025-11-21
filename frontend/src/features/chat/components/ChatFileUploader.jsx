@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -29,6 +29,14 @@ const ChatFileUploader = ({ onUpload, maxTotalSize = 50 * 1024 * 1024 }) => {
 
   // 허용된 이미지 타입
   const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
+
+  // 컴포넌트 언마운트 시 ObjectURL 정리
+  useEffect(() => {
+    return () => {
+      // 컴포넌트가 언마운트될 때 모든 ObjectURL 해제
+      previews.forEach(preview => URL.revokeObjectURL(preview.url));
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 파일 선택 핸들러
   const handleFileSelect = (event) => {
@@ -73,6 +81,12 @@ const ChatFileUploader = ({ onUpload, maxTotalSize = 50 * 1024 * 1024 }) => {
 
   // 개별 파일 제거
   const handleRemoveFile = (index) => {
+    // 인덱스 범위 검증
+    if (index < 0 || index >= previews.length) {
+      console.error('Invalid index for file removal:', index);
+      return;
+    }
+
     // ObjectURL 메모리 해제
     URL.revokeObjectURL(previews[index].url);
 
