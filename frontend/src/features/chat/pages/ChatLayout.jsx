@@ -708,10 +708,9 @@ export default function ChatLayout() {
             return !exists;
           });
           
-          console.log("📨 [ChatLayout] 다중 파일 업로드 성공:", {
-            업로드된파일수: chatMessages.length,
-            추가된메시지수: newMessages.length
-          });
+          if (newMessages.length > 0) {
+            console.log("📨 [ChatLayout] 다중 파일 업로드 성공 - 추가된 메시지:", newMessages.length);
+          }
           
           return [...prev, ...newMessages];
         });

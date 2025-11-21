@@ -116,18 +116,15 @@ public class ChatFileController {
                             file.getOriginalFilename(),
                             (double) file.getSize(),
                             s3Key,
-                            null // chat은 sendChatMessage에서 연결됨
+                            null // chat은 sendChatMessage에서 재생성되어 연결됨
                     );
                     
-                    // 채팅 메시지 저장
+                    // 채팅 메시지 저장 (내부에서 MessageFile을 재생성하고 저장함)
                     Chat chat = chatRoomService.sendChatMessage(roomId, sender.getId(), fileEntity);
                     if (chat == null) {
                         log.error("[uploadMultipleFiles] 채팅 메시지 저장 실패 - file: {}", file.getOriginalFilename());
                         continue;
                     }
-                    
-                    // MessageFile 저장
-                    messageFileRepository.save(fileEntity);
                     
                     // DTO 생성
                     ChatResponseDTO dto = ChatResponseDTO.fromEntity(chat);

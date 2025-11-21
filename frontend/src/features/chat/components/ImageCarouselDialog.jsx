@@ -62,6 +62,7 @@ function ImageCarouselDialog({ open, onClose, images = [], initialIndex = 0 }) {
           boxShadow: "none",
           minHeight: "80vh",
         },
+        tabIndex: 0, // Enable keyboard events
       }}
     >
       {/* 닫기 버튼 */}

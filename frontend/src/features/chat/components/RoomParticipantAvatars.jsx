@@ -20,8 +20,9 @@ import axios from "axios";
  * RoomParticipantAvatars - 채팅방 참여자 아바타 그룹 컴포넌트
  * @param {number} roomId - 채팅방 ID
  * @param {number} maxAvatars - 표시할 최대 아바타 수 (기본값: 4)
+ * @param {string} accessToken - 인증 토큰 (선택)
  */
-function RoomParticipantAvatars({ roomId, maxAvatars = 4 }) {
+function RoomParticipantAvatars({ roomId, maxAvatars = 4, accessToken }) {
   const [participants, setParticipants] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -35,7 +36,7 @@ function RoomParticipantAvatars({ roomId, maxAvatars = 4 }) {
   const fetchParticipants = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
+      const token = accessToken || localStorage.getItem("token") || localStorage.getItem("accessToken");
       const response = await axios.get(
         `${import.meta.env.VITE_API_BASE_URL}/api/v1/chat/${roomId}/users`,
         {
