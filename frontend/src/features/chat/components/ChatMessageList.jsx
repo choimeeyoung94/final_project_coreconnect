@@ -17,7 +17,7 @@ const formatTime = (time) => {
   return date.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
 };
 
-function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbove, loadingAbove }) {
+function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbove, loadingAbove, onImageClick }) {
   // 👇 로그인 정보 받기!
   const { userProfile } = useContext(UserProfileContext) || {};
   const userEmail = userProfile?.email;
@@ -203,13 +203,29 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
                           component="img"
                           src={msg.fileUrl}
                           alt="첨부 이미지"
+                          onClick={() => {
+                            if (onImageClick) {
+                              // 현재 메시지의 모든 이미지 파일 URL을 수집
+                              const imageUrls = messages
+                                .filter(m => m.fileYn && m.fileUrl && isImageFile(m.fileUrl))
+                                .map(m => m.fileUrl);
+                              const currentIndex = imageUrls.indexOf(msg.fileUrl);
+                              onImageClick(imageUrls, currentIndex >= 0 ? currentIndex : 0);
+                            }
+                          }}
                           sx={{
                             width: "100%",
                             maxWidth: 280,
                             borderRadius: 1.5,
                             border: "1px solid #e1e4eb",
                             objectFit: "cover",
-                            mt: 1
+                            mt: 1,
+                            cursor: onImageClick ? "pointer" : "default",
+                            "&:hover": onImageClick ? {
+                              opacity: 0.9,
+                              transform: "scale(1.02)",
+                              transition: "all 0.2s",
+                            } : {},
                           }}
                         />
                       ) : (
@@ -423,13 +439,29 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
                           component="img"
                           src={msg.fileUrl}
                           alt="첨부 이미지"
+                          onClick={() => {
+                            if (onImageClick) {
+                              // 현재 메시지의 모든 이미지 파일 URL을 수집
+                              const imageUrls = messages
+                                .filter(m => m.fileYn && m.fileUrl && isImageFile(m.fileUrl))
+                                .map(m => m.fileUrl);
+                              const currentIndex = imageUrls.indexOf(msg.fileUrl);
+                              onImageClick(imageUrls, currentIndex >= 0 ? currentIndex : 0);
+                            }
+                          }}
                           sx={{
                             width: "100%",
                             maxWidth: 280,
                             borderRadius: 1.5,
                             border: "1px solid #bdbdbd",
                             objectFit: "cover",
-                            mt: 1
+                            mt: 1,
+                            cursor: onImageClick ? "pointer" : "default",
+                            "&:hover": onImageClick ? {
+                              opacity: 0.9,
+                              transform: "scale(1.02)",
+                              transition: "all 0.2s",
+                            } : {},
                           }}
                         />
                       ) : (

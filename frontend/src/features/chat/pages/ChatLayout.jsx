@@ -664,6 +664,64 @@ export default function ChatLayout() {
     e.target.value = "";
   };
 
+  // ---------- 다중 파일 업로드 ----------
+  const handleMultiFileUpload = async (formData) => {
+    if (!selectedRoomId) {
+      alert("채팅방을 선택해주세요.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/v1/chat/${selectedRoomId}/messages/files`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: formData
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        const errorMessage = errorData?.message || "파일 업로드 실패";
+        throw new Error(errorMessage);
+      }
+      
+      const result = await res.json();
+      const chatMessages = result.data; // Array of ChatResponseDTO
+      
+      if (Array.isArray(chatMessages)) {
+        // ⭐ 여러 파일의 메시지를 한 번에 추가
+        setMessages((prev) => {
+          const newMessages = chatMessages.filter(newMsg => {
+            const exists = prev.some(m => {
+              const mId = m?.id;
+              const newId = newMsg?.id;
+              if (mId == null || newId == null) return false;
+              return Number(mId) === Number(newId);
+            });
+            if (exists) {
+              console.log("📨 [ChatLayout] 중복 메시지 무시 (다중 파일 업로드):", {
+                messageId: newMsg.id,
+                messageContent: newMsg.messageContent
+              });
+            }
+            return !exists;
+          });
+          
+          console.log("📨 [ChatLayout] 다중 파일 업로드 성공:", {
+            업로드된파일수: chatMessages.length,
+            추가된메시지수: newMessages.length
+          });
+          
+          return [...prev, ...newMessages];
+        });
+      }
+    } catch (err) {
+      alert("파일 업로드에 실패했습니다: " + err.message);
+      console.error("다중 파일 업로드 오류:", err);
+    }
+  };
+
   // ---------- 메시지 보내기 ----------
   const handleSend = () => {
     const message = inputRef.current.value;
@@ -1132,6 +1190,7 @@ export default function ChatLayout() {
             inputRef={inputRef}
             onSend={handleSend}
             onFileUpload={handleFileUpload}
+            onMultiFileUpload={handleMultiFileUpload}
             socketConnected={socketConnected}
             onScrollTop={handleLoadMoreMessages}
             isLoadingMore={isLoadingMore}
