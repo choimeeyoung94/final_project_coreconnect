@@ -27,7 +27,7 @@ const defaultLayout = [
   { i: "attendance",     x: 8, y: 0, w: 4, h: 5, minW: 4, minH: 4 }, // 내용 많아서 기본 조금 여유
   { i: "birthday",       x: 0, y: 4, w: 4, h: 6, minW: 4, minH: 3 },
   { i: "quickMenu",      x: 4, y: 3, w: 4, h: 3, minW: 4, minH: 3 },
-  { i: "recentBoards",   x: 8, y: 3, w: 4, h: 5, minW: 4, minH: 4 },
+  { i: "recentBoards",   x: 8, y: 3, w: 4, h: 6, minW: 4, minH: 4 },
   { i: "calendar",       x: 4, y: 6, w: 4, h: 6, minW: 4, minH: 4 },
   { i: "notifications",  x: 8, y: 6, w: 4, h: 5, minW: 4, minH: 3 },
 ];

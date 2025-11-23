@@ -10,11 +10,14 @@ import ReplyIcon from '@mui/icons-material/Reply';
 import ForwardIcon from '@mui/icons-material/Forward';
 import DeleteIcon from '@mui/icons-material/Delete';
 import StarIcon from '@mui/icons-material/Star';
+import Star from '@mui/icons-material/Star';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { useContext } from "react";
 import { UserProfileContext } from "../../../App";
+import ConfirmDialog from "../../../components/utils/ConfirmDialog";
+import { useSnackbarContext } from "../../../components/utils/SnackbarContext";
 
 // 파일 사이즈 변환
 function formatBytes(bytes) {
@@ -36,8 +39,10 @@ function getStatusLabel(emailStatus) {
 function MailDetailPage() {
   const { emailId } = useParams();
   const navigate = useNavigate();
+  const { showSnack } = useSnackbarContext();
   const [mailDetail, setMailDetail] = useState(null);
   const [snack, setSnack] = useState({ open: false, severity: 'info', message: '' });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { refreshUnreadCount } = useOutletContext();
   const { userProfile } = useContext(UserProfileContext) || {};
   const userEmail = userProfile?.email;
@@ -48,7 +53,15 @@ function MailDetailPage() {
 
   getEmailDetail(emailId, userEmail).then(res => {
     const data = res.data.data;
-    setMailDetail(data);
+    console.log("[MailDetailPage] getEmailDetail 응답:", data);
+    console.log("[MailDetailPage] favoriteStatus:", data.favoriteStatus, "type:", typeof data.favoriteStatus);
+    
+    // favoriteStatus가 null이나 undefined일 경우 false로 처리
+    const favoriteStatus = data.favoriteStatus === true || data.favoriteStatus === 'true';
+    setMailDetail({
+      ...data,
+      favoriteStatus: favoriteStatus
+    });
 
     if (data.readYn === false || data.readYn === null || data.readYn === undefined) {
       markMailAsRead(emailId, userEmail)
@@ -64,6 +77,8 @@ function MailDetailPage() {
           console.error("markMailAsRead error in MailDetailPage:", err);
         });
     }
+  }).catch(err => {
+    console.error("[MailDetailPage] getEmailDetail error:", err);
   });
 }, [emailId, userEmail, refreshUnreadCount]);
 
@@ -77,7 +92,7 @@ function MailDetailPage() {
   // 중요 메일 토글 핸들러
   const handleToggleFavorite = async () => {
     if (!emailId || !userEmail) {
-      setSnack({ open: true, severity: 'error', message: '메일 정보를 찾을 수 없습니다.' });
+      showSnack('메일 정보를 찾을 수 없습니다.', 'error');
       return;
     }
 
@@ -91,14 +106,13 @@ function MailDetailPage() {
         favoriteStatus: newStatus
       }));
 
-      setSnack({ 
-        open: true, 
-        severity: 'success', 
-        message: newStatus ? '중요 메일로 설정되었습니다.' : '중요 메일 해제되었습니다.' 
-      });
+      showSnack(
+        newStatus ? '중요 메일로 설정되었습니다.' : '중요 메일 해제되었습니다.',
+        'success'
+      );
     } catch (err) {
       console.error('handleToggleFavorite error', err);
-      setSnack({ open: true, severity: 'error', message: '중요 메일 설정 중 오류가 발생했습니다.' });
+      showSnack('중요 메일 설정 중 오류가 발생했습니다.', 'error');
     }
   };
 
@@ -222,7 +236,12 @@ function MailDetailPage() {
       return;
     }
 
-    if (!window.confirm('이 메일을 휴지통으로 이동하시겠습니까?')) return;
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    setDeleteDialogOpen(false);
+    if (!emailId) return;
 
     try {
       await moveToTrash([emailId]); // 휴지통으로 이동
@@ -261,12 +280,21 @@ function MailDetailPage() {
           <Tooltip title="답장"><IconButton color="inherit" onClick={handleReply}><ReplyIcon /></IconButton></Tooltip>
           <Tooltip title="전달"><IconButton color="inherit" onClick={handleForward}><ForwardIcon /></IconButton></Tooltip>
           <Tooltip title="삭제"><IconButton color="inherit" onClick={handleDelete}><DeleteIcon /></IconButton></Tooltip>
-          <Tooltip title={mailDetail.favoriteStatus ? "중요 해제" : "중요 표시"}>
+          <Tooltip title={(mailDetail.favoriteStatus === true || mailDetail.favoriteStatus === 'true') ? "중요 해제" : "중요 표시"}>
             <IconButton 
-              color={mailDetail.favoriteStatus ? "warning" : "inherit"}
               onClick={handleToggleFavorite}
+              sx={{ 
+                color: (mailDetail.favoriteStatus === true || mailDetail.favoriteStatus === 'true') ? "#ffc107" : "inherit",
+                '&:hover': {
+                  bgcolor: (mailDetail.favoriteStatus === true || mailDetail.favoriteStatus === 'true') ? 'rgba(255, 193, 7, 0.1)' : 'rgba(0, 0, 0, 0.04)'
+                }
+              }}
             >
-              <StarIcon sx={{ color: mailDetail.favoriteStatus ? "#f1ac00" : "inherit" }} />
+              {(mailDetail.favoriteStatus === true || mailDetail.favoriteStatus === 'true') ? (
+                <Star sx={{ color: "#ffc107", fontSize: 28 }} />
+              ) : (
+                <StarIcon sx={{ color: "inherit", fontSize: 28 }} />
+              )}
             </IconButton>
           </Tooltip>
         </Box>
@@ -306,8 +334,8 @@ function MailDetailPage() {
               sx={{ fontWeight: 500 }}
             />
           )}
-          {mailDetail.favoriteStatus && (
-            <StarIcon sx={{ color: "#f1ac00", ml: 1 }} fontSize="small" />
+          {(mailDetail.favoriteStatus === true || mailDetail.favoriteStatus === 'true') && (
+            <Star sx={{ color: "#ffc107", ml: 1 }} fontSize="small" />
           )}
         </Box>
         {/* 송신자/수신자 블록 */}
@@ -448,6 +476,15 @@ function MailDetailPage() {
           {snack.message}
         </Alert>
       </Snackbar>
+
+      {/* 삭제 확인 다이얼로그 */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title="메일 삭제"
+        message="이 메일을 휴지통으로 이동하시겠습니까?"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteDialogOpen(false)}
+      />
     </Box>
   );
 }

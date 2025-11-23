@@ -6,7 +6,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +23,9 @@ import com.goodee.coreconnect.attendance.dto.response.WeeklyAttendanceDetailDTO;
 import com.goodee.coreconnect.attendance.entity.Attendance;
 import com.goodee.coreconnect.attendance.enums.AttendanceStatus;
 import com.goodee.coreconnect.attendance.repository.AttendanceRepository;
+import com.goodee.coreconnect.leave.entity.LeaveRequest;
+import com.goodee.coreconnect.leave.enums.LeaveStatus;
+import com.goodee.coreconnect.leave.repository.LeaveRequestRepository;
 import com.goodee.coreconnect.user.entity.User;
 import com.goodee.coreconnect.user.enums.Status;
 import com.goodee.coreconnect.user.repository.UserRepository;
@@ -34,6 +39,7 @@ public class AttendanceServiceImpl implements AttendanceService {
   
   private final AttendanceRepository attendanceRepository;
   private final UserRepository userRepository;
+  private final LeaveRequestRepository leaveRequestRepository;
   
   /** 출근 처리 */
   public void checkIn(String email) {
@@ -166,10 +172,26 @@ public class AttendanceServiceImpl implements AttendanceService {
     List<Attendance> attendanceList = attendanceRepository.findByUser_IdAndWorkDateBetween(
         user.getId(), startOfWeek, endOfWeek);
     
+    // 해당 기간 내 승인된 휴가 조회
+    List<LeaveRequest> approvedLeaves = leaveRequestRepository.findByUserAndStatusAndDateRange(
+        user, LeaveStatus.APPROVED, startOfWeek, endOfWeek);
+    
+    // 휴가 날짜 Set 생성 (시작일부터 종료일까지 모든 날짜 포함)
+    Set<LocalDate> leaveDates = new HashSet<>();
+    for (LeaveRequest leave : approvedLeaves) {
+      LocalDate leaveStart = leave.getStartDate();
+      LocalDate leaveEnd = leave.getEndDate();
+      for (LocalDate date = leaveStart; !date.isAfter(leaveEnd); date = date.plusDays(1)) {
+        leaveDates.add(date);
+      }
+    }
+    
     LocalDate today = LocalDate.now();
+    int totalWorkDays = 0;  // 총 근무일수 (주말만 제외, 평일 전체)
     int workDays = 0;
     int lateDays = 0;
     int absentDays = 0;
+    int leaveDays = 0;  // 휴가일수 (평일 중 휴가인 날짜)
     int totalMinutes = 0;
     
     // 주의 각 날짜를 순회하며 통계 계산
@@ -179,8 +201,24 @@ public class AttendanceServiceImpl implements AttendanceService {
         continue;
       }
       
+      // 미래 날짜는 제외
+      if (date.isAfter(today)) {
+        continue;
+      }
+      
+      // 총 근무일수 카운트 (평일 전체)
+      totalWorkDays++;
+      
       // 해당 날짜의 근태 기록 찾기 (effectively final 변수로 복사)
       final LocalDate currentDate = date;
+      
+      // 휴가인지 확인
+      boolean isLeave = leaveDates.contains(currentDate);
+      if (isLeave) {
+        leaveDays++;
+        continue;  // 휴가는 근태 기록 확인하지 않음
+      }
+      
       Attendance attendance = attendanceList.stream()
           .filter(att -> att.getWorkDate().equals(currentDate))
           .findFirst()
@@ -218,7 +256,7 @@ public class AttendanceServiceImpl implements AttendanceService {
       }
     }
     
-    return new AttendanceStatisticsDTO(workDays, lateDays, absentDays, totalMinutes);
+    return new AttendanceStatisticsDTO(totalWorkDays, workDays, lateDays, absentDays, leaveDays, totalMinutes);
   }
 
   /** 월간 근태 통계 조회 */
@@ -236,10 +274,26 @@ public class AttendanceServiceImpl implements AttendanceService {
     List<Attendance> attendanceList = attendanceRepository.findByUser_IdAndWorkDateBetween(
         user.getId(), startOfMonth, endOfMonth);
     
+    // 해당 기간 내 승인된 휴가 조회
+    List<LeaveRequest> approvedLeaves = leaveRequestRepository.findByUserAndStatusAndDateRange(
+        user, LeaveStatus.APPROVED, startOfMonth, endOfMonth);
+    
+    // 휴가 날짜 Set 생성 (시작일부터 종료일까지 모든 날짜 포함)
+    Set<LocalDate> leaveDates = new HashSet<>();
+    for (LeaveRequest leave : approvedLeaves) {
+      LocalDate leaveStart = leave.getStartDate();
+      LocalDate leaveEnd = leave.getEndDate();
+      for (LocalDate date = leaveStart; !date.isAfter(leaveEnd); date = date.plusDays(1)) {
+        leaveDates.add(date);
+      }
+    }
+    
     LocalDate today = LocalDate.now();
+    int totalWorkDays = 0;  // 총 근무일수 (주말만 제외, 평일 전체)
     int workDays = 0;
     int lateDays = 0;
     int absentDays = 0;
+    int leaveDays = 0;  // 휴가일수 (평일 중 휴가인 날짜)
     int totalMinutes = 0;
     
     // 월의 각 날짜를 순회하며 통계 계산
@@ -254,8 +308,19 @@ public class AttendanceServiceImpl implements AttendanceService {
         continue;
       }
       
+      // 총 근무일수 카운트 (평일 전체)
+      totalWorkDays++;
+      
       // 해당 날짜의 근태 기록 찾기 (effectively final 변수로 복사)
       final LocalDate currentDate = date;
+      
+      // 휴가인지 확인
+      boolean isLeave = leaveDates.contains(currentDate);
+      if (isLeave) {
+        leaveDays++;
+        continue;  // 휴가는 근태 기록 확인하지 않음
+      }
+      
       Attendance attendance = attendanceList.stream()
           .filter(att -> att.getWorkDate().equals(currentDate))
           .findFirst()
@@ -293,7 +358,7 @@ public class AttendanceServiceImpl implements AttendanceService {
       }
     }
     
-    return new AttendanceStatisticsDTO(workDays, lateDays, absentDays, totalMinutes);
+    return new AttendanceStatisticsDTO(totalWorkDays, workDays, lateDays, absentDays, leaveDays, totalMinutes);
   }
 
   /** 전사원 오늘 근태 현황 조회 */
@@ -356,12 +421,29 @@ public class AttendanceServiceImpl implements AttendanceService {
     List<Attendance> attendanceList = attendanceRepository.findByUser_IdAndWorkDateBetween(
         user.getId(), startOfWeek, endOfWeek);
     
+    // 해당 기간 내 승인된 휴가 조회
+    List<LeaveRequest> approvedLeaves = leaveRequestRepository.findByUserAndStatusAndDateRange(
+        user, LeaveStatus.APPROVED, startOfWeek, endOfWeek);
+    
+    // 휴가 날짜 Set 생성 (시작일부터 종료일까지 모든 날짜 포함)
+    Set<LocalDate> leaveDates = new HashSet<>();
+    for (LeaveRequest leave : approvedLeaves) {
+      LocalDate leaveStart = leave.getStartDate();
+      LocalDate leaveEnd = leave.getEndDate();
+      for (LocalDate date = leaveStart; !date.isAfter(leaveEnd); date = date.plusDays(1)) {
+        leaveDates.add(date);
+      }
+    }
+    
     LocalDate today = LocalDate.now();
     String[] dayNames = {"월", "화", "수", "목", "금", "토", "일"};
     List<DailyAttendanceDTO> dailyList = new ArrayList<>();
     
     for (LocalDate date = startOfWeek; !date.isAfter(endOfWeek); date = date.plusDays(1)) {
       final LocalDate currentDate = date;
+      
+      // 휴가 여부 확인
+      boolean isLeave = leaveDates.contains(currentDate);
       
       Attendance attendance = attendanceList.stream()
           .filter(att -> att.getWorkDate() != null && att.getWorkDate().equals(currentDate))
@@ -402,7 +484,8 @@ public class AttendanceServiceImpl implements AttendanceService {
           checkIn,
           checkOut,
           status,
-          workMinutes
+          workMinutes,
+          isLeave
       ));
     }
     
@@ -422,6 +505,20 @@ public class AttendanceServiceImpl implements AttendanceService {
     List<Attendance> attendanceList = attendanceRepository.findByUser_IdAndWorkDateBetween(
         user.getId(), startOfMonth, endOfMonth);
     
+    // 해당 기간 내 승인된 휴가 조회
+    List<LeaveRequest> approvedLeaves = leaveRequestRepository.findByUserAndStatusAndDateRange(
+        user, LeaveStatus.APPROVED, startOfMonth, endOfMonth);
+    
+    // 휴가 날짜 Set 생성 (시작일부터 종료일까지 모든 날짜 포함)
+    Set<LocalDate> leaveDates = new HashSet<>();
+    for (LeaveRequest leave : approvedLeaves) {
+      LocalDate leaveStart = leave.getStartDate();
+      LocalDate leaveEnd = leave.getEndDate();
+      for (LocalDate date = leaveStart; !date.isAfter(leaveEnd); date = date.plusDays(1)) {
+        leaveDates.add(date);
+      }
+    }
+    
     LocalDate today = LocalDate.now();
     String[] dayNames = {"월", "화", "수", "목", "금", "토", "일"};
     
@@ -433,6 +530,9 @@ public class AttendanceServiceImpl implements AttendanceService {
       if (date.isAfter(today)) {
         continue;
       }
+      
+      // 휴가 여부 확인
+      boolean isLeave = leaveDates.contains(currentDate);
       
       Attendance attendance = attendanceList.stream()
           .filter(att -> att.getWorkDate() != null && att.getWorkDate().equals(currentDate))
@@ -473,7 +573,8 @@ public class AttendanceServiceImpl implements AttendanceService {
           checkIn,
           checkOut,
           status,
-          workMinutes
+          workMinutes,
+          isLeave
       ));
     }
     

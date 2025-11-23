@@ -23,6 +23,7 @@ public class EmailResponseDTO {
     private LocalDateTime sentTime;           // 발송 시각
     private String emailStatus;               // 메일 상태 (SENT/FAILED/BOUNCE 등)
     private String senderName;                // ★ 발신자명 추가!
+    private Boolean emailReadYn;                // 읽음 여부 (받은메일함용)
     private List<String> recipientAddresses;  // To 수신자 리스트
     
     private List<String> ccAddresses;         // CC 목록
@@ -38,6 +39,8 @@ public class EmailResponseDTO {
     
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime reservedAt; // 예약시간
+    
+    private Boolean favoriteStatus; // 중요 메일 표시 여부
     
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor
     public static class AttachmentDTO {

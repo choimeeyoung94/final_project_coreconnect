@@ -12,6 +12,7 @@ public record DailyAttendanceDTO(
     LocalDateTime checkIn,       
     LocalDateTime checkOut,      
     AttendanceStatus status,     
-    int workMinutes              
+    int workMinutes,             
+    boolean isLeave              // 휴가 여부
 ) {}
 

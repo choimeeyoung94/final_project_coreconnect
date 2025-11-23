@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Card from "../../../components/ui/Card";
 import {
   Typography,
-  List,
-  ListItem,
-  ListItemText,
   Box,
+  Divider,
+  Avatar,
+  Stack,
+  Button,
 } from "@mui/material";
 import { fetchInbox } from "../../email/api/emailApi";
 import { UserProfileContext } from "../../../App";
+import AttachFileIcon from "@mui/icons-material/AttachFile";
 
 export default function MailListCard() {
   const navigate = useNavigate();
@@ -61,6 +63,16 @@ export default function MailListCard() {
   return (
     <Card
       title="메일 리스트"
+      right={
+        <Button
+          component={Link}
+          to="/email/inbox"
+          size="small"
+          sx={{ textTransform: "none" }}
+        >
+          전체보기
+        </Button>
+      }
       sx={{ minWidth: 400 }}
     >
       {mailLoading ? (
@@ -72,63 +84,84 @@ export default function MailListCard() {
           받은 메일이 없습니다.
         </Typography>
       ) : (
-        <List dense>
-          {recentMails.map((mail) => (
-            <ListItem
-              key={mail.emailId}
-              data-grid-cancel="true"
-              sx={{
-                px: 0,
-                py: 1,
-                flexDirection: "column",
-                alignItems: "flex-start",
-                borderBottom: "1px solid",
-                borderColor: "divider",
-                cursor: "pointer",
-                "&:hover": {
-                  bgcolor: "action.hover",
-                },
-                "&:last-child": { borderBottom: "none" }
-              }}
-              onClick={() => navigate(`/email/${mail.emailId}`)}
-            >
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", mb: 0.5 }}>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
+        <Box>
+          {recentMails.map((mail, index) => {
+            const hasAttachment = mail.files && mail.files.length > 0;
+            
+            return (
+              <Box key={mail.emailId}>
+                <Box
+                  data-grid-cancel="true"
+                  onClick={() => navigate(`/email/${mail.emailId}`)}
                   sx={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    flex: 1,
-                    mr: 1
+                    px: 2,
+                    py: 1.5,
+                    cursor: "pointer",
+                    transition: "background-color 0.2s",
+                    "&:hover": {
+                      bgcolor: "action.hover",
+                    },
                   }}
                 >
-                  {mail.senderName || mail.senderEmail || "알 수 없음"}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {formatMailTime(mail.sentTime)}
-                </Typography>
+                  <Stack spacing={1}>
+                    {/* 제목 */}
+                    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 600,
+                          overflow: "hidden",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          flex: 1,
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        {mail.emailTitle || "(제목 없음)"}
+                      </Typography>
+                      {hasAttachment && (
+                        <AttachFileIcon 
+                          sx={{ 
+                            fontSize: 16, 
+                            color: "text.secondary",
+                            flexShrink: 0,
+                            mt: 0.25
+                          }} 
+                        />
+                      )}
+                    </Box>
+
+                    {/* 발신자 정보 */}
+                    <Stack 
+                      direction="row" 
+                      alignItems="center" 
+                      spacing={1.5}
+                      sx={{ flexWrap: "wrap" }}
+                    >
+                      <Stack direction="row" alignItems="center" spacing={0.5}>
+                        <Avatar
+                          src={mail.senderProfileImageUrl || undefined}
+                          sx={{ width: 20, height: 20 }}
+                        >
+                          {(mail.senderName || mail.senderEmail || "?")[0]}
+                        </Avatar>
+                        <Typography variant="caption" color="text.secondary">
+                          {mail.senderName || mail.senderEmail || "알 수 없음"}
+                        </Typography>
+                      </Stack>
+                      
+                      <Typography variant="caption" color="text.secondary">
+                        {formatMailTime(mail.sentTime)}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                </Box>
+                {index < recentMails.length - 1 && <Divider />}
               </Box>
-              <ListItemText
-                primary={
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      wordBreak: "break-word"
-                    }}
-                  >
-                    {mail.emailTitle || "(제목 없음)"}
-                  </Typography>
-                }
-                sx={{ mt: 0 }}
-              />
-            </ListItem>
-          ))}
-        </List>
+            );
+          })}
+        </Box>
       )}
     </Card>
   );

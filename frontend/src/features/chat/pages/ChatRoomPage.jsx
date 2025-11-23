@@ -12,7 +12,23 @@ function GetUserName() {
   }
 }
 
-const WEBSOCKET_BASE = "ws://localhost:8080/ws/chat";
+// 환경 변수에서 WebSocket base URL 가져오기
+// 개발 환경: ws://localhost:8080/ws/chat
+// 배포 환경: ws://${window.location.host}/ws/chat 또는 환경 변수 값
+const getWebSocketBase = () => {
+  if (import.meta.env.VITE_WS_BASE_URL) {
+    return import.meta.env.VITE_WS_BASE_URL;
+  }
+  // 개발 환경 감지 (localhost 또는 127.0.0.1)
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return "ws://localhost:8080/ws/chat";
+  }
+  // 배포 환경: 현재 호스트의 WebSocket 사용
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}/ws/chat`;
+};
+
+const WEBSOCKET_BASE = getWebSocketBase();
 
 export default function ChatRoomPage() {
   const { roomId } = useParams();

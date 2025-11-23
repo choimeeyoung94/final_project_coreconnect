@@ -3,9 +3,7 @@ import {
   Box, Button, List, ListItem, ListItemButton, ListItemText, Typography,
   IconButton, Chip, Badge
 } from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useNavigate } from "react-router-dom";
 import { MailCountContext } from "../../../App";
 import { emptyTrash } from "../api/emailApi";
@@ -89,9 +87,6 @@ const MailSideBar = () => {
         >
           메일
         </Typography>
-        <IconButton size="small" sx={{ color: "grey.700" }}>
-          <MoreVertIcon fontSize="small" />
-        </IconButton>
       </Box>
       <Box sx={{ mb: 1 }}>
         <MailWriteButton />
@@ -103,7 +98,6 @@ const MailSideBar = () => {
             <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: 13, color: "#999", flex: 1 }}>
               즐겨찾기
             </Typography>
-            <IconButton size="small"><EditIcon fontSize="small" /></IconButton>
           </Box>
           <List dense sx={{ p: 0 }}>
             <ListItem disableGutters sx={{ py: 0.5, px: 0 }}>
@@ -251,20 +245,22 @@ const MailSideBar = () => {
                 <ListItemText primary={
                   <Box sx={{ display: "flex", alignItems: "center" }}>
                     <Typography variant="body2">임시보관함</Typography>
-                    {/* ★ draftCount 실시간 노출! */}
-                    <Chip
-                      size="small"
-                      label={draftCount}
-                      sx={{
-                        ml: 1,
-                        bgcolor: "#d32f2f",
-                        fontSize: 12,
-                        color: "#fff",
-                        height: 18,
-                        fontWeight: 600,
-                        "& .MuiChip-label": { px: 0.8, py: 0.1 },
-                      }}
-                    />
+                    {/* ★ draftCount 실시간 노출! (0이면 뱃지 숨김) */}
+                    {draftCount != null && draftCount > 0 && (
+                      <Chip
+                        size="small"
+                        label={draftCount}
+                        sx={{
+                          ml: 1,
+                          bgcolor: "#d32f2f",
+                          fontSize: 12,
+                          color: "#fff",
+                          height: 18,
+                          fontWeight: 600,
+                          "& .MuiChip-label": { px: 0.8, py: 0.1 },
+                        }}
+                      />
+                    )}
                   </Box>
                 } />
               </ListItemButton>

@@ -5,12 +5,14 @@ import {
 } from "@mui/material";
 // import VisibilityIcon from "@mui/icons-material/Visibility"; // 눈모양 제거
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
+import RestoreIcon from "@mui/icons-material/Restore";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useNavigate } from "react-router-dom";
 import {
   fetchTrashMails,   // 휴지통 메일 목록 조회
   deleteMails,       // "선택 삭제" - 휴지통에서 영구삭제({mailIds:[...]}로 호출)
-  emptyTrash         // "휴지통 비우기" - 휴지통 전체 영구삭제
+  emptyTrash,        // "휴지통 비우기" - 휴지통 전체 영구삭제
+  restoreFromTrash   // "복원" - 휴지통에서 메일 복원
 } from "../api/emailApi";
 import SyncIcon from "@mui/icons-material/Sync";
 import { useContext } from "react";
@@ -125,7 +127,7 @@ const MailTrashPage = () => {
       setPage(1);
       await load(1);
       setSelected(new Set());
-    } catch (err) {
+    } catch {
       showSnack("휴지통 비우기/삭제 중 오류 발생!", 'error');
       setLoading(false);
     } finally {
@@ -142,6 +144,28 @@ const MailTrashPage = () => {
     }
     setConfirmAction('delete');
     setConfirmDialogOpen(true);
+  };
+
+  // 선택된 메일 복원
+  const handleRestoreSelected = async () => {
+    if (selected.size === 0) {
+      showSnack("복원할 메일을 선택해 주세요.", 'warning');
+      return;
+    }
+    
+    const ids = Array.from(selected);
+    setLoading(true);
+    try {
+      await restoreFromTrash(ids);
+      showSnack(`${ids.length}개의 메일이 복원되었습니다.`, 'success');
+      setSelected(new Set());
+      await load(page);
+    } catch (err) {
+      console.error('handleRestoreSelected error', err);
+      showSnack("메일 복원 중 오류가 발생했습니다.", 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // 날짜 포맷 함수
@@ -161,23 +185,6 @@ const MailTrashPage = () => {
     }
   };
 
-  // 메일상태 칩/색 구분
-  const formatMailStatusLabel = (status) => {
-    switch (status) {
-      case "SENT": return "전송완료";
-      case "TRASH": return "휴지통";
-      case "DELETED": return "삭제됨";
-      default: return status || "-";
-    }
-  };
-  const formatMailStatusColor = (status) => {
-    switch (status) {
-      case "SENT": return "success";
-      case "TRASH": return "warning";
-      case "DELETED": return "error";
-      default: return "default";
-    }
-  };
 
   return (
     <Box sx={{ p: 4, minHeight: "100vh", bgcolor: "#fafbfd", position: 'relative' }}>
@@ -189,6 +196,17 @@ const MailTrashPage = () => {
           </Typography>
           <Chip label={`총 ${total}개`} sx={{ ml: 2, bgcolor: "#eceff1", fontWeight: 700 }} />
           <Box sx={{ flex: 1 }} />
+          <Button
+            variant="outlined"
+            color="success"
+            size="small"
+            sx={{ mr: 1 }}
+            startIcon={<RestoreIcon />}
+            disabled={selected.size === 0 || loading}
+            onClick={handleRestoreSelected}
+          >
+            복원
+          </Button>
           <Button
             variant="outlined"
             color="primary"

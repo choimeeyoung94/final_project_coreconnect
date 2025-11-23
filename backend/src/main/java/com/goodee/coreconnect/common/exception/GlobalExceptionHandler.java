@@ -6,10 +6,14 @@ import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import com.goodee.coreconnect.common.dto.response.ResponseDTO;
 
@@ -130,12 +134,72 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 8. 그 외 모든 예상치 못한 예외 처리 (HTTP 500 Internal Server Error)
+     * 8. NoResourceFoundException 처리 (정적 리소스 없음, 예: favicon.ico)
+     * 브라우저가 자동으로 요청하는 리소스가 없을 때 발생하는 오류를 조용히 처리
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Void> handleNoResourceFound(NoResourceFoundException ex, HttpServletRequest request) {
+        String requestURI = request != null ? request.getRequestURI() : "unknown";
+        // favicon.ico 같은 정적 리소스 요청은 조용히 무시 (DEBUG 레벨로만 로깅)
+        if (requestURI.contains("favicon.ico") || requestURI.contains(".ico")) {
+            log.debug("Favicon 요청 무시: {}", requestURI);
+        } else {
+            log.warn("Resource Not Found: {}", requestURI);
+        }
+        return ResponseEntity.notFound().build(); // 404 응답
+    }
+    
+    /**
+     * 9. HttpRequestMethodNotSupportedException 처리 (HTTP 405 Method Not Allowed)
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<String> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+        String requestURI = request != null ? request.getRequestURI() : "unknown";
+        String method = request != null ? request.getMethod() : "unknown";
+        String supportedMethods = ex.getSupportedMethods() != null ? 
+            java.util.Arrays.toString(ex.getSupportedMethods()) : "none";
+        
+        log.error("========== HttpRequestMethodNotSupportedException 발생 ==========");
+        log.error("요청 URI: {}", requestURI);
+        log.error("요청 Method: {}", method);
+        log.error("지원되는 Methods: {}", supportedMethods);
+        log.error("예외 메시지: {}", ex.getMessage());
+        log.error("================================================================");
+        
+        return ResponseEntity
+                .status(HttpStatus.METHOD_NOT_ALLOWED) // 405
+                .body("요청 메서드가 지원되지 않습니다. URI: " + requestURI + ", Method: " + method + ", Supported: " + supportedMethods);
+    }
+    
+    /**
+     * 10. 그 외 모든 예상치 못한 예외 처리 (HTTP 500 Internal Server Error)
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<String> handleException(Exception ex) {
+    public ResponseEntity<String> handleException(Exception ex, HttpServletRequest request) {
+        // HttpRequestMethodNotSupportedException은 handleMethodNotSupported에서 처리해야 함
+        if (ex instanceof HttpRequestMethodNotSupportedException) {
+            return handleMethodNotSupported((HttpRequestMethodNotSupportedException) ex, request);
+        }
+        
+        // NoResourceFoundException은 handleNoResourceFound에서 처리해야 함
+        // 하지만 반환 타입이 다르므로 직접 처리
+        if (ex instanceof NoResourceFoundException) {
+            NoResourceFoundException noResourceEx = (NoResourceFoundException) ex;
+            String requestURI = request != null ? request.getRequestURI() : "unknown";
+            if (requestURI.contains("favicon.ico") || requestURI.contains(".ico")) {
+                log.debug("Favicon 요청 무시: {}", requestURI);
+            } else {
+                log.warn("Resource Not Found: {}", requestURI);
+            }
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Resource not found: " + requestURI);
+        }
+        
+        String requestURI = request != null ? request.getRequestURI() : "unknown";
+        String method = request != null ? request.getMethod() : "unknown";
+        String exceptionType = ex.getClass().getSimpleName();
         // ⭐️ 예상치 못한 오류는 심각하므로 Error 레벨로 로그를 남깁니다.
-        log.error("Internal Server Error: {}", ex.getMessage(), ex); 
+        log.error("Internal Server Error - URI: {}, Method: {}, ExceptionType: {}, Error: {}", 
+                requestURI, method, exceptionType, ex.getMessage(), ex); 
         
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR) // 500

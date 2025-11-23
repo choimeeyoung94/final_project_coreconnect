@@ -90,10 +90,10 @@ const router = createBrowserRouter([
           { path: "write", element: <MailWritePage /> },
           { path: "trash", element: <MailTrashPage /> },
           { path: "sent", element: <MailSentBoxPage/>},
-          { path: ":emailId", element: <MailDetailPage /> },
-          { path: "draftbox", element: <DraftBoxPage /> }, // ★ 임시보관함 추가
+          { path: "draftbox", element: <DraftBoxPage /> }, // ★ 임시보관함 추가 (동적 경로보다 먼저)
           { path: "reserved", element: <MailReservedPage /> },   // <-- add here
           { path: "favorite", element: <MailFavoritePage /> },   // 중요 메일
+          { path: ":emailId", element: <MailDetailPage /> }, // 동적 경로는 마지막에
         ]
       },
       {

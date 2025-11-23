@@ -64,6 +64,17 @@ public interface EmailRepository extends JpaRepository<Email, Integer> {
     		("status") EmailStatusEnum status);
  // 정렬기준 추가 (emailSentTime 내림차순)
     Page<Email> findBySenderEmailAndEmailStatusOrderByEmailSentTimeDesc(String senderEmail, EmailStatusEnum emailStatus, Pageable pageable);
+    
+    // 임시보관함 조회용 (DRAFT 상태, emailId 내림차순 정렬 - 최신 저장순)
+    @Query("SELECT e FROM Email e " +
+           "WHERE e.senderEmail = :senderEmail " +
+           "AND e.emailStatus = :emailStatus " +
+           "ORDER BY e.emailId DESC")
+    Page<Email> findDraftboxBySenderEmailAndEmailStatus(
+        @Param("senderEmail") String senderEmail,
+        @Param("emailStatus") EmailStatusEnum emailStatus,
+        Pageable pageable
+    );
 
     /*
      * 기존 JPQL 방식(수신자 주소 기준)도 유지되어 있으면 괜찮지만,

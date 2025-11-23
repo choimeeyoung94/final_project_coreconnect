@@ -65,11 +65,11 @@ public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, 
     @Query("SELECT CASE WHEN (COUNT(r) > 0) THEN true ELSE false END FROM EmailRecipient r WHERE r.email.emailId = :emailId AND r.emailRecipientAddress = :address")
     boolean existsByEmailIdAndEmailRecipientAddress(@Param("emailId") Integer emailId, @Param("address") String address);
 
-    // 받은메일함(전체)에서 'TRASH', 'DELETED' 상태 제외 및 삭제된 메일 제외
+    // 받은메일함(전체)에서 'TRASH', 'DELETED', 'DRAFT', 'RESERVED' 상태 제외 및 삭제된 메일 제외
     @Query("SELECT r FROM EmailRecipient r " +
            "WHERE r.emailRecipientAddress = :emailRecipientAddress " +
            "AND r.emailRecipientType IN :emailRecipientType " +
-           "AND r.email.emailStatus NOT IN ('TRASH', 'DELETED') " +
+           "AND r.email.emailStatus NOT IN ('TRASH', 'DELETED', 'DRAFT', 'RESERVED') " +
            "AND (r.deleted IS NULL OR r.deleted = false) " +
            "AND (" +
            "    :keyword IS NULL OR :keyword = '' OR (" +
@@ -81,7 +81,7 @@ public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, 
            "        ))" +
            "    )" +
            ") " +
-           "ORDER BY r.email.emailSentTime DESC")
+           "ORDER BY r.email.emailSentTime DESC, r.email.reservedAt DESC")
     Page<EmailRecipient> findInboxExcludingTrash(
         @Param("emailRecipientAddress") String emailRecipientAddress,
         @Param("emailRecipientType") List<String> emailRecipientType,
@@ -94,6 +94,7 @@ public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, 
     @Query("SELECT r FROM EmailRecipient r " +
            "WHERE r.emailRecipientAddress = :emailRecipientAddress " +
            "AND r.emailRecipientType IN :emailRecipientType " +
+           "AND r.email.emailSentTime IS NOT NULL " +
            "AND r.email.emailSentTime BETWEEN :start AND :end " +
            "AND r.email.emailStatus NOT IN ('TRASH', 'DELETED') " +
            "AND (r.deleted IS NULL OR r.deleted = false) " +
@@ -123,7 +124,7 @@ public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, 
            "WHERE r.emailRecipientAddress = :emailRecipientAddress " +
            "AND r.emailRecipientType IN :emailRecipientType " +
            "AND (r.emailReadYn = false OR r.emailReadYn IS NULL) " +
-           "AND r.email.emailStatus NOT IN ('TRASH', 'DELETED') " +
+           "AND r.email.emailStatus NOT IN ('TRASH', 'DELETED', 'DRAFT', 'RESERVED') " +
            "AND (r.deleted IS NULL OR r.deleted = false) " +
            "AND (" +
            "    :keyword IS NULL OR :keyword = '' OR (" +
@@ -135,7 +136,7 @@ public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, 
            "        ))" +
            "    )" +
            ") " +
-           "ORDER BY r.email.emailSentTime DESC")
+           "ORDER BY r.email.emailSentTime DESC, r.email.reservedAt DESC")
     Page<EmailRecipient> findUnreadInboxExcludingTrash(
         @Param("emailRecipientAddress") String emailRecipientAddress,
         @Param("emailRecipientType") List<String> emailRecipientType,
@@ -144,13 +145,15 @@ public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, 
         @Param("keyword") String keyword
     );
 
-    // 중요 메일 조회 (수신한 메일 중 중요 표시된 것만)
+    // 중요 메일 조회 (수신한 메일 중 중요 표시된 것만), SENT 상태만 조회
     @Query("SELECT r FROM EmailRecipient r " +
            "WHERE r.emailRecipientAddress = :emailRecipientAddress " +
            "AND r.emailRecipientType IN :emailRecipientType " +
            "AND r.email.favoriteStatus = true " +
+           "AND r.email.emailStatus = 'SENT' " +
            "AND r.email.emailStatus NOT IN ('TRASH', 'DELETED') " +
            "AND (r.deleted IS NULL OR r.deleted = false) " +
+           "AND r.email.emailSentTime IS NOT NULL " +
            "AND (" +
            "    :keyword IS NULL OR :keyword = '' OR (" +
            "        (:searchType = 'TITLE' AND LOWER(r.email.emailTitle) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR " +

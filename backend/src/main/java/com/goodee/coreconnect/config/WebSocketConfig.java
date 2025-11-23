@@ -7,6 +7,7 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.web.socket.config.annotation.*;
+import org.springframework.beans.factory.annotation.Value;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,12 +19,23 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
     
+    @Value("${app.websocket.allowed-origins:http://localhost:5173}")
+    private String allowedOrigins;
+    
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         log.info("🔥 [WebSocketConfig] STOMP 엔드포인트 등록 시작");
+        
+        // 환경 변수에서 허용된 Origin 목록 가져오기 (쉼표로 구분)
+        String[] origins = allowedOrigins.split(",");
+        for (int i = 0; i < origins.length; i++) {
+            origins[i] = origins[i].trim();
+        }
+        log.info("🔥 [WebSocketConfig] 허용된 Origins: {}", java.util.Arrays.toString(origins));
+        
         // 엔드포인트 경로, allow origins 등 설정
         registry.addEndpoint("/ws/chat")
-                .setAllowedOrigins("http://localhost:5173", "http://13.125.225.211:5173", "http://13.125.225.211") // 또는 필요한 경우 allowedOrigins 파라미터 넣기
+                .setAllowedOrigins(origins)
                 .addInterceptors(webSocketAuthInterceptor) // WebSocket 인증 인터셉터 추가
                 .withSockJS(); // 필요하다면 SockJS 지원도 추가
         log.info("🔥 [WebSocketConfig] /ws/chat 엔드포인트 등록 완료");

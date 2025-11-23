@@ -158,13 +158,17 @@ public class EmailController {
     public ResponseEntity<ResponseDTO<Page<EmailResponseDTO>>> getInbox(
     		@RequestParam("userEmail") String userEmail, /* 이름 명확히 */
     	    @RequestParam(value = "page", defaultValue = "0") int page,
-    	    @RequestParam(value = "size", defaultValue = "1") int size,
+    	    @RequestParam(value = "size", defaultValue = "10") int size,
     	    @RequestParam(value = "filter", required = false) String filter,
     	    @RequestParam(value = "searchType", required = false) String searchType,
     	    @RequestParam(value = "keyword", required = false) String keyword
     ) {
+    	log.info("[EmailController] getInbox 호출 - userEmail: {}, page: {}, size: {}, filter: {}, searchType: {}, keyword: {}", 
+    			userEmail, page, size, filter, searchType, keyword);
     	// filter: null or "today"/"unread"
         Page<EmailResponseDTO> result = emailService.getInbox(userEmail, page, size, filter, searchType, keyword);
+        log.info("[EmailController] getInbox 결과 - totalElements: {}, content size: {}", 
+        		result.getTotalElements(), result.getContent().size());
         // 안읽은 메일 개수는 별도 API로 조회하므로 여기서는 제거
         return ResponseEntity.ok(ResponseDTO.success(result, "받은메일함 조회 성공"));
     }
@@ -265,27 +269,123 @@ public class EmailController {
     
     
     // 임시메일(저장) 등록
+    /**
+     * 임시저장 메일 생성 또는 업데이트
+     * - emailId가 없으면: 새로 생성 (POST)
+     * - emailId가 있으면: 기존 메일 업데이트 (PUT 동작)
+     * 
+     * REST 원칙상 PUT을 별도로 분리할 수도 있지만, 
+     * 클라이언트 편의를 위해 POST 하나로 처리 (emailId 존재 여부로 자동 분기)
+     */
+    @Operation(summary = "임시저장 메일 생성/업데이트", description = "임시저장 메일을 생성하거나 업데이트합니다.")
     @PostMapping(value = "/draft", consumes = "multipart/form-data")
     public ResponseEntity<ResponseDTO<EmailResponseDTO>> saveDraft(
         @RequestPart("data") EmailSendRequestDTO requestDTO,
         @RequestPart(value = "attachments", required = false) List<MultipartFile> attachments,
-        @AuthenticationPrincipal CustomUserDetails user
+        @AuthenticationPrincipal CustomUserDetails user,
+        HttpServletRequest request
     ) {
+        // ★ 중요: 인증 정보가 없으면 401 반환
+        if (user == null) {
+            log.error("[EmailController] saveDraft - 인증 정보가 없습니다. user가 null입니다.");
+            return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED)
+                    .body(ResponseDTO.error("인증이 필요합니다."));
+        }
+        
         String email = user.getEmail();
         Optional<User> userOptional = userRepository.findByEmail(email);
         Integer senderId = userOptional.map(User::getId)
             .orElseThrow(() -> new RuntimeException("사용자 정보를 찾을 수 없습니다."));
-        requestDTO.setSenderAddress(email);     // ★ 반드시 senderEmail 세팅
+        requestDTO.setSenderAddress(email);     // ★ 반드시 senderEmail 세팅 (보안: 소유자 확인용)
         requestDTO.setSenderId(senderId);       // ★ 반드시 senderId 세팅
+
+        // ★ 중요: DTO serialization log (for debugging)
+        log.info("[EmailController] ========== saveDraft 호출 ==========");
+        log.info("[EmailController] senderEmail: {}", email);
+        try {
+            ObjectMapper om = new ObjectMapper();
+            log.info("[EmailController] bound EmailSendRequestDTO = {}", om.writeValueAsString(requestDTO));
+        } catch (Exception ex) {
+            log.warn("[EmailController] failed to serialize requestDTO: {}", ex.getMessage());
+        }
+
+        // ★ 중요: raw multipart 'data' part를 먼저 확인하여 emailId가 제대로 전달되었는지 확인
+        try {
+            Part p = request.getPart("data");
+            if (p != null) {
+                String raw = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                log.info("[EmailController] raw 'data' part content: {}", raw);
+                // JSON 파싱하여 emailId 확인
+                try {
+                    ObjectMapper om = new ObjectMapper();
+                    com.fasterxml.jackson.databind.JsonNode jsonNode = om.readTree(raw);
+                    Integer rawEmailId = jsonNode.has("emailId") && !jsonNode.get("emailId").isNull() 
+                            ? jsonNode.get("emailId").asInt() : null;
+                    log.info("[EmailController] raw JSON에서 추출한 emailId: {}", rawEmailId);
+                } catch (Exception ex) {
+                    log.warn("[EmailController] raw JSON 파싱 실패: {}", ex.getMessage());
+                }
+            } else {
+                log.warn("[EmailController] request.getPart('data') == null -> listing parts");
+                Collection<Part> parts = request.getParts();
+                for (Part part : parts) {
+                    log.warn("[EmailController] part name='{}', size={}", part.getName(), part.getSize());
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("[EmailController] error reading raw 'data' part: {}", ex.getMessage());
+        }
+
+        // ★ 중요: emailId가 제대로 전달되었는지 확인
+        Integer receivedEmailId = requestDTO.getEmailId();
+        log.info("[EmailController] 받은 emailId (원본): {}, senderEmail: {}", receivedEmailId, email);
+        
+        // ★ 중요: emailId가 0이거나 유효하지 않으면 null로 처리
+        if (receivedEmailId != null && receivedEmailId <= 0) {
+            log.warn("[EmailController] ⚠️ 유효하지 않은 emailId: {}, null로 처리", receivedEmailId);
+            receivedEmailId = null;
+            requestDTO.setEmailId(null); // DTO도 업데이트
+        }
+        
+        log.info("[EmailController] 처리된 emailId: {}, isUpdate: {}", receivedEmailId, receivedEmailId != null);
+        log.info("[EmailController] emailTitle: {}, existingAttachmentIds: {}", 
+                requestDTO.getEmailTitle(), requestDTO.getExistingAttachmentIds());
+        
+        // ★ 중요: raw multipart 'data' part를 확인하여 emailId가 제대로 전달되었는지 확인
+        try {
+            Part p = request.getPart("data");
+            if (p != null) {
+                String raw = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                log.info("[EmailController] raw 'data' part content: {}", raw);
+            } else {
+                log.warn("[EmailController] request.getPart('data') == null -> listing parts");
+                Collection<Part> parts = request.getParts();
+                for (Part part : parts) {
+                    log.warn("[EmailController] part name='{}', size={}", part.getName(), part.getSize());
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("[EmailController] error reading raw 'data' part: {}", ex.getMessage());
+        }
+        
+        log.info("[EmailController] ====================================");
 
         EmailResponseDTO result = null;
 		try {
 			result = emailService.saveDraft(requestDTO, attachments);
+			String message = requestDTO.getEmailId() != null 
+					? "임시저장 메일이 업데이트되었습니다." 
+					: "임시저장 메일이 생성되었습니다.";
+			return ResponseEntity.ok(ResponseDTO.success(result, message));
+		} catch (IllegalArgumentException e) {
+			log.error("[EmailController] saveDraft 실패 - {}", e.getMessage());
+			return ResponseEntity.badRequest()
+					.body(ResponseDTO.error(e.getMessage()));
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error("[EmailController] saveDraft IOException", e);
+			return ResponseEntity.status(500)
+					.body(ResponseDTO.error("임시저장 중 오류가 발생했습니다: " + e.getMessage()));
 		}
-        return ResponseEntity.ok(ResponseDTO.success(result, "임시메일 저장 성공"));
     }
     
     
@@ -296,7 +396,10 @@ public class EmailController {
         @RequestParam(value="page", defaultValue="0") int page,
         @RequestParam(value="size", defaultValue="10") int size
     ) {
+        log.info("[EmailController] getDraftbox 호출 - userEmail: {}, page: {}, size: {}", userEmail, page, size);
         Page<EmailResponseDTO> result = emailService.getDraftbox(userEmail, page, size);
+        log.info("[EmailController] getDraftbox 결과 - totalElements: {}, content size: {}", 
+                result.getTotalElements(), result.getContent().size());
         return ResponseEntity.ok(ResponseDTO.success(result, "임시보관함 조회 성공"));
     }
 
@@ -337,8 +440,8 @@ public class EmailController {
     /**
      * 선택된 메일들을 휴지통으로 이동(상태를 TRASH로 바꿈)
      * 요청자는 본인이 발신자이거나 수신자일 경우만 적용
+     * CORS는 SecurityConfig에서 전역으로 관리됨
      */
-    @CrossOrigin(origins="http://localhost:5173", allowCredentials="true")
     @PostMapping("/move-to-trash")
     public ResponseEntity<?> moveToTrash(@RequestBody List<Integer> emailIds, @AuthenticationPrincipal CustomUserDetails user) {
         // CustomUserDetails에서 이메일 가져오기 (getEmail() 또는 getUsername() 사용)
@@ -362,6 +465,37 @@ public class EmailController {
         } catch (Exception e) {
             log.error("moveToTrash API 오류 - emailIds={}, userEmail={}", emailIds, userEmail, e);
             return ResponseEntity.status(500).body("Failed to move emails to trash: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 휴지통에서 선택된 메일들을 복원
+     * CORS는 SecurityConfig에서 전역으로 관리됨
+     */
+    @Operation(summary = "휴지통에서 메일 복원", description = "선택된 메일들을 휴지통에서 복원합니다.")
+    @PostMapping("/restore-from-trash")
+    public ResponseEntity<?> restoreFromTrash(@RequestBody List<Integer> emailIds, @AuthenticationPrincipal CustomUserDetails user) {
+        String userEmail = user != null ? user.getEmail() : null;
+        log.info("========== restoreFromTrash API 호출 ==========");
+        log.info("restoreFromTrash API 호출 - emailIds={}, userEmail={}", emailIds, userEmail);
+        
+        if (userEmail == null || userEmail.isEmpty()) {
+            log.error("restoreFromTrash API: userEmail is null or empty");
+            return ResponseEntity.status(400).body("User email is required");
+        }
+        
+        if (emailIds == null || emailIds.isEmpty()) {
+            log.error("restoreFromTrash API: emailIds is null or empty");
+            return ResponseEntity.status(400).body("Email IDs are required");
+        }
+        
+        try {
+            emailService.restoreEmailsFromTrash(emailIds, userEmail);
+            log.info("restoreFromTrash API 완료 - emailIds={}, userEmail={}", emailIds, userEmail);
+            return ResponseEntity.ok(ResponseDTO.success(null, "메일이 복원되었습니다."));
+        } catch (Exception e) {
+            log.error("restoreFromTrash API 오류 - emailIds={}, userEmail={}", emailIds, userEmail, e);
+            return ResponseEntity.status(500).body(ResponseDTO.error("메일 복원 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
 

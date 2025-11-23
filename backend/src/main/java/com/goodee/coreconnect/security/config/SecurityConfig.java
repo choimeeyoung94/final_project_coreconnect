@@ -96,6 +96,9 @@ public class SecurityConfig {
         }
     }
 
+    @Value("${app.cors.allowed-origins:http://localhost:5173}")
+    private String corsAllowedOrigins;
+
     /**
      * Cors 허용 규칙을 정의하는 Bean.
      * 프론트엔드에서 오는 요청을 허용할 도메인, 메서드, 헤더를 지정한다.
@@ -103,7 +106,9 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
+        // 환경 변수에서 허용할 Origin 목록을 읽어서 쉼표로 분리
+        List<String> allowedOrigins = List.of(corsAllowedOrigins.split(","));
+        config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization","Content-Type"));
         config.setAllowCredentials(true);

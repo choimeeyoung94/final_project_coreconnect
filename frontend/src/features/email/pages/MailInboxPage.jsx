@@ -18,6 +18,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { MailCountContext } from "../../../App"; // 메일 카운트 컨텍스트(사이드바 등 공유)
 import { UserProfileContext } from "../../../App";
 import { useSnackbarContext } from "../../../components/utils/SnackbarContext";
+import ConfirmDialog from "../../../components/utils/ConfirmDialog";
 
 const MailInboxPage = () => {
   const { showSnack } = useSnackbarContext();
@@ -36,20 +37,13 @@ const MailInboxPage = () => {
   const [appliedKeyword, setAppliedKeyword] = useState("");
   const [sortOrder, setSortOrder] = useState("desc"); // 날짜 정렬 순서: "desc" (내림차순, 최신순), "asc" (오름차순, 오래된순)
   const [isRefreshing, setIsRefreshing] = useState(false); // 새로고침 로딩 상태
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const pendingReadIdsRef = useRef(new Set());
-  const userProfileContext = useContext(UserProfileContext);
-  const { userProfile } = userProfileContext || {};
+  const { userProfile } = useContext(UserProfileContext) || {};
   const userEmail = userProfile?.email;
   const navigate = useNavigate();
   const location = useLocation();
   const mailCountContext = useContext(MailCountContext);
-  
-  // 디버깅: userProfile과 userEmail 확인
-  useEffect(() => {
-    console.log("[MailInboxPage] userProfileContext:", userProfileContext);
-    console.log("[MailInboxPage] userProfile:", userProfile);
-    console.log("[MailInboxPage] userEmail:", userEmail);
-  }, [userProfileContext, userProfile, userEmail]);
 
   // 쿼리파라미터에 따라 탭 상태 반영
   useEffect(() => {
@@ -454,13 +448,18 @@ const MailInboxPage = () => {
   };
 
   // 선택된 메일들 휴지통으로 이동 (moveToTrash 호출)
-  const deleteSelected = async () => {
+  const deleteSelected = () => {
     const ids = Array.from(selected);
     if (ids.length === 0) {
       showSnack('삭제할 메일을 선택하세요.', 'warning');
       return;
     }
-    if (!window.confirm(`선택한 ${ids.length}개의 메일을 휴지통으로 이동하시겠습니까?`)) return;
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    const ids = Array.from(selected);
+    setDeleteDialogOpen(false);
 
     try {
       await moveToTrash(ids); // 휴지통으로 이동
@@ -665,10 +664,22 @@ const MailInboxPage = () => {
             onChange={(e) => { e.stopPropagation(); toggleSelectAll(); }}
           />
           <ButtonGroup variant="text" sx={{ gap: 1 }}>
-            <Button startIcon={<ReplyIcon />} onClick={handleReply}>답장</Button>
+            <Button 
+              startIcon={<ReplyIcon />} 
+              onClick={handleReply}
+              disabled={selected.size !== 1}
+            >
+              답장
+            </Button>
             {/* 삭제(휴지통 이동) */}
             <Button startIcon={<DeleteIcon />} onClick={deleteSelected}>삭제</Button>
-            <Button startIcon={<ForwardIcon />} onClick={handleForward}>전달</Button>
+            <Button 
+              startIcon={<ForwardIcon />} 
+              onClick={handleForward}
+              disabled={selected.size !== 1}
+            >
+              전달
+            </Button>
             <Button startIcon={<MarkEmailReadIcon />} onClick={markSelectedAsRead}>읽음</Button>
           </ButtonGroup>
           <Box sx={{ flex: 1 }} />
@@ -786,6 +797,15 @@ const MailInboxPage = () => {
           />
         </Box>
       </Paper>
+
+      {/* 삭제 확인 다이얼로그 */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title="메일 삭제"
+        message={`선택한 ${selected.size}개의 메일을 휴지통으로 이동하시겠습니까?`}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteDialogOpen(false)}
+      />
     </Box>
   );
 };

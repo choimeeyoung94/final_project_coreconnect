@@ -306,6 +306,7 @@ public class NotificationService {
                 }
             }
             
+
             List<NotificationPayload> resultPayloads = new ArrayList<>(recipientIds.size());
             int savedCount = 0;
             int failedCount = 0;
@@ -408,6 +409,7 @@ public class NotificationService {
                     payload.setNotificationType(type.name());
                     payload.setCreatedAt(savedNotification.getNotificationSentAt());
 
+
                     resultPayloads.add(payload);
                     savedCount++;
                     
@@ -426,6 +428,7 @@ public class NotificationService {
             // 트랜잭션 커밋 후 WebSocket 전송을 위해 resultPayloads를 저장
             // TransactionTemplate의 afterCommit은 없으므로, 여기서 직접 WebSocket 전송
             // 하지만 트랜잭션이 커밋된 후에 전송해야 하므로, 별도로 처리
+
             log.info("[NotificationService] ===== 트랜잭션 커밋 전 ===== type={}, 저장된 알림 수={}", type, resultPayloads.size());
             
             // WebSocket 전송은 트랜잭션 커밋 후에 실행되도록 별도 처리
@@ -438,6 +441,7 @@ public class NotificationService {
                 // 예외가 발생해도 빈 리스트 반환 (일부 저장 성공 시를 위해)
                 return new ArrayList<>();
             }
+
         });
         
         // TransactionTemplate 실행 후 (트랜잭션 커밋 완료)

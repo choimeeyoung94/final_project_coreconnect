@@ -23,6 +23,7 @@ public class EmailSendRequestDTO {
 	private List<String> ccAddresses;      // 참조 CC
 	private List<String> bccAddresses;      // 숨은참조 BCC
 	private List<Integer> fileIds;         // 첨부파일 ID
+	private List<Integer> existingAttachmentIds; // 기존 첨부파일 ID (임시저장 업데이트 시 사용)
 	private String replyToEmailId;         // 답신 원본
 	private LocalDateTime reservedAt; // 예약발송 시각(yyyy-MM-ddTHH:mm:ss)
 	

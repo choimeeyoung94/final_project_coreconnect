@@ -1,14 +1,41 @@
 import { useEffect, useState } from "react";
-import { Box, Button, TextField, Typography, Checkbox, FormControlLabel, Select, MenuItem, InputLabel, FormControl, Modal, Card, CardMedia, CardContent, IconButton, Paper, Divider } from "@mui/material";
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  Checkbox,
+  FormControlLabel,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl,
+  Modal,
+  Card,
+  CardMedia,
+  CardContent,
+  IconButton,
+  Paper,
+  Divider,
+  CircularProgress,
+} from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import DownloadIcon from "@mui/icons-material/Download";
 import DescriptionIcon from "@mui/icons-material/Description";
-import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import {
+  useParams,
+  useNavigate,
+  useSearchParams,
+  useLocation,
+} from "react-router-dom";
 import { createBoard, getBoardDetail, updateBoard } from "../api/boardAPI";
-import { uploadFiles, getFilesByBoard, deleteFilesBulk } from "../api/boardFileAPI";
+import {
+  uploadFiles,
+  getFilesByBoard,
+  deleteFilesBulk,
+} from "../api/boardFileAPI";
 import { getAllCategories } from "../api/boardCategoryAPI";
 import { useSnackbarContext } from "../../../components/utils/SnackbarContext";
-
 
 const BoardWritePage = () => {
   const { boardId } = useParams();
@@ -24,17 +51,17 @@ const BoardWritePage = () => {
     pinned: false,
   });
   const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const location = useLocation();
   const fromCategoryId = location.state?.fromCategoryId || "";
   const fromAllBoard = location.state?.fromAllBoard || false;
 
-
-  //  파일 관련 상태 
+  //  파일 관련 상태
   const [files, setFiles] = useState([]);
-  const [deletedExistingFiles, setDeletedExistingFiles] = useState([]);  // 기존 파일 삭제목록
-  const [previewFile, setPreviewFile] = useState(null);  // 모달용
-  const [openModal, setOpenModal] = useState(false);     // 모달 열기/닫기
+  const [deletedExistingFiles, setDeletedExistingFiles] = useState([]); // 기존 파일 삭제목록
+  const [previewFile, setPreviewFile] = useState(null); // 모달용
+  const [openModal, setOpenModal] = useState(false); // 모달 열기/닫기
 
   // 파일 확장자 체크 → 이미지인지 비이미지인지 구분용
   const isImage = (name) => {
@@ -56,6 +83,8 @@ const BoardWritePage = () => {
           }
         } catch {
           showSnack("카테고리를 불러오지 못했습니다.", "error");
+        } finally {
+          setLoading(false);
         }
       })();
     }
@@ -95,12 +124,31 @@ const BoardWritePage = () => {
         }));
 
         setFiles(existingFiles); // 변환된 구조로 세팅
-
       } catch (err) {
         showSnack("게시글 정보를 불러오지 못했습니다.", "error");
+      } finally {
+        setLoading(false);
       }
     })();
   }, [boardId]);
+
+  // 로딩 화면
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          height: "70vh",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <CircularProgress />
+        <Typography sx={{ mt: 2 }}>게시글 정보를 불러오는 중...</Typography>
+      </Box>
+    );
+  }
 
   // 입력 핸들러
   const handleChange = (e) => {
@@ -112,7 +160,7 @@ const BoardWritePage = () => {
         setForm((f) => ({
           ...f,
           pinned: true,
-          noticeYn: true,   // 공지 자동 활성화
+          noticeYn: true, // 공지 자동 활성화
           privateYn: false, // 비공개 불가
         }));
       } else {
@@ -142,7 +190,7 @@ const BoardWritePage = () => {
           ...f,
           privateYn: true,
           noticeYn: false, // 공지 OFF
-          pinned: false,   // 상단고정 OFF
+          pinned: false, // 상단고정 OFF
         }));
       } else {
         setForm((f) => ({ ...f, privateYn: false }));
@@ -180,7 +228,6 @@ const BoardWritePage = () => {
 
     setFiles((prev) => [...prev, ...newFiles]);
   };
-
 
   // 개별 파일 취소
   const removeFile = (idx) => {
@@ -256,18 +303,21 @@ const BoardWritePage = () => {
       if (uploadList.length > 0) await uploadFiles(newId, uploadList);
 
       showSnack("등록 완료!", "success");
-      navigate(`/board/${boardData.categoryId}`);
 
-    } catch (error) {
-      console.error("게시글 저장 오류:", error);
-      const errorMessage = error.response?.data?.message || error.message || "저장 중 오류 발생";
-      showSnack(errorMessage, "error");
+      navigate(`/board/${form.categoryId}`);
+    } catch (err) {
+      if (err?.response?.status === 403 && form.noticeYn) {
+       showSnack("공지글 작성 권한이 없습니다.", "error");
+     } else {
+       showSnack("저장 중 오류가 발생했습니다.", "error");
+     }
+
     }
   };
 
   // 모달 열기
   const openPreview = (file) => {
-    setPreviewFile(file);   // file 객체 그대로 저장 (type/new,existing 포함)
+    setPreviewFile(file); // file 객체 그대로 저장 (type/new,existing 포함)
     setOpenModal(true);
   };
 
@@ -278,7 +328,14 @@ const BoardWritePage = () => {
   };
 
   return (
-    <Box sx={{ bgcolor: "#f5f7fa", py: 4, display: "flex", justifyContent: "center" }}>
+    <Box
+      sx={{
+        bgcolor: "#f5f7fa",
+        py: 4,
+        display: "flex",
+        justifyContent: "center",
+      }}
+    >
       <Box
         sx={{
           width: "90%",
@@ -341,7 +398,7 @@ const BoardWritePage = () => {
               textAlign: "right",
               fontSize: "0.8rem",
               color: form.title.length >= 50 ? "red" : "gray",
-              mb: 2
+              mb: 2,
             }}
           >
             {form.title.length}/50
@@ -359,7 +416,7 @@ const BoardWritePage = () => {
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-all",
                 overflowWrap: "break-word",
-              }
+              },
             }}
             value={form.content}
             onChange={handleChange}
@@ -460,11 +517,20 @@ const BoardWritePage = () => {
           )}
         </Paper>
 
-
         {/* 파일 첨부 */}
         <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
           <Typography sx={{ fontWeight: 600, mb: 2 }}>파일 첨부</Typography>
           <Divider sx={{ mb: 2 }} />
+
+          {/* 업로드 제한 안내 */}
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              • 파일명은 최대 50자까지 가능합니다.
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              • 단일 파일 최대 50MB / 전체 최대 100MB 업로드 가능
+            </Typography>
+          </Box>
 
           <Button variant="outlined" component="label">
             파일 선택

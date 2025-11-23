@@ -7,8 +7,13 @@
 
 import axios from "axios";
 
+// 환경 변수에서 API base URL 가져오기 (Vite는 VITE_ 접두사 필요)
+// 개발 환경: http://localhost:8080/api/v1/
+// 배포 환경: /api/v1/ (nginx가 프록시 처리)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api/v1/";
+
 const http = axios.create({
-  baseURL: "http://localhost:8080/api/v1/",
+  baseURL: API_BASE_URL,
   withCredentials: true,
 });
 

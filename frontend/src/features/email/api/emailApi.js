@@ -131,6 +131,15 @@ export const moveToTrash = (emailIds) => {
   return http.post('/email/move-to-trash', emailIds);
 };
 
+// 휴지통에서 선택된 이메일을 복원
+export const restoreFromTrash = (emailIds) => {
+  return http.post('/email/restore-from-trash', emailIds, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+};
+
 // 휴지통 비우기
 export const emptyTrash = () => {
   return http.post('/email/trash/empty');

@@ -1,13 +1,30 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { Box, Typography, ListItemButton, Stack, TextField, Button, MenuItem, Select, FormControl, InputLabel, Avatar, Divider } from "@mui/material";
-import { getBoardsByCategory, getBoardsOrdered, searchBoards } from "../api/boardAPI";
+import {
+  Box,
+  Typography,
+  ListItemButton,
+  Stack,
+  TextField,
+  Button,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  Avatar,
+  Divider,
+  CircularProgress,
+} from "@mui/material";
+import {
+  getBoardsByCategory,
+  getBoardsOrdered,
+  searchBoards,
+} from "../api/boardAPI";
 import CommentIcon from "@mui/icons-material/Comment";
 import RecentViewedBoards from "./RecentViewedBoards";
 import { useSnackbarContext } from "../../../components/utils/SnackbarContext";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import { getJobGradeLabel } from "../../../utils/labelUtils";
-
 
 const BoardListPage = () => {
   const { categoryId } = useParams(); // URL의 /board/:categoryId 값 추출 (없으면 undefined)
@@ -24,6 +41,7 @@ const BoardListPage = () => {
   const [searchType, setSearchType] = useState(urlType || "title"); // 검색 구분 (제목/내용/작성자)
   const [keyword, setKeyword] = useState(urlKeyword || ""); // 검색어 입력값
   const [sortType, setSortType] = useState(urlSortType); // 정렬 상태 (최신순/조회순)
+  const [loading, setLoading] = useState(true); // 로딩 상태
 
   // URL 변경 시 검색 폼 상태를 동기화
   useEffect(() => {
@@ -34,6 +52,7 @@ const BoardListPage = () => {
   // 게시글 목록 불러오기
   useEffect(() => {
     (async () => {
+      setLoading(true);
       try {
         let res; // API 응답 결과 저장용 변수
         if (isSearchPage) {
@@ -55,6 +74,8 @@ const BoardListPage = () => {
         setPageInfo(res.data.data);
       } catch (err) {
         showSnack("게시글 목록을 불러오는 중 오류가 발생했습니다.", "error");
+      } finally {
+        setLoading(false);
       }
     })();
   }, [categoryId, currentPage, isSearchPage, urlType, urlKeyword, sortType]); // 의존성 배열: 이 중 하나라도 바뀌면 다시 실행
@@ -122,6 +143,26 @@ const BoardListPage = () => {
     else navigate(`/board?sortType=${newSort}&page=0`);
   };
 
+  // 로딩 화면
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          flex: 1,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "70vh",
+        }}
+      >
+        <Stack alignItems="center">
+          <CircularProgress />
+          <Typography sx={{ mt: 2 }}>게시글을 불러오는 중...</Typography>
+        </Stack>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ display: "flex", gap: 3 }}>
       <Box sx={{ flex: 3 }}>
@@ -137,7 +178,6 @@ const BoardListPage = () => {
             mx: "auto",
           }}
         >
-
           {/* 정렬 선택박스 */}
           <FormControl size="small" sx={{ width: 130 }}>
             <InputLabel id="sort-label">정렬</InputLabel>
@@ -154,7 +194,6 @@ const BoardListPage = () => {
 
           {/* 검색 영역 */}
           <Stack direction="row" spacing={2} alignItems="center">
-
             <FormControl size="small" sx={{ width: 100 }}>
               <InputLabel>검색구분</InputLabel>
               <Select
@@ -223,11 +262,11 @@ const BoardListPage = () => {
                   idx === 0
                     ? "12px 12px 0 0"
                     : idx === boards.length - 1
-                      ? "0 0 12px 12px"
-                      : 0,
+                    ? "0 0 12px 12px"
+                    : 0,
 
                 bgcolor: b.pinned
-                  ? "#FFF5D6"           // 상단고정만 색 유지
+                  ? "#FFF5D6" // 상단고정만 색 유지
                   : "white",
 
                 border: "1px solid #e5e5e5",
@@ -263,8 +302,15 @@ const BoardListPage = () => {
                       </Typography>
 
                       {b.fileCount > 0 && (
-                        <Stack direction="row" alignItems="center" spacing={0.3} sx={{ ml: 1 }}>
-                          <AttachFileIcon sx={{ fontSize: 20, color: "#e78018ff" }} />
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          spacing={0.3}
+                          sx={{ ml: 1 }}
+                        >
+                          <AttachFileIcon
+                            sx={{ fontSize: 20, color: "#e78018ff" }}
+                          />
                           <Typography variant="caption" color="text.secondary">
                             {b.fileCount}
                           </Typography>
@@ -274,9 +320,15 @@ const BoardListPage = () => {
                   </Stack>
 
                   <Stack direction="row" alignItems="center" spacing={1}>
-                    {b.pinned && <Typography sx={{ fontSize: 20 }}>📢</Typography>}
-                    {!b.pinned && b.noticeYn && <Typography sx={{ fontSize: 20 }}>📢</Typography>}
-                    {b.privateYn && <Typography sx={{ fontSize: 19 }}>🔒</Typography>}
+                    {b.pinned && (
+                      <Typography sx={{ fontSize: 20 }}>📢</Typography>
+                    )}
+                    {!b.pinned && b.noticeYn && (
+                      <Typography sx={{ fontSize: 20 }}>📢</Typography>
+                    )}
+                    {b.privateYn && (
+                      <Typography sx={{ fontSize: 19 }}>🔒</Typography>
+                    )}
 
                     <Typography
                       variant="subtitle1"
@@ -317,12 +369,14 @@ const BoardListPage = () => {
                   <Stack direction="row" alignItems="center" spacing={1}>
                     <Avatar
                       src={b.writerProfileImageUrl || undefined}
-                      sx={{ width: 27, height: 27, mr: 0.5 }}
+                      sx={{ width: 24, height: 24, mr: 0.5 }}
                     />
 
                     <Typography variant="caption" color="text.secondary">
                       {b.writerName}
-                      {b.writerJobGrade ? ` ${getJobGradeLabel(b.writerJobGrade)}` : ""}
+                      {b.writerJobGrade
+                        ? ` ${getJobGradeLabel(b.writerJobGrade)}`
+                        : ""}
                       {" / "}
                       {formatDate(b.createdAt)}
                       {" / 조회수 "}
@@ -335,7 +389,14 @@ const BoardListPage = () => {
                   b.files.length > 0 &&
                   b.files[0].fileUrl &&
                   /\.(jpg|jpeg|png|gif|webp)$/i.test(b.files[0].fileName) && (
-                    <Box sx={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "flex-start" }}>
+                    <Box
+                      sx={{
+                        flex: 1,
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "flex-start",
+                      }}
+                    >
                       <Box
                         component="img"
                         src={b.files[0].fileUrl}
@@ -382,7 +443,7 @@ const BoardListPage = () => {
               "&:hover": {
                 backgroundColor: "#eefbfd",
                 borderColor: "#9ad3dd",
-              }
+              },
             };
 
             // 활성 페이지는 좀 더 강조된 pill 스타일
@@ -395,7 +456,7 @@ const BoardListPage = () => {
               "&:hover": {
                 backgroundColor: "#0895a5",
                 borderColor: "#0895a5",
-              }
+              },
             };
 
             // 비활성(클릭 불가) 스타일 – 흐릿+호버 무시
@@ -406,8 +467,8 @@ const BoardListPage = () => {
               cursor: "default",
               "&:hover": {
                 backgroundColor: "transparent",
-                borderColor: "#e3e3e3"
-              }
+                borderColor: "#e3e3e3",
+              },
             };
 
             return (
@@ -431,18 +492,20 @@ const BoardListPage = () => {
                 </Button>
 
                 {/* 페이지 번호 */}
-                {[...Array(Math.max(0, blockEnd - blockStart + 1))].map((_, idx) => {
-                  const pageNumber = blockStart + idx;
-                  return (
-                    <Button
-                      key={pageNumber}
-                      sx={pageNumber === page ? activeStyle : baseStyle}
-                      onClick={() => goPage(pageNumber)}
-                    >
-                      {pageNumber}
-                    </Button>
-                  );
-                })}
+                {[...Array(Math.max(0, blockEnd - blockStart + 1))].map(
+                  (_, idx) => {
+                    const pageNumber = blockStart + idx;
+                    return (
+                      <Button
+                        key={pageNumber}
+                        sx={pageNumber === page ? activeStyle : baseStyle}
+                        onClick={() => goPage(pageNumber)}
+                      >
+                        {pageNumber}
+                      </Button>
+                    );
+                  }
+                )}
 
                 {/* > 다음 */}
                 <Button
@@ -470,9 +533,9 @@ const BoardListPage = () => {
       {/* 오른쪽 사이드 영역: 최근 본 게시글 */}
       <Box
         sx={{
-          width: 340,         // 가로 고정
-          flexShrink: 0,      // 공간 부족해도 줄어들지 않음
-          ml: 3,              // 왼쪽 영역과 간격
+          width: 340, // 가로 고정
+          flexShrink: 0, // 공간 부족해도 줄어들지 않음
+          ml: 3, // 왼쪽 영역과 간격
         }}
       >
         <RecentViewedBoards />

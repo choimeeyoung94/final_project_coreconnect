@@ -45,7 +45,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         final String uri = req.getRequestURI();
-        log.debug("[JWT] 요청 URI: {}", uri);
+        final String method = req.getMethod();
+        log.debug("[JWT] 요청 URI: {}, Method: {}", uri, method);
+        
+        // restore-from-trash 엔드포인트에 대한 요청은 INFO 레벨로 로깅
+        if (uri.contains("/restore-from-trash")) {
+            log.info("[JWT] restore-from-trash 요청 감지 - URI: {}, Method: {}", uri, method);
+        }
 
         // 예외 경로(문서/웹소켓/리프레시 등)는 토큰 검사 생략
         if (uri.startsWith("/ws/chat") ||

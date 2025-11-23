@@ -1,12 +1,35 @@
 import React, { useEffect, useMemo, useState, useRef, useContext } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { Box, Typography, TextField, Button, Stack, Paper, Modal, Card, CardMedia, CardContent, IconButton, Avatar } from "@mui/material";
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  Stack,
+  Paper,
+  Modal,
+  Card,
+  CardMedia,
+  CardContent,
+  IconButton,
+  Avatar,
+  CircularProgress,
+} from "@mui/material";
 import ReplyIcon from "@mui/icons-material/Reply";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { getBoardDetail, deleteBoard } from "../api/boardAPI";
-import { getFilesByBoard, getFile, downloadZipFiles } from "../api/boardFileAPI";
-import { getRepliesByBoard, createReply, updateReply, deleteReply } from "../api/boardReplyAPI";
+import {
+  getFilesByBoard,
+  getFile,
+  downloadZipFiles,
+} from "../api/boardFileAPI";
+import {
+  getRepliesByBoard,
+  createReply,
+  updateReply,
+  deleteReply,
+} from "../api/boardReplyAPI";
 import { useSnackbarContext } from "../../../components/utils/SnackbarContext";
 import ConfirmDialog from "../../../components/utils/ConfirmDialog";
 import CloseIcon from "@mui/icons-material/Close";
@@ -14,7 +37,6 @@ import DownloadIcon from "@mui/icons-material/Download";
 import DescriptionIcon from "@mui/icons-material/Description";
 import { UserProfileContext } from "../../../App";
 import { getJobGradeLabel } from "../../../utils/labelUtils";
-
 
 // 파일이 이미지인지 판단하는 헬퍼 함수 (확장자 기준)
 const isImage = (name) => {
@@ -39,6 +61,7 @@ const BoardDetailPage = () => {
   const [board, setBoard] = useState(null); // 게시글 상세 데이터 상태 (초기값 null → 아직 로딩 전이라는 의미)
   const [files, setFiles] = useState([]); // 첨부파일 목록 상태
   const [replies, setReplies] = useState([]); // 댓글 전체 목록 상태 (부모 댓글 + 자식 댓글 포함)
+  const [loading, setLoading] = useState(true); // 로딩 상태
 
   // 첨부파일 미리보기 모달용 상태
   const [previewFile, setPreviewFile] = useState(null); // 현재 모달에서 보고 있는 파일 정보
@@ -55,6 +78,9 @@ const BoardDetailPage = () => {
   const [confirmOpen, setConfirmOpen] = useState(false); // 다이얼로그 열림 여부
   const [confirmType, setConfirmType] = useState(null); // 'post' 또는 'reply'
   const [targetId, setTargetId] = useState(null); // 삭제 대상 ID 저장
+  const alertShownRef = useRef(false); // 알럿 중복 방지용 ref
+  // useRef는 값이 변해도 리렌더링을 유발하지 않음.
+  // 이 ref를 통해 한번 에러로 인해 alert를 띄웠으면 그 뒤에는 같은 렌더 사이클에서 또 띄우지 않도록 제어.
 
   // 날짜 포맷 변환 함수
   const formatDateTime = (str) => {
@@ -66,12 +92,9 @@ const BoardDetailPage = () => {
     )} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; // "YYYY-MM-DD HH:mm:ss" 형식으로 문자열 반환
   };
 
-  const alertShownRef = useRef(false); // 알럿 중복 방지용 ref
-  // useRef는 값이 변해도 리렌더링을 유발하지 않음.
-  // 이 ref를 통해 한번 에러로 인해 alert를 띄웠으면 그 뒤에는 같은 렌더 사이클에서 또 띄우지 않도록 제어.
-
   // 게시글, 댓글, 파일 데이터 전체 로드
   const loadAll = async () => {
+    setLoading(true);
     try {
       const detailRes = await getBoardDetail(boardId); // 게시글 상세조회 API 호출
       setBoard(detailRes.data.data); // 응답에서 실제 데이터 부분을 꺼내 board 상태에 저장
@@ -99,6 +122,8 @@ const BoardDetailPage = () => {
       }
       // 기타 예외
       showSnack("게시글을 불러오는 중 오류가 발생했습니다.", "error"); // 위 두 케이스 외 나머지 서버/네트워크 에러
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -283,8 +308,17 @@ const BoardDetailPage = () => {
     setPreviewFile(null);
   };
 
-  // 게시글이 없을 때 로딩 표시
-  if (!board) return <Typography>알 수 없는 페이지</Typography>; // 아직 board 데이터가 로드되지 않았거나 에러로 null인 경우
+  // 로딩 화면
+  if (loading) {
+    return (
+      <Box sx={{ p: 4, textAlign: "center" }}>
+        <CircularProgress />
+        <Typography sx={{ mt: 2 }}>게시글을 불러오는 중...</Typography>
+      </Box>
+    );
+  }
+
+  if (!board) return <Typography>알 수 없는 페이지</Typography>;
 
   return (
     <Box sx={{ px: "5%", pt: 2 }}>
@@ -295,17 +329,18 @@ const BoardDetailPage = () => {
         {board.title} {/* 게시글 제목 */}
       </Typography>
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-
         {/* 프로필 이미지 */}
         <Avatar
           src={board.writerProfileImageUrl || undefined}
-          sx={{ width: 27, height: 27 }}
+          sx={{ width: 24, height: 24 }}
         />
 
         {/* 이름 + 직급 + 날짜 + 조회수 */}
         <Typography variant="body2" color="text.secondary">
           {board.writerName}
-          {board.writerJobGrade ? ` ${getJobGradeLabel(board.writerJobGrade)}` : ""}
+          {board.writerJobGrade
+            ? ` ${getJobGradeLabel(board.writerJobGrade)}`
+            : ""}
           {" / "}
           {formatDateTime(board.createdAt)}
           {" / 조회 "}
@@ -325,9 +360,11 @@ const BoardDetailPage = () => {
             onClick={() =>
               navigate(`/board/edit/${board.id}`, {
                 state: {
-                  fromCategoryId: location.state?.fromAllBoard ? "" : board.categoryId,
-                  fromAllBoard: location.state?.fromAllBoard ?? false
-                }
+                  fromCategoryId: location.state?.fromAllBoard
+                    ? ""
+                    : board.categoryId,
+                  fromAllBoard: location.state?.fromAllBoard ?? false,
+                },
               })
             }
           >
@@ -418,7 +455,7 @@ const BoardDetailPage = () => {
               <Card
                 key={file.id}
                 sx={{
-                  width: 150, // 작성 페이지와 
+                  width: 150, // 작성 페이지와
                   height: 160,
                   borderRadius: 2,
                   boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
@@ -582,17 +619,22 @@ const BoardDetailPage = () => {
                     <Stack direction="row" alignItems="center" spacing={1}>
                       <Avatar
                         src={r.writerProfileImageUrl || undefined}
-                        sx={{ width: 27, height: 27 }}
+                        sx={{ width: 24, height: 24 }}
                       />
                       <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                         {r.writerName || "익명"}
-                        {r.writerJobGrade ? ` ${getJobGradeLabel(r.writerJobGrade)}` : ""}
-                        <Typography component="span" variant="caption" sx={{ color: "text.secondary" }}>
+                        {r.writerJobGrade
+                          ? ` ${getJobGradeLabel(r.writerJobGrade)}`
+                          : ""}
+                        <Typography
+                          component="span"
+                          variant="caption"
+                          sx={{ color: "text.secondary" }}
+                        >
                           (
                           {r.updatedAt
                             ? `${formatDateTime(r.updatedAt)} · 수정됨`
-                            : formatDateTime(r.createdAt)
-                          }
+                            : formatDateTime(r.createdAt)}
                           )
                         </Typography>
                       </Typography>
@@ -768,17 +810,22 @@ const BoardDetailPage = () => {
                       <Stack direction="row" alignItems="center" spacing={1}>
                         <Avatar
                           src={child.writerProfileImageUrl || undefined}
-                          sx={{ width: 27, height: 27 }}
+                          sx={{ width: 24, height: 24 }}
                         />
                         <Typography variant="subtitle2">
                           ↳ {child.writerName}
-                          {child.writerJobGrade ? ` ${getJobGradeLabel(child.writerJobGrade)}` : ""}
-                          <Typography component="span" variant="caption" sx={{ color: "text.secondary" }}>
+                          {child.writerJobGrade
+                            ? ` ${getJobGradeLabel(child.writerJobGrade)}`
+                            : ""}
+                          <Typography
+                            component="span"
+                            variant="caption"
+                            sx={{ color: "text.secondary" }}
+                          >
                             (
                             {child.updatedAt
                               ? `${formatDateTime(child.updatedAt)} · 수정됨`
-                              : formatDateTime(child.createdAt)
-                            }
+                              : formatDateTime(child.createdAt)}
                             )
                           </Typography>
                         </Typography>
@@ -786,53 +833,53 @@ const BoardDetailPage = () => {
 
                       {(loginRole === "ADMIN" ||
                         child.writerName === loginName) && (
-                          <Stack direction="row" spacing={1}>
-                            {editReplyId !== child.id ? (
-                              <>
-                                {/* 대댓글이 수정 모드가 아닐 때: 수정 / 삭제 */}
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                  sx={{ cursor: "pointer" }}
-                                  onClick={() => {
-                                    setEditReplyId(child.id); // 이 대댓글을 수정 대상으로 설정
-                                    setEditReplyText(child.content); // 기존 내용 채우기
-                                  }}
-                                >
-                                  수정
-                                </Typography>
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                  sx={{ cursor: "pointer" }}
-                                  onClick={() => handleOpenReplyConfirm(child.id)}
-                                >
-                                  삭제
-                                </Typography>
-                              </>
-                            ) : (
-                              <>
-                                {/* 대댓글이 수정 모드일 때: 저장 / 취소 */}
-                                <Typography
-                                  variant="caption"
-                                  color="primary"
-                                  sx={{ cursor: "pointer" }}
-                                  onClick={() => handleReplyUpdate(child.id)}
-                                >
-                                  저장
-                                </Typography>
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                  sx={{ cursor: "pointer" }}
-                                  onClick={() => setEditReplyId(null)}
-                                >
-                                  취소
-                                </Typography>
-                              </>
-                            )}
-                          </Stack>
-                        )}
+                        <Stack direction="row" spacing={1}>
+                          {editReplyId !== child.id ? (
+                            <>
+                              {/* 대댓글이 수정 모드가 아닐 때: 수정 / 삭제 */}
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ cursor: "pointer" }}
+                                onClick={() => {
+                                  setEditReplyId(child.id); // 이 대댓글을 수정 대상으로 설정
+                                  setEditReplyText(child.content); // 기존 내용 채우기
+                                }}
+                              >
+                                수정
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ cursor: "pointer" }}
+                                onClick={() => handleOpenReplyConfirm(child.id)}
+                              >
+                                삭제
+                              </Typography>
+                            </>
+                          ) : (
+                            <>
+                              {/* 대댓글이 수정 모드일 때: 저장 / 취소 */}
+                              <Typography
+                                variant="caption"
+                                color="primary"
+                                sx={{ cursor: "pointer" }}
+                                onClick={() => handleReplyUpdate(child.id)}
+                              >
+                                저장
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ cursor: "pointer" }}
+                                onClick={() => setEditReplyId(null)}
+                              >
+                                취소
+                              </Typography>
+                            </>
+                          )}
+                        </Stack>
+                      )}
                     </Stack>
 
                     {/* 대댓글 내용 */}

@@ -76,4 +76,19 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Inte
       @Param("annualType") LeaveType annualType,
       Pageable pageable
   );
+  
+  /**
+   * 특정 사용자의 특정 기간 내 승인된 휴가 조회
+   */
+  @Query("SELECT l FROM LeaveRequest l " +
+         "WHERE l.user = :user " +
+         "AND l.status = :status " +
+         "AND l.startDate <= :endDate " +
+         "AND l.endDate >= :startDate")
+  List<LeaveRequest> findByUserAndStatusAndDateRange(
+      @Param("user") User user,
+      @Param("status") LeaveStatus status,
+      @Param("startDate") LocalDate startDate,
+      @Param("endDate") LocalDate endDate
+  );
 }

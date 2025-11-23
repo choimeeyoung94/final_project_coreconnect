@@ -1,19 +1,30 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Card from "../../../components/ui/Card";
-import { Button, Typography, List, ListItem, ListItemText, Box } from "@mui/material";
+import { 
+  Button, 
+  Typography, 
+  Box, 
+  Divider,
+  Avatar,
+  Stack,
+  Chip
+} from "@mui/material";
 import { getBoardsByLatestOnly } from "../api/dashboardAPI";
+import { getJobGradeLabel } from "../../../utils/labelUtils";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import CommentIcon from "@mui/icons-material/Comment";
 
 export default function RecentBoardsCard() {
   const navigate = useNavigate();
   const [recentBoards, setRecentBoards] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 전체게시판 최근글 10개 가져오기 (공지/상단고정 구분 없이 최신순만)
+  // 전체게시판 최근글 5개 가져오기 (공지/상단고정 구분 없이 최신순만)
   useEffect(() => {
     (async () => {
       try {
-        const res = await getBoardsByLatestOnly(0, 10);
+        const res = await getBoardsByLatestOnly(0, 5);
         setRecentBoards(res.data?.content || []);
       } catch (err) {
         console.error("게시글 목록 불러오기 실패:", err);
@@ -24,12 +35,14 @@ export default function RecentBoardsCard() {
     })();
   }, []);
 
-  // 날짜 포맷 함수 (MM-DD 형식)
+  // 날짜 포맷 함수 (MM-DD HH:mm 형식)
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     const d = new Date(dateStr);
     return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(
       d.getDate()
+    ).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(
+      d.getMinutes()
     ).padStart(2, "0")}`;
   };
 
@@ -56,58 +69,113 @@ export default function RecentBoardsCard() {
           게시글이 없습니다.
         </Typography>
       ) : (
-        <List dense sx={{ pl: 2, listStyleType: "disc" }}>
-          {recentBoards.map((board) => (
-            <ListItem
-              key={board.id}
-              data-grid-cancel="true"
-              sx={{
-                display: "list-item",
-                px: 0,
-                py: 0.5,
-                cursor: "pointer",
-                "&:hover": {
-                  bgcolor: "action.hover",
-                },
-              }}
-              onClick={() => navigate(`/board/detail/${board.id}`)}
-            >
-              <ListItemText
-                primary={
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 1.5,
-                      width: "100%",
-                    }}
-                  >
+        <Box>
+          {recentBoards.map((board, index) => (
+            <Box key={board.id}>
+              <Box
+                data-grid-cancel="true"
+                onClick={() => navigate(`/board/detail/${board.id}`)}
+                sx={{
+                  px: 2,
+                  py: 1.5,
+                  cursor: "pointer",
+                  transition: "background-color 0.2s",
+                  "&:hover": {
+                    bgcolor: "action.hover",
+                  },
+                }}
+              >
+                <Stack spacing={1}>
+                  {/* 제목과 고정 아이콘 */}
+                  <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+                    {board.pinned && (
+                      <Chip
+                        label="고정"
+                        size="small"
+                        color="warning"
+                        sx={{ 
+                          height: 20, 
+                          fontSize: "0.7rem",
+                          fontWeight: 600,
+                          flexShrink: 0
+                        }}
+                      />
+                    )}
                     <Typography
                       variant="body2"
                       sx={{
+                        fontWeight: 600,
                         overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
                         flex: 1,
+                        lineHeight: 1.4,
                       }}
                     >
-                      {board.pinned && "📌 "}
                       {board.title}
                     </Typography>
+                  </Box>
+
+                  {/* 카테고리 */}
+                  {board.categoryName && (
                     <Typography
                       variant="caption"
-                      color="text.secondary"
-                      sx={{ flexShrink: 0 }}
+                      sx={{
+                        color: "primary.main",
+                        fontWeight: 500,
+                      }}
                     >
+                      {board.categoryName}
+                    </Typography>
+                  )}
+
+                  {/* 작성자, 날짜, 조회수, 댓글수 */}
+                  <Stack 
+                    direction="row" 
+                    alignItems="center" 
+                    spacing={1.5}
+                    sx={{ flexWrap: "wrap" }}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                      <Avatar
+                        src={board.writerProfileImageUrl || undefined}
+                        sx={{ width: 20, height: 20 }}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {board.writerName}
+                        {board.writerJobGrade && ` ${getJobGradeLabel(board.writerJobGrade)}`}
+                      </Typography>
+                    </Stack>
+                    
+                    <Typography variant="caption" color="text.secondary">
                       {formatDate(board.createdAt)}
                     </Typography>
-                  </Box>
-                }
-              />
-            </ListItem>
+
+                    {board.viewCount !== undefined && board.viewCount !== null && (
+                      <Stack direction="row" alignItems="center" spacing={0.3}>
+                        <VisibilityIcon sx={{ fontSize: 14, color: "text.secondary" }} />
+                        <Typography variant="caption" color="text.secondary">
+                          {board.viewCount}
+                        </Typography>
+                      </Stack>
+                    )}
+
+                    {board.commentCount !== undefined && board.commentCount > 0 && (
+                      <Stack direction="row" alignItems="center" spacing={0.3}>
+                        <CommentIcon sx={{ fontSize: 14, color: "text.secondary" }} />
+                        <Typography variant="caption" color="text.secondary">
+                          {board.commentCount}
+                        </Typography>
+                      </Stack>
+                    )}
+                  </Stack>
+                </Stack>
+              </Box>
+              {index < recentBoards.length - 1 && <Divider />}
+            </Box>
           ))}
-        </List>
+        </Box>
       )}
     </Card>
   );

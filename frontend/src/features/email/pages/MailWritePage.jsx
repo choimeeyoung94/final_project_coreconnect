@@ -30,6 +30,7 @@ import { useContext } from "react";
 import { UserProfileContext } from "../../../App";
 import { useSnackbarContext } from "../../../components/utils/SnackbarContext";
 import AddressBookDialog from "../components/AddressBookDialog";
+import ConfirmDialog from "../../../components/utils/ConfirmDialog";
 
 
 const emailSuggestions = [
@@ -65,6 +66,9 @@ function MailWritePage() {
   // 주소록 팝업 상태
   const [addressBookOpen, setAddressBookOpen] = useState(false);
   const [addressBookType, setAddressBookType] = useState(null); // "recipient", "cc", "bcc"
+  
+  // 취소 확인 다이얼로그 상태
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
 
   const location = useLocation();
@@ -235,10 +239,12 @@ function MailWritePage() {
   // 임시보관함 불러오기
   useEffect(() => {
     if (draftId && userEmail && !replyData && !forwardData) {
+      console.log("[MailWritePage] 임시저장 메일 불러오기 - draftId:", draftId);
       getDraftDetail(draftId, userEmail).then(res => {
         const data = res.data.data;
+        console.log("[MailWritePage] 임시저장 메일 데이터:", data, "emailId:", data.emailId);
         setForm({
-          emailId: data.emailId,
+          emailId: data.emailId, // ★ 중요: emailId를 설정하여 다음 임시저장 시 업데이트되도록 함
           recipientAddress: data.recipientAddresses || [],
           ccAddresses: data.ccAddresses || [],
           bccAddresses: data.bccAddresses || [],
@@ -315,8 +321,28 @@ function MailWritePage() {
       }
 
       // build draft DTO — include existing attachment fileIds but do not re-upload files
+      // ★ 중요: emailId가 있으면 반드시 전달하여 기존 메일이 업데이트되도록 함
+      const currentEmailId = form.emailId; // 현재 폼의 emailId
+      console.log("[MailWritePage] handleSaveDraft - form.emailId:", currentEmailId, 
+                  "userEmail:", userEmail, "draftId:", draftId);
+      
+      // draftId가 있으면 emailId로 사용 (임시저장 메일을 불러온 경우)
+      // ★ 중요: emailId가 0이거나 유효하지 않으면 null로 처리
+      let emailIdToSend = currentEmailId || (draftId ? parseInt(draftId) : null);
+      if (emailIdToSend !== null && (isNaN(emailIdToSend) || emailIdToSend <= 0)) {
+        emailIdToSend = null; // 유효하지 않은 emailId는 null로 처리
+      }
+      console.log("[MailWritePage] handleSaveDraft - emailIdToSend:", emailIdToSend, 
+                  "(currentEmailId:", currentEmailId, ", draftId:", draftId, ")");
+      
+      if (!emailIdToSend) {
+        console.log("[MailWritePage] handleSaveDraft - 새 임시저장 메일 생성 (emailId 없음)");
+      } else {
+        console.log("[MailWritePage] handleSaveDraft - 기존 임시저장 메일 업데이트 (emailId:", emailIdToSend, ")");
+      }
+      
       const draftData = {
-        emailId: form.emailId,
+        emailId: emailIdToSend, // ★ 중요: null이면 새로 생성, 있으면 업데이트 (0이나 유효하지 않은 값은 null)
         recipientAddress: form.recipientAddress,
         ccAddresses: form.ccAddresses,
         bccAddresses: form.bccAddresses,
@@ -329,34 +355,77 @@ function MailWritePage() {
           .filter(a => a.fileId)
           .map(a => a.fileId)
       };
+      console.log("[MailWritePage] handleSaveDraft - draftData:", JSON.stringify(draftData, null, 2));
+      console.log("[MailWritePage] handleSaveDraft - draftData.emailId:", draftData.emailId, "type:", typeof draftData.emailId);
 
-      // For drafts with new files, we need to send multipart formdata similar to sendMail.
-      // If there are new File objects, use FormData and call backend draft endpoint that accepts multipart/form-data.
+      // ★ 중요: 항상 FormData를 사용하여 multipart/form-data로 전송
+      // 백엔드가 multipart/form-data만 받으므로, 파일이 없어도 FormData를 사용해야 함
+      const fd = new FormData();
+      fd.append('data', new Blob([JSON.stringify(draftData)], { type: 'application/json' }));
+      
+      // 새 파일이 있으면 첨부
       const newFiles = form.attachments.filter(a => a.file && a.file instanceof File);
       if (newFiles.length > 0) {
-        const fd = new FormData();
-        fd.append('data', new Blob([JSON.stringify(draftData)], { type: 'application/json' }));
         newFiles.forEach(f => fd.append('attachments', f.file, f.name));
-        await saveDraftMail(fd); // saveDraftMail should accept FormData for multipart
-      } else {
-        await saveDraftMail(draftData); // fallback: if API accepts JSON for drafts without new files
+        console.log("[MailWritePage] handleSaveDraft - 새 파일 첨부:", newFiles.length, "개");
+      }
+      
+      // FormData 내용 확인 (디버깅용)
+      console.log("[MailWritePage] handleSaveDraft - FormData 생성 완료, emailId 포함 여부 확인");
+      const dataBlob = new Blob([JSON.stringify(draftData)], { type: 'application/json' });
+      dataBlob.text().then(text => {
+        console.log("[MailWritePage] handleSaveDraft - FormData 'data' part 내용:", text);
+        const parsed = JSON.parse(text);
+        console.log("[MailWritePage] handleSaveDraft - 파싱된 emailId:", parsed.emailId);
+      });
+      
+      const savedDraftResponse = await saveDraftMail(fd);
+
+      // 응답에서 emailId를 가져와서 유지 (다음 임시저장 시 업데이트를 위해)
+      const savedEmailId = savedDraftResponse?.data?.data?.emailId;
+      const wasUpdate = emailIdToSend != null; // 전송한 emailId가 있었는지 확인
+      console.log("[MailWritePage] 임시저장 완료 - savedEmailId:", savedEmailId, 
+                  "전송한 emailId:", emailIdToSend, "wasUpdate:", wasUpdate);
+
+      if (!savedEmailId) {
+        console.error("[MailWritePage] ⚠️ 임시저장 응답에 emailId가 없습니다!");
+        showSnack("임시저장은 완료되었지만 응답에 메일 ID가 없습니다.", "warning");
       }
 
-      showSnack("임시저장되었습니다!", "success");
+      // 성공 메시지 (생성/업데이트 구분)
+      showSnack(
+        wasUpdate ? "임시저장 메일이 업데이트되었습니다!" : "임시저장되었습니다!", 
+        "success"
+      );
 
-      setForm({
-        emailId: null,
-        recipientAddress: [],
-        ccAddresses: [],
-        bccAddresses: [],
-        emailTitle: "",
-        emailContent: "",
-        attachments: []
-      });
-      setReservedAt(null);
+      // ★ 중요: emailId를 반드시 유지하여 다음 임시저장 시 같은 메일이 업데이트되도록 함
+      // 폼을 완전히 초기화하지 않고 emailId만 업데이트
+      if (savedEmailId) {
+        setForm(f => {
+          const updated = {
+            ...f,
+            emailId: savedEmailId // ★ 중요: emailId를 유지하여 다음 임시저장 시 같은 메일이 업데이트되도록 함
+          };
+          console.log("[MailWritePage] emailId 유지 - 이전:", f.emailId, "→ 이후:", savedEmailId);
+          return updated;
+        });
+      } else {
+        console.warn("[MailWritePage] ⚠️ savedEmailId가 없어서 emailId를 유지할 수 없습니다.");
+        // emailId가 없어도 폼은 유지 (사용자가 계속 편집할 수 있도록)
+      }
+
+      // 임시저장 성공 후 임시보관함 목록 페이지로 이동
+      navigate("/email/draftbox");
     } catch (e) {
-      console.error("saveDraft error:", e);
-      showSnack("임시저장 실패: " + (e?.response?.data?.message || e.message || ""), "error");
+      console.error("[MailWritePage] saveDraft error:", e);
+      console.error("[MailWritePage] error response:", e?.response);
+      const errorMessage = e?.response?.data?.message || e?.response?.data?.data || e.message || "임시저장 실패";
+      showSnack("임시저장 실패: " + errorMessage, "error");
+      
+      // 예외 발생 시에도 emailId는 유지 (사용자가 다시 시도할 수 있도록)
+      if (form.emailId) {
+        console.log("[MailWritePage] 예외 발생했지만 emailId 유지:", form.emailId);
+      }
     } finally {
       setSavingDraft(false);
     }
@@ -460,6 +529,10 @@ function MailWritePage() {
 
       showSnack(reservedAt ? "예약메일이 정상적으로 등록되었습니다!" : "메일이 정상적으로 발송되었습니다!", "success");
 
+      // 메일 전송 후 보낸 메일함으로 이동 (예약 메일이 아닌 경우만)
+      // reservedAt이 null이거나 현재 시간 이전인 경우 즉시 발송된 메일
+      const isReservedMail = reservedAt && reservedAt.isAfter(dayjs());
+      
       // reset form
       setForm({
         emailId: null,
@@ -476,8 +549,8 @@ function MailWritePage() {
       setCcInputValue("");
       setBccInputValue("");
       
-      // 메일 전송 후 보낸 메일함으로 이동 (예약 메일이 아닌 경우만)
-      if (!reservedAt) {
+      // 즉시 발송된 메일인 경우 보낸 메일함으로 이동
+      if (!isReservedMail) {
         navigate("/email/sent");
       }
     } catch (e) {
@@ -501,11 +574,7 @@ function MailWritePage() {
         <Button
           variant="outlined"
           startIcon={<CancelIcon />}
-          onClick={() => {
-            if (window.confirm('작성 중인 메일을 취소하시겠습니까?')) {
-              navigate(-1);
-            }
-          }}
+          onClick={() => setCancelDialogOpen(true)}
           sx={{ ml: 1, bgcolor: '#fff', boxShadow: 1 }}
         >
           취소
@@ -745,7 +814,6 @@ function MailWritePage() {
             helperText={`${form.emailTitle.length}/100`}
             sx={{ mr: 2 }}
           />
-          <Button size="small" sx={{ minWidth: 50, fontSize: 13 }}>중요!</Button>
         </Box>
         {/* 예약 발송 입력란 추가 */}
         <Box sx={{ display: "flex", alignItems: "center", mb: 0.7 }}>
@@ -780,9 +848,9 @@ function MailWritePage() {
             label="본문"
             value={form.emailContent}
             onChange={e => {
-              // ⭐ 본문 최대 1000자 제한
+              // ⭐ 본문 최대 5000자 제한
               const value = e.target.value;
-              if (value.length <= 1000) {
+              if (value.length <= 5000) {
                 handleFieldChange("emailContent", value);
               }
             }}
@@ -790,9 +858,9 @@ function MailWritePage() {
             multiline
             rows={10}
             variant="outlined"
-            placeholder="내용을 입력하세요 (최대 1000자)"
-            inputProps={{ maxLength: 1000 }}
-            helperText={`${form.emailContent.length}/1000`}
+            placeholder="내용을 입력하세요 (최대 5000자)"
+            inputProps={{ maxLength: 5000 }}
+            helperText={`${form.emailContent.length}/5000`}
             sx={{
               "& .MuiInputBase-root": {
                 overflow: "auto",
@@ -865,6 +933,18 @@ function MailWritePage() {
             ...(form.bccAddresses || [])
           ])]
         }
+      />
+      
+      {/* 취소 확인 다이얼로그 */}
+      <ConfirmDialog
+        open={cancelDialogOpen}
+        title="메일 작성 취소"
+        message="작성 중인 메일을 취소하시겠습니까?"
+        onConfirm={() => {
+          setCancelDialogOpen(false);
+          navigate(-1);
+        }}
+        onCancel={() => setCancelDialogOpen(false)}
       />
     </Box>
   );

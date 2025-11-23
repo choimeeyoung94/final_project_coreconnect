@@ -11,6 +11,7 @@ import { fetchDraftbox, deleteDraftMail, fetchDraftCount } from "../api/emailApi
 import { UserProfileContext } from "../../../App";
 import { useNavigate } from "react-router-dom";
 import { MailCountContext } from "../../../App"; // ★ 임시보관함/언리드 context
+import ConfirmDialog from "../../../components/utils/ConfirmDialog";
 
 const DraftBoxPage = () => {
   // 임시 메일 목록, 전체 개수, 페이지, 페이지당 크기, 로딩상태, 임시카운트, 스낵바 상태
@@ -22,6 +23,8 @@ const DraftBoxPage = () => {
   const [isRefreshing, setIsRefreshing] = useState(false); // 새로고침 로딩 상태
   const [sizeMenuAnchor, setSizeMenuAnchor] = useState(null); // 페이지 크기 선택 메뉴
   const [snack, setSnack] = useState({ open: false, severity: "info", message: "" });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
   // ★ context에서 draftCount, refreshDraftCount 받아오기
   const { draftCount = 0, refreshDraftCount = () => {} } = useContext(MailCountContext) || {};
   // 로그인 유저 email 추출
@@ -31,12 +34,20 @@ const DraftBoxPage = () => {
 
   // 임시보관함 목록 조회 및 상태 세팅
   const reload = async () => {
-    if (!userEmail) return Promise.resolve();
+    if (!userEmail) {
+      console.warn("[DraftBoxPage] reload: userEmail이 없어서 메일 목록을 불러오지 않습니다.");
+      return Promise.resolve();
+    }
     setLoading(true);
     try {
+      console.log("[DraftBoxPage] fetchDraftbox 호출:", { userEmail, page: page - 1, size });
       const res = await fetchDraftbox(userEmail, page - 1, size);
+      console.log("[DraftBoxPage] fetchDraftbox 응답:", res);
       const boxData = res?.data?.data;
-      setDrafts(boxData?.content || []);
+      console.log("[DraftBoxPage] boxData:", boxData);
+      const mailList = Array.isArray(boxData?.content) ? boxData.content : [];
+      console.log("[DraftBoxPage] 메일 목록:", { mailListLength: mailList.length, totalElements: boxData?.totalElements });
+      setDrafts(mailList);
       setTotal(
         typeof boxData?.totalElements === "number"
           ? boxData.totalElements
@@ -71,8 +82,17 @@ const DraftBoxPage = () => {
   }, [page, size, userEmail]); // page, size, userEmail 변경시 갱신
 
   // ★ 임시메일 삭제
-  const handleDelete = async (draftId) => {
-    if (!window.confirm("정말로 이 임시저장 메일을 삭제하시겠습니까?")) return;
+  const handleDelete = (draftId) => {
+    setDeleteTargetId(draftId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTargetId) return;
+    const draftId = deleteTargetId;
+    setDeleteDialogOpen(false);
+    setDeleteTargetId(null);
+    
     try {
       await deleteDraftMail(draftId);
       setSnack({ open: true, severity: "success", message: "임시보관 메일을 삭제했습니다." });
@@ -247,6 +267,18 @@ const DraftBoxPage = () => {
           {snack.message}
         </Alert>
       </Snackbar>
+
+      {/* 삭제 확인 다이얼로그 */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title="임시저장 메일 삭제"
+        message="정말로 이 임시저장 메일을 삭제하시겠습니까?"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setDeleteDialogOpen(false);
+          setDeleteTargetId(null);
+        }}
+      />
     </Box>
   );
 };

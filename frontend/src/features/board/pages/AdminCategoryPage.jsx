@@ -1,13 +1,32 @@
 import { useEffect, useState } from "react";
-import { Box, Typography, Table, TableHead, TableRow, TableCell, TableBody, IconButton, TextField, Button, Paper, Tooltip, Divider } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  IconButton,
+  TextField,
+  Button,
+  Paper,
+  Tooltip,
+  Divider,
+  CircularProgress,
+} from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import SaveIcon from "@mui/icons-material/Save";
 import AddIcon from "@mui/icons-material/Add";
-import { getAllCategories, createCategory, updateCategory, deleteCategory } from "../api/boardCategoryAPI";
+import {
+  getAllCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from "../api/boardCategoryAPI";
 import { useSnackbarContext } from "../../../components/utils/SnackbarContext";
 import ConfirmDialog from "../../../components/utils/ConfirmDialog";
-
 
 const AdminCategoryPage = () => {
   const { showSnack } = useSnackbarContext(); // 스낵바 훅 사용
@@ -20,10 +39,12 @@ const AdminCategoryPage = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [targetId, setTargetId] = useState(null);
   const confirmMessage = "이 카테고리를 삭제하시겠습니까?";
+  const [loading, setLoading] = useState(true); // 로딩 상태
 
   // 전체 카테고리 불러오기 (비동기 함수)
   const loadCategories = async () => {
     try {
+      setLoading(true); // 로딩 시작
       const res = await getAllCategories(); // 백엔드 API로 전체 카테고리 목록 요청
       // 받아온 목록을 orderNo(정렬순서) 기준으로 오름차순 정렬
       const sorted = [...(res.data.data || [])].sort(
@@ -32,6 +53,8 @@ const AdminCategoryPage = () => {
       setCategories(sorted); // 정렬된 목록을 상태에 반영
     } catch (err) {
       showSnack("카테고리 목록을 불러오는 중 오류가 발생했습니다.", "error");
+    } finally {
+      setLoading(false); // 로딩 종료
     }
   };
 
@@ -87,7 +110,7 @@ const AdminCategoryPage = () => {
       showSnack("카테고리가 삭제되었습니다.", "success");
       loadCategories(); // 목록 새로 불러오기
     } catch (err) {
-      showSnack("카테고리 삭제 중 오류가 발생했습니다.", "error"); // 에러 발생 시 처리
+      showSnack("카테고리 삭제 중 오류가 발생했습니다.", "error");
     }
   };
 
@@ -103,15 +126,25 @@ const AdminCategoryPage = () => {
       setNewCategory({ name: "", orderNo: "" }); // 입력창 초기화
       loadCategories(); // 목록 새로고침
     } catch (err) {
-      showSnack("카테고리 등록 중 오류가 발생했습니다.", "error");
+      showSnack("카테고리 순서번호가 이미 존재합니다.", "error");
     }
   };
+
+  // 로딩 중 화면
+  if (loading) {
+    return (
+      <Box sx={{ p: 4, textAlign: "center" }}>
+        <CircularProgress />
+        <Typography sx={{ mt: 2 }}>카테고리를 불러오는 중...</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box
       sx={{
         p: 3,
-        bgcolor: "#f4f6fb", // 관리자 페이지 전체 배경색
+        bgcolor: "#f4f6fb",
         minHeight: "100vh",
       }}
     >
@@ -123,18 +156,14 @@ const AdminCategoryPage = () => {
           mx: "auto",
           p: 3,
           borderRadius: 2,
-          bgcolor: "#ffffff", // 메인 카드
+          bgcolor: "#ffffff",
         }}
       >
         {/* 페이지 제목 영역 */}
         <Typography variant="h5" sx={{ mb: 1, fontWeight: 700 }}>
           카테고리 관리 (관리자 전용)
         </Typography>
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ mb: 3 }}
-        >
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           게시판 카테고리명과 노출 순서를 한눈에 관리할 수 있는 페이지입니다.
         </Typography>
 

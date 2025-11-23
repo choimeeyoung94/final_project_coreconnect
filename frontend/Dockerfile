@@ -8,6 +8,16 @@ RUN npm ci
 
 # frontend 전체 소스를 도커 내부로 복사한 뒤 빌드
 COPY . .
+
+# 빌드 타임 환경 변수 (ARG는 빌드 시점에만 사용 가능)
+# 기본값은 배포 환경에서 nginx가 프록시하므로 상대 경로 사용
+ARG VITE_API_BASE_URL=/api/v1/
+ARG VITE_WS_BASE_URL=
+
+# 환경 변수를 빌드 시점에 주입
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_WS_BASE_URL=${VITE_WS_BASE_URL}
+
 RUN npm run build
 
 # 2. 배포 스테이지
