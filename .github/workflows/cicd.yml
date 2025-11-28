@@ -22,8 +22,19 @@ jobs:
           echo "MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}" >> .env
           echo "MYSQL_USER=${{ secrets.MYSQL_USER }}" >> .env
           echo "MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}" >> .env
+          echo "MYSQL_HOST=${{ secrets.MYSQL_HOST }}" >> .env
+          echo "MYSQL_PORT=${{ secrets.MYSQL_PORT }}" >> .env
           echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> .env
           echo "ALLOWED_ORIGIN=${{ secrets.ALLOWED_ORIGIN }}" >> .env
+          echo "CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}" >> .env
+          echo "WEBSOCKET_ALLOWED_ORIGINS=${{ secrets.WEBSOCKET_ALLOWED_ORIGINS }}" >> .env
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env
+          echo "AWS_BUCKET_NAME=${{ secrets.AWS_BUCKET_NAME }}" >> .env
+          echo "SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}" >> .env
+          echo "MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}" >> .env
+          echo "MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}" >> .env
           # frontend/.env (frontend/src/shared/api/axiosConfig.js에서 사용)
           echo "VITE_API_SERVER_HOST=${{ secrets.ALLOWED_ORIGIN }}" >> frontend/.env
         
@@ -48,11 +59,15 @@ jobs:
           script: |
             # website 디렉터리로 이동
             cd /home/ubuntu/website
-            # 기존 컨테이너 중지 및 삭제
-            docker compose down || true
+            # 기존 컨테이너 강제 중지 및 삭제
+            docker compose down --remove-orphans || true
+            # 남아있는 컨테이너 강제 제거 (혹시 모를 경우 대비)
+            docker rm -f boot-container nginx-container 2>/dev/null || true
             # 사용하지 않는 이미지 삭제
             docker image prune -f
             # Docker Compose 실행
             docker compose up --build -d
+            # 잠시 대기 후 컨테이너 상태 확인
+            sleep 5
             # Docker Compose 실행 로그
             docker compose logs --tail=50
