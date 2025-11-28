@@ -8,6 +8,14 @@ function ChatRoomListPane({
 }) {
   // 정렬 상태: 기본값은 최신 메시지부터 (내림차순)
   const sortOrder = 'desc';
+  
+  // 채팅방 목록에서 초 단위를 제거하는 헬퍼 함수
+  const formatTimeWithoutSeconds = (time) => {
+    const formatted = formatTime(time);
+    if (!formatted) return "";
+    // "2025-11-27 12:35:51" 형식에서 ":51" 부분 제거
+    return formatted.replace(/:\d{2}$/, "");
+  };
   // 참여자 수 정보를 저장할 state: { [roomId]: 참여자수 }
   const [roomMemberCounts, setRoomMemberCounts] = useState({});
 
@@ -225,7 +233,7 @@ function ChatRoomListPane({
                           mr: 2
                         }}
                       >
-                        {room.lasMessageTime ? formatTime(room.lasMessageTime) : ""}
+                        {room.lasMessageTime ? formatTimeWithoutSeconds(room.lasMessageTime) : ""}
                       </Typography>
                       {room.lastSenderName && (
                         <Typography
