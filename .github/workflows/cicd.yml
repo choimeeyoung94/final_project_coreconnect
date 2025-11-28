@@ -149,36 +149,23 @@ jobs:
             echo "⏳ 컨테이너 시작 대기 중..."
             sleep 10
 
-            # 🏥 헬스체크
+            # 🏥 헬스체크 스크립트 실행
             echo "🏥 헬스체크 시작..."
-            MAX_RETRIES=30
-            RETRY_COUNT=0
+            chmod +x scripts/healthcheck.sh
 
-            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-              if docker exec boot-container nc -z localhost 8080 2>/dev/null; then
-                echo "✅ Backend 헬스체크 성공!"
+            if ! ./scripts/healthcheck.sh --max-retries 30 --interval 2 --timeout 120; then
+              echo "❌ 헬스체크 실패! 롤백 시작..."
+              # 롤백: 백업 이미지로 복구
+              docker compose down
+              docker tag final_project_coreconnect-backend:backup final_project_coreconnect-backend:latest
+              docker tag final_project_coreconnect-frontend:backup final_project_coreconnect-frontend:latest
+              docker compose up -d
+              docker compose logs --tail=100
+              exit 1
+            fi
 
-                # 추가 API 헬스체크 (선택사항)
-                if curl -f http://localhost/api/health 2>/dev/null || curl -f http://localhost/ 2>/dev/null; then
-                  echo "✅ 전체 시스템 헬스체크 성공!"
-                  docker compose logs --tail=50
-                  exit 0
-                fi
-              fi
-
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              echo "⏳ 헬스체크 재시도 중... ($RETRY_COUNT/$MAX_RETRIES)"
-              sleep 2
-            done
-
-            # 헬스체크 실패 시 롤백
-            echo "❌ 헬스체크 실패! 롤백 시작..."
-            docker compose down
-            docker tag final_project_coreconnect-backend:backup final_project_coreconnect-backend:latest
-            docker tag final_project_coreconnect-frontend:backup final_project_coreconnect-frontend:latest
-            docker compose up -d
-            docker compose logs --tail=100
-            exit 1
+            echo "✅ 배포 및 헬스체크 완료!"
+            docker compose logs --tail=50
 
       # 5. 배포 성공 알림 (선택사항 - Slack/Discord)
       - name: Notify deployment success
