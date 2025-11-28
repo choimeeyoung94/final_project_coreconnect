@@ -212,4 +212,47 @@ public class GlobalExceptionHandler {
         // 빈 배열+200으로 강제 처리
         return ResponseEntity.ok(ResponseDTO.success(Collections.emptyList(), "채팅 메시지 없음"));
     }
+
+    // ============================================================================
+    // 🚀 스타트업 수준 Custom Exception 처리
+    // ============================================================================
+
+    /**
+     * 11. 비즈니스 예외 처리 (BusinessException 및 모든 하위 예외)
+     * - ResourceNotFoundException (404)
+     * - DuplicateResourceException (409)
+     * - InvalidStateException (400)
+     * - UnauthorizedException (401)
+     * - ExternalServiceException (502)
+     */
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ResponseDTO<Void>> handleBusinessException(BusinessException ex) {
+        log.warn("Business Exception: {} - Status: {}", ex.getMessage(), ex.getStatus());
+
+        ResponseDTO<Void> res = ResponseDTO.<Void>builder()
+            .status(ex.getStatus().value())
+            .message(ex.getMessage())
+            .build();
+
+        return ResponseEntity.status(ex.getStatus()).body(res);
+    }
+
+    /**
+     * 12. 외부 서비스 예외 처리 (재시도 필요한 경우)
+     * - AWS S3 업로드 실패
+     * - SendGrid 이메일 전송 실패
+     * - 외부 API 호출 실패
+     */
+    @ExceptionHandler(ExternalServiceException.class)
+    public ResponseEntity<ResponseDTO<Void>> handleExternalServiceException(ExternalServiceException ex) {
+        log.error("External Service Error - Service: {}, Message: {}",
+                ex.getServiceName(), ex.getMessage(), ex);
+
+        ResponseDTO<Void> res = ResponseDTO.<Void>builder()
+            .status(HttpStatus.BAD_GATEWAY.value())
+            .message("외부 서비스 연동에 실패했습니다. 잠시 후 다시 시도해주세요.")
+            .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(res);
+    }
 }
