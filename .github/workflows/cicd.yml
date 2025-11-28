@@ -1,0 +1,58 @@
+name: CI/CD Pipeline with Docker Compose
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+    
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # 2. .env 파일 생성
+      - name: Create .env file
+        run: |
+          # 루트 .env (docker-compose.yml에서 사용)
+          echo "MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}" >> .env
+          echo "MYSQL_USER=${{ secrets.MYSQL_USER }}" >> .env
+          echo "MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}" >> .env
+          echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> .env
+          echo "ALLOWED_ORIGIN=${{ secrets.ALLOWED_ORIGIN }}" >> .env
+          # frontend/.env (frontend/src/shared/api/axiosConfig.js에서 사용)
+          echo "VITE_API_SERVER_HOST=${{ secrets.ALLOWED_ORIGIN }}" >> frontend/.env
+        
+      # 3. EC2로 파일 전송 (플러그인-https://github.com/appleboy/ssh-action)
+      - name: Copy file to EC2
+        uses: appleboy/scp-action@v1
+        with: 
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "./*"
+          target: "/home/ubuntu/website"
+          rm: false
+        
+      # 4. EC2에서 Docker Compose 실행 (플러그인-https://github.com/appleboy/ssh-action)
+      - name: Deploy with Docker Compose on EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # website 디렉터리로 이동
+            cd /home/ubuntu/website
+            # 기존 컨테이너 중지 및 삭제
+            docker compose down || true
+            # 사용하지 않는 이미지 삭제
+            docker image prune -f
+            # Docker Compose 실행
+            docker compose up --build -d
+            # Docker Compose 실행 로그
+            docker compose logs --tail=50
