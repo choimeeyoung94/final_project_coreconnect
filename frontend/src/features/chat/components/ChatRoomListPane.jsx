@@ -111,7 +111,7 @@ function ChatRoomListPane({
             <ListItemText
               primary={
                 <Box sx={{ width: "100%", textAlign: "center", color: 'text.disabled', fontSize: 15 }}>
-                  채팅방을 생성해서 대화를 시작해보세요
+                  {tabIdx === 1 ? "안읽은 메시지가 없습니다." : "채팅방을 생성해서 대화를 시작해보세요"}
                 </Box>
               }
             />
