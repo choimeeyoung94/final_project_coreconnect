@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext, useRef, useMemo } from 'react';
 import {
   Box, Typography, Paper, Table, TableHead, TableBody, TableRow, TableCell,
   IconButton, ButtonGroup, Button, InputBase, Divider, Checkbox, Chip, Pagination, Badge, Tabs, Tab,
-  Menu, MenuItem, Select, LinearProgress
+  Menu, MenuItem, Select, LinearProgress, CircularProgress
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ReplyIcon from '@mui/icons-material/Reply';
@@ -38,6 +38,7 @@ const MailInboxPage = () => {
   const [appliedKeyword, setAppliedKeyword] = useState("");
   const [sortOrder, setSortOrder] = useState("desc"); // 날짜 정렬 순서: "desc" (내림차순, 최신순), "asc" (오름차순, 오래된순)
   const [isRefreshing, setIsRefreshing] = useState(false); // 새로고침 로딩 상태
+  const [isLoading, setIsLoading] = useState(false); // 초기 로딩 상태
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const pendingReadIdsRef = useRef(new Set());
   const { userProfile } = useContext(UserProfileContext) || {};
@@ -102,7 +103,8 @@ const MailInboxPage = () => {
     pageSize = size,
     activeTab = tab,
     keywordParam = appliedKeyword,
-    searchTypeParam = appliedSearchType
+    searchTypeParam = appliedSearchType,
+    showLoading = true
   ) => {
     if (!userEmail) {
       console.warn("[MailInboxPage] loadInbox: userEmail이 없어서 메일 목록을 불러오지 않습니다.", {
@@ -122,6 +124,10 @@ const MailInboxPage = () => {
       keywordParam,
       searchTypeParam
     });
+    
+    if (showLoading) {
+      setIsLoading(true);
+    }
     
     try {
       // 서버에서 삭제된 메일이 제외되어 반환됨(DB/JPQL 필터)
@@ -249,6 +255,10 @@ const MailInboxPage = () => {
       console.error("fetchInbox error", err);
       setMails([]);
       setTotal(0);
+    } finally {
+      if (showLoading) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -264,7 +274,7 @@ const MailInboxPage = () => {
     setIsRefreshing(true);
     try {
       await Promise.all([
-        loadInbox(1, size, tab),
+        loadInbox(1, size, tab, appliedKeyword, appliedSearchType, false),
         loadUnreadCount()
       ]);
     } catch (err) {
@@ -1031,24 +1041,29 @@ const MailInboxPage = () => {
         <Divider sx={{ mb: 2 }} />
 
         {/* 메일 테이블 */}
-        <Table sx={{ minWidth: 900 }}>
-          <TableHead>
-            <TableRow sx={{ bgcolor: "#f8fafd", borderBottom: '2px solid #e1e3ea' }}>
-              <TableCell padding="checkbox"></TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>발신자</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>제목</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>일자</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700 }}>상태</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}></TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {/* 메일이 없을 때 안내 */}
-            {Array.isArray(sortedMails) && sortedMails.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} align="center">받은 메일이 없습니다.</TableCell>
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <Table sx={{ minWidth: 900 }}>
+            <TableHead>
+              <TableRow sx={{ bgcolor: "#f8fafd", borderBottom: '2px solid #e1e3ea' }}>
+                <TableCell padding="checkbox"></TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>발신자</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>제목</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>일자</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700 }}>상태</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}></TableCell>
               </TableRow>
-            ) : (
+            </TableHead>
+            <TableBody>
+              {/* 메일이 없을 때 안내 */}
+              {Array.isArray(sortedMails) && sortedMails.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} align="center">받은 메일이 없습니다.</TableCell>
+                </TableRow>
+              ) : (
               sortedMails.map(mail => {
                 const id = mail.emailId;
                 const checked = selected.has(id);
@@ -1091,9 +1106,10 @@ const MailInboxPage = () => {
                   </TableRow>
                 );
               })
-            )}
-          </TableBody>
-        </Table>
+              )}
+            </TableBody>
+          </Table>
+        )}
         {/* 하단 페이징 */}
         <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
           <Pagination
