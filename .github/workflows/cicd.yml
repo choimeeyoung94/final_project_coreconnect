@@ -38,7 +38,24 @@ jobs:
           # frontend/.env (frontend/src/shared/api/axiosConfig.js에서 사용)
           echo "VITE_API_SERVER_HOST=${{ secrets.ALLOWED_ORIGIN }}" >> frontend/.env
         
-      # 3. EC2로 파일 전송 (플러그인-https://github.com/appleboy/ssh-action)
+      # 3-1. SSH 연결 테스트 (디버깅용)
+      - name: Test SSH Connection to EC2
+        uses: appleboy/ssh-action@v1
+        continue-on-error: true  # 실패해도 다음 단계 계속
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          timeout: 30s
+          debug: true
+          script: |
+            echo "✅ SSH 연결 테스트 성공!"
+            hostname
+            whoami
+            echo "EC2 인스턴스에 정상적으로 연결되었습니다."
+      
+      # 3-2. EC2로 파일 전송
       - name: Copy file to EC2
         uses: appleboy/scp-action@v1
         with: 
@@ -46,7 +63,8 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22  # SSH 포트 명시적으로 지정
-          timeout: 60s  # 타임아웃 60초로 증가
+          timeout: 120s  # 타임아웃 120초로 증가
+          debug: true  # 디버그 모드 활성화
           source: "./*"
           target: "/home/ubuntu/website"
           rm: false
@@ -59,7 +77,8 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22  # SSH 포트 명시적으로 지정
-          timeout: 60s  # 타임아웃 60초로 증가
+          timeout: 120s  # 타임아웃 120초로 증가
+          debug: true  # 디버그 모드 활성화
           script: |
             set -e  # 에러 발생 시 즉시 중단
             
