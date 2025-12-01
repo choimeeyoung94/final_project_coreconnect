@@ -153,7 +153,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          timeout: 60
+          timeout: 120s
           debug: true
           strip_components: 0
           overwrite: true
@@ -169,7 +169,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          timeout: 300
+          timeout: 300s
           debug: true
           script: |
             set -e  # 에러 발생 시 즉시 중단
