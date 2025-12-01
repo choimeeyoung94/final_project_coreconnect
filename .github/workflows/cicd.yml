@@ -63,7 +63,29 @@ jobs:
           echo "📝 EC2_HOST 값 확인 (마스킹됨): ${{ secrets.EC2_HOST }}"
           echo "📝 EC2_USER 값: ${{ secrets.EC2_USER }}"
       
-      # 3-2. SSH 연결 테스트 (디버깅용)
+      # 3-2. 네트워크 진단 (디버깅용)
+      - name: Network Diagnostics
+        run: |
+          echo "🔍 네트워크 진단 시작..."
+          echo "📍 EC2 호스트 확인: ${{ secrets.EC2_HOST }}"
+
+          # DNS 조회
+          echo "🌐 DNS 조회:"
+          nslookup ${{ secrets.EC2_HOST }} || echo "⚠️ DNS 조회 실패"
+
+          # Ping 테스트
+          echo "🏓 Ping 테스트 (4회):"
+          ping -c 4 ${{ secrets.EC2_HOST }} || echo "⚠️ Ping 실패"
+
+          # 포트 22 연결 테스트
+          echo "🔌 포트 22 연결 테스트:"
+          timeout 10 bash -c "</dev/tcp/${{ secrets.EC2_HOST }}/22 && echo '✅ 포트 22 연결 가능'" || echo "❌ 포트 22 연결 불가"
+
+          # Traceroute (경로 추적)
+          echo "🗺️ Traceroute:"
+          traceroute -m 10 ${{ secrets.EC2_HOST }} || echo "⚠️ Traceroute 실패"
+
+      # 3-3. SSH 연결 테스트 (디버깅용)
       - name: Test SSH Connection to EC2
         uses: appleboy/ssh-action@v1
         continue-on-error: true  # 실패해도 다음 단계 계속
@@ -72,7 +94,8 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          timeout: 60s
+          timeout: 120s
+          command_timeout: 5m
           debug: true
           script: |
             echo "✅ SSH 연결 테스트 성공!"
@@ -80,19 +103,69 @@ jobs:
             whoami
             echo "EC2 인스턴스에 정상적으로 연결되었습니다."
       
-      # 3-3. EC2로 파일 전송
-      - name: Copy file to EC2
+      # 3-4. EC2로 파일 전송 (재시도 로직 포함)
+      - name: Copy file to EC2 (Attempt 1)
+        id: scp-attempt-1
+        continue-on-error: true
         uses: appleboy/scp-action@v1
-        with: 
+        with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22  # SSH 포트 명시적으로 지정
-          timeout: 120s  # 타임아웃 120초로 증가
-          debug: true  # 디버그 모드 활성화
+          port: 22
+          timeout: 180s  # 타임아웃 3분으로 증가
+          command_timeout: 10m  # 명령 타임아웃 10분
+          debug: true
           source: "./*"
           target: "/home/ubuntu/website"
           rm: false
+          overwrite: true
+
+      - name: Wait before retry (if needed)
+        if: steps.scp-attempt-1.outcome == 'failure'
+        run: |
+          echo "⚠️ 첫 번째 SCP 시도 실패. 10초 후 재시도..."
+          sleep 10
+
+      - name: Copy file to EC2 (Attempt 2)
+        id: scp-attempt-2
+        if: steps.scp-attempt-1.outcome == 'failure'
+        continue-on-error: true
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          timeout: 240s  # 타임아웃 4분으로 증가
+          command_timeout: 15m
+          debug: true
+          source: "./*"
+          target: "/home/ubuntu/website"
+          rm: false
+          overwrite: true
+
+      - name: Wait before final retry (if needed)
+        if: steps.scp-attempt-2.outcome == 'failure'
+        run: |
+          echo "⚠️ 두 번째 SCP 시도 실패. 20초 후 최종 재시도..."
+          sleep 20
+
+      - name: Copy file to EC2 (Final Attempt)
+        if: steps.scp-attempt-2.outcome == 'failure'
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          timeout: 300s  # 타임아웃 5분으로 증가
+          command_timeout: 20m
+          debug: true
+          source: "./*"
+          target: "/home/ubuntu/website"
+          rm: false
+          overwrite: true
         
       # 4. EC2에서 Docker Compose 실행 (플러그인-https://github.com/appleboy/ssh-action)
       - name: Deploy with Docker Compose on EC2
@@ -102,7 +175,8 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22  # SSH 포트 명시적으로 지정
-          timeout: 120s  # 타임아웃 120초로 증가
+          timeout: 300s  # 타임아웃 5분으로 증가
+          command_timeout: 30m  # 명령 타임아웃 30분
           debug: true  # 디버그 모드 활성화
           script: |
             set -e  # 에러 발생 시 즉시 중단
