@@ -5,16 +5,16 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-    
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       # 1. 코드 체크아웃
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       # 2. .env 파일 생성
       - name: Create .env file
         run: |
@@ -38,129 +38,17 @@ jobs:
           # frontend/.env (frontend/src/shared/api/axiosConfig.js에서 사용)
           echo "VITE_API_SERVER_HOST=${{ secrets.ALLOWED_ORIGIN }}" >> frontend/.env
         
-      # 3-1. Secrets 확인 (디버깅용 - 실제 값은 출력되지 않음)
-      - name: Verify Secrets Configuration
-        run: |
-          echo "🔍 Secrets 설정 확인 중..."
-          if [ -z "${{ secrets.EC2_HOST }}" ]; then
-            echo "❌ EC2_HOST가 설정되지 않았습니다!"
-            echo "📍 GitHub Repository → Settings → Secrets → Actions에서 EC2_HOST를 설정하세요."
-            exit 1
-          fi
-          echo "✅ EC2_HOST: 설정됨"
-          
-          if [ -z "${{ secrets.EC2_USER }}" ]; then
-            echo "❌ EC2_USER가 설정되지 않았습니다!"
-            echo "📍 GitHub Repository → Settings → Secrets → Actions에서 EC2_USER를 설정하세요."
-            exit 1
-          fi
-          echo "✅ EC2_USER: 설정됨 (값: ${{ secrets.EC2_USER }})"
-          
-          if [ -z "${{ secrets.EC2_SSH_KEY }}" ]; then
-            echo "❌ EC2_SSH_KEY가 설정되지 않았습니다!"
-            echo "📍 GitHub Repository → Settings → Secrets → Actions에서 EC2_SSH_KEY를 설정하세요."
-            exit 1
-          fi
-          echo "✅ EC2_SSH_KEY: 설정됨"
-          
-          # EC2_HOST 형식 검증
-          EC2_HOST_VALUE="${{ secrets.EC2_HOST }}"
-          if [[ "$EC2_HOST_VALUE" == http://* ]] || [[ "$EC2_HOST_VALUE" == https://* ]]; then
-            echo "⚠️  경고: EC2_HOST에 프로토콜(http:// 또는 https://)이 포함되어 있습니다."
-            echo "📍 EC2_HOST는 IP 주소 또는 DNS 이름만 입력해야 합니다 (예: 13.125.225.211)"
-          fi
-          echo "📝 EC2_HOST 형식 확인 완료"
-      
-      # 3-2. 네트워크 연결 테스트 (EC2 포트 22 접근 가능 여부 확인)
-      - name: Test EC2 Port 22 Connectivity
-        continue-on-error: true
-        run: |
-          echo "🔍 EC2 포트 22 연결 테스트 중..."
-          echo "📍 대상: ${{ secrets.EC2_HOST }}:22"
-          
-          # nc (netcat)를 사용한 포트 연결 테스트
-          if timeout 10 bash -c "echo > /dev/tcp/${{ secrets.EC2_HOST }}/22" 2>/dev/null; then
-            echo "✅ EC2 포트 22 연결 가능"
-          else
-            echo "❌ EC2 포트 22 연결 실패"
-            echo ""
-            echo "🔧 해결 방법:"
-            echo "1. AWS Console → EC2 → Instances → 인스턴스 선택"
-            echo "2. Security 탭 → 보안 그룹 이름 클릭"
-            echo "3. Inbound rules → Edit inbound rules"
-            echo "4. Add rule 추가:"
-            echo "   - Type: SSH"
-            echo "   - Protocol: TCP"
-            echo "   - Port range: 22"
-            echo "   - Source: 0.0.0.0/0"
-            echo "5. Save rules 클릭"
-            exit 1
-          fi
-      
-      # 3-3. SSH 키 파일 생성 및 권한 설정
-      - name: Setup SSH Key
-        run: |
-          echo "🔑 SSH 키 파일 생성 중..."
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
-          chmod 600 ~/.ssh/ec2_key
-          echo "✅ SSH 키 파일 생성 완료"
-          
-          # SSH 키 형식 확인
-          if ! ssh-keygen -l -f ~/.ssh/ec2_key > /dev/null 2>&1; then
-            echo "⚠️  경고: SSH 키 형식이 올바르지 않을 수 있습니다."
-            echo "📍 EC2_SSH_KEY는 SSH 프라이빗 키 전체여야 합니다."
-          else
-            echo "✅ SSH 키 형식 확인 완료"
-          fi
-      
-      # 3-4. SSH 연결 테스트 (디버깅용)
-      - name: Test SSH Connection to EC2
-        continue-on-error: true  # 실패해도 다음 단계 계속
-        run: |
-          echo "🔍 SSH 연결 테스트 중..."
-          echo "📍 대상: ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}"
-          
-          # StrictHostKeyChecking=no로 첫 연결 시 자동 승인
-          ssh -i ~/.ssh/ec2_key \
-              -o StrictHostKeyChecking=no \
-              -o UserKnownHostsFile=/dev/null \
-              -o ConnectTimeout=30 \
-              -o LogLevel=DEBUG \
-              ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
-              "echo '✅ SSH 연결 테스트 성공!'; hostname; whoami" || {
-            echo ""
-            echo "❌ SSH 연결 실패"
-            echo ""
-            echo "🔧 가능한 원인:"
-            echo "1. EC2 보안 그룹에서 포트 22가 차단되어 있음"
-            echo "2. EC2 인스턴스가 실행 중이 아님"
-            echo "3. SSH 키가 EC2 인스턴스의 authorized_keys에 등록되지 않음"
-            echo "4. EC2_HOST 값이 잘못됨"
-            echo ""
-            echo "📋 다음 단계를 확인하세요:"
-            echo "1. AWS Console에서 EC2 인스턴스 상태 확인 (running 상태여야 함)"
-            echo "2. 보안 그룹 인바운드 규칙에 SSH(포트 22) 추가"
-            echo "3. EC2 인스턴스에 SSH 키가 올바르게 등록되었는지 확인"
-            exit 1
-          }
-      
-      # 3-5. EC2로 파일 전송
+      # 3. EC2로 파일 전송 (플러그인-https://github.com/appleboy/ssh-action)
       - name: Copy file to EC2
         uses: appleboy/scp-action@v1
         with: 
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          timeout: 120s
-          debug: true
-          strip_components: 0
-          overwrite: true
           source: "./*"
           target: "/home/ubuntu/website"
           rm: false
-        
+
       # 4. EC2에서 Docker Compose 실행 (플러그인-https://github.com/appleboy/ssh-action)
       - name: Deploy with Docker Compose on EC2
         uses: appleboy/ssh-action@v1
@@ -168,172 +56,18 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          timeout: 300s
-          debug: true
           script: |
-            set -e  # 에러 발생 시 즉시 중단
-            
-            # 에러 핸들러 함수 정의
-            handle_error() {
-              local exit_code=$?
-              local line_number=$1
-              echo "❌ 배포 중 에러 발생!"
-              echo "📍 에러 위치: 라인 $line_number"
-              echo "🔍 Exit Code: $exit_code"
-              
-              # 컨테이너 상태 확인
-              echo ""
-              echo "📊 컨테이너 상태:"
-              docker ps -a || true
-              
-              # 컨테이너 로그 확인
-              echo ""
-              echo "📋 Backend 컨테이너 로그 (최근 100줄):"
-              docker compose logs backend --tail=100 || true
-              
-              # 에러 패턴 검색 (Checked/Unchecked Exception)
-              echo ""
-              echo "🔍 예외 발생 로그 검색:"
-              docker compose logs backend 2>&1 | grep -i -E "(exception|error|failed|fatal)" | tail -20 || true
-              
-              # 컨테이너 종료 상태 확인
-              echo ""
-              echo "📦 컨테이너 종료 상태:"
-              docker compose ps -a || true
-              
-              # 롤백 시도 (이전 버전이 있다면)
-              echo ""
-              echo "🔄 롤백 시도 중..."
-              docker compose down --remove-orphans || true
-              
-              exit $exit_code
-            }
-            
-            # trap을 사용하여 에러 발생 시 handle_error 함수 호출
-            trap 'handle_error $LINENO' ERR
-            
             # website 디렉터리로 이동
-            cd /home/ubuntu/website || { echo "❌ 디렉터리 이동 실패"; exit 1; }
-            
-            # 기존 컨테이너 백업 (롤백을 위해)
-            echo "💾 기존 컨테이너 상태 백업..."
-            docker compose ps -a > /tmp/previous_containers.txt 2>&1 || true
-            
-            # 기존 컨테이너 강제 중지 및 삭제
-            echo "🛑 기존 컨테이너 중지 중..."
+            cd /home/ubuntu/website
+             # 기존 컨테이너 강제 중지 및 삭제
             docker compose down --remove-orphans || true
+            # 남아있는 컨테이너 강제 제거 (혹시 모를 경우 대비)
             docker rm -f boot-container nginx-container 2>/dev/null || true
-            
             # 사용하지 않는 이미지 삭제
-            echo "🧹 사용하지 않는 이미지 정리 중..."
-            docker image prune -f || true
-            
-            # Docker Compose 빌드 및 실행
-            echo "🔨 Docker Compose 빌드 및 실행 중..."
-            if ! docker compose up --build -d; then
-              echo "❌ Docker Compose 실행 실패"
-              echo "📋 빌드 로그:"
-              docker compose logs --tail=50 || true
-              exit 1
-            fi
-            
-            # 컨테이너가 정상적으로 시작되었는지 확인
-            echo "⏳ 컨테이너 시작 대기 중..."
+            docker image prune -f
+            # Docker Compose 실행
+            docker compose up --build -d
+            # 잠시 대기 후 컨테이너 상태 확인
             sleep 5
-            
-            # 컨테이너 상태 확인
-            echo "📊 컨테이너 상태 확인:"
-            docker compose ps
-            
-            # 컨테이너가 실행 중인지 확인
-            if ! docker compose ps | grep -q "Up"; then
-              echo "❌ 컨테이너가 정상적으로 시작되지 않았습니다."
-              echo "📋 컨테이너 로그:"
-              docker compose logs --tail=50
-              exit 1
-            fi
-            
-            # Docker Compose 실행 로그 확인 (에러 패턴 검색)
-            echo "📋 초기 로그 확인 중..."
+            # Docker Compose 실행 로그
             docker compose logs --tail=50
-            
-            # 애플리케이션 예외 발생 여부 확인
-            echo "🔍 애플리케이션 예외 검사 중..."
-            EXCEPTION_FOUND=$(docker compose logs backend 2>&1 | grep -i -E "(exception|error|failed|fatal)" | tail -5 || true)
-            if [ -n "$EXCEPTION_FOUND" ]; then
-              echo "⚠️  예외 로그 발견:"
-              echo "$EXCEPTION_FOUND"
-            fi
-
-            # 헬스체크: 애플리케이션이 준비될 때까지 최대 2분 대기
-            echo "🏥 헬스체크 시작..."
-            RETRY_COUNT=0
-            MAX_RETRIES=24  # 24회 * 5초 = 2분
-            HEALTH_CHECK_FAILED=false
-
-            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-              # 컨테이너가 여전히 실행 중인지 확인
-              if ! docker compose ps | grep -q "Up"; then
-                echo "❌ 컨테이너가 중지되었습니다."
-                HEALTH_CHECK_FAILED=true
-                break
-              fi
-              
-              # 기본 헬스체크 (포트 확인)
-              if curl -f http://localhost:8080/api/health > /dev/null 2>&1; then
-                echo "✅ 기본 헬스체크 성공"
-
-                # 상세 헬스체크 (DB 연결 확인)
-                if curl -f http://localhost:8080/api/health/detailed > /dev/null 2>&1; then
-                  echo "✅ 상세 헬스체크 성공 (DB 연결 정상)"
-                  
-                  # 최종 예외 검사
-                  FINAL_EXCEPTION_CHECK=$(docker compose logs backend 2>&1 | grep -i -E "(exception|error)" | tail -10 || true)
-                  if [ -n "$FINAL_EXCEPTION_CHECK" ]; then
-                    echo "⚠️  최종 예외 로그 확인:"
-                    echo "$FINAL_EXCEPTION_CHECK"
-                    # 경고만 출력하고 계속 진행 (애플리케이션이 동작 중이면)
-                  fi
-                  
-                  echo "🎉 배포 완료! 서비스가 정상 작동 중입니다."
-                  exit 0
-                else
-                  echo "⚠️  상세 헬스체크 실패 (DB 연결 오류 가능성)"
-                  HEALTH_CHECK_FAILED=true
-                  break
-                fi
-              fi
-
-              RETRY_COUNT=$((RETRY_COUNT+1))
-              echo "⏳ 헬스체크 재시도 ($RETRY_COUNT/$MAX_RETRIES)..."
-              
-              # 재시도 중 예외 발생 여부 확인
-              if [ $((RETRY_COUNT % 5)) -eq 0 ]; then
-                EXCEPTION_CHECK=$(docker compose logs backend 2>&1 | grep -i -E "(exception|error)" | tail -5 || true)
-                if [ -n "$EXCEPTION_CHECK" ]; then
-                  echo "⚠️  재시도 중 예외 발견:"
-                  echo "$EXCEPTION_CHECK"
-                fi
-              fi
-              
-              sleep 5
-            done
-
-            # 헬스체크 실패 시 상세 정보 출력
-            if [ "$HEALTH_CHECK_FAILED" = true ] || [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-              echo "❌ 헬스체크 실패: 서비스가 시작되지 않았습니다."
-              echo ""
-              echo "📊 최종 컨테이너 상태:"
-              docker compose ps -a
-              echo ""
-              echo "📋 Backend 로그 (최근 100줄):"
-              docker compose logs backend --tail=100
-              echo ""
-              echo "🔍 예외/에러 로그 검색:"
-              docker compose logs backend 2>&1 | grep -i -E "(exception|error|failed|fatal)" | tail -30 || true
-              echo ""
-              echo "📋 모든 서비스 로그:"
-              docker compose logs --tail=50
-              exit 1
-            fi
