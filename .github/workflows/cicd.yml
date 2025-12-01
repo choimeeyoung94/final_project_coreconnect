@@ -38,7 +38,32 @@ jobs:
           # frontend/.env (frontend/src/shared/api/axiosConfig.js에서 사용)
           echo "VITE_API_SERVER_HOST=${{ secrets.ALLOWED_ORIGIN }}" >> frontend/.env
         
-      # 3-1. SSH 연결 테스트 (디버깅용)
+      # 3-1. Secrets 확인 (디버깅용 - 실제 값은 출력되지 않음)
+      - name: Verify Secrets Configuration
+        run: |
+          echo "🔍 Secrets 설정 확인 중..."
+          if [ -z "${{ secrets.EC2_HOST }}" ]; then
+            echo "❌ EC2_HOST가 설정되지 않았습니다!"
+            exit 1
+          fi
+          echo "✅ EC2_HOST: 설정됨"
+          
+          if [ -z "${{ secrets.EC2_USER }}" ]; then
+            echo "❌ EC2_USER가 설정되지 않았습니다!"
+            exit 1
+          fi
+          echo "✅ EC2_USER: 설정됨"
+          
+          if [ -z "${{ secrets.EC2_SSH_KEY }}" ]; then
+            echo "❌ EC2_SSH_KEY가 설정되지 않았습니다!"
+            exit 1
+          fi
+          echo "✅ EC2_SSH_KEY: 설정됨"
+          
+          echo "📝 EC2_HOST 값 확인 (마스킹됨): ${{ secrets.EC2_HOST }}"
+          echo "📝 EC2_USER 값: ${{ secrets.EC2_USER }}"
+      
+      # 3-2. SSH 연결 테스트 (디버깅용)
       - name: Test SSH Connection to EC2
         uses: appleboy/ssh-action@v1
         continue-on-error: true  # 실패해도 다음 단계 계속
@@ -47,7 +72,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          timeout: 30s
+          timeout: 60s
           debug: true
           script: |
             echo "✅ SSH 연결 테스트 성공!"
@@ -55,7 +80,7 @@ jobs:
             whoami
             echo "EC2 인스턴스에 정상적으로 연결되었습니다."
       
-      # 3-2. EC2로 파일 전송
+      # 3-3. EC2로 파일 전송
       - name: Copy file to EC2
         uses: appleboy/scp-action@v1
         with: 
