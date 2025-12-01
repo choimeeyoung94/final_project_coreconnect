@@ -36,7 +36,6 @@ import {
 import AttendeeTimelinePanel from "../components/AttendeeTimelinePanel";
 import { useSnackbarContext } from "../../../components/utils/SnackbarContext";
 import { UserProfileContext } from "../../../App";
-import logoImage from "../../../assets/coreconnect-logo.png";
 
 export default function ScheduleModal({
   open,
@@ -988,8 +987,12 @@ export default function ScheduleModal({
                     >
                       <Box
                         component="img"
-                        src={logoImage}
+                        src="/coreconnect-logo.png"
                         alt="코어커넥트 로고"
+                        onError={(e) => {
+                          // 로고 로드 실패 시 vite.svg로 fallback
+                          e.target.src = "/vite.svg";
+                        }}
                         sx={{
                           height: 16,
                           width: "auto",

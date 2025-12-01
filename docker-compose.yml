@@ -44,13 +44,18 @@ services:
     # 2) ./frontend 경로에 있는 Dockerfile로 도커 이미지를 빌드할 것
     build: 
       context: ./frontend
-    # 3) 포트 포워딩 (외부에서 80 접속 허용)
+    # 3) 포트 포워딩 (HTTP 80, HTTPS 443)
     ports:
       - 80:80
+      - 443:443
     # 4) boot-container와 동일한 도커 네트워크 사용
     networks:
       - my-network
-    # 5) backend 서비스가 완전히 준비될 때까지 대기
+    # 5) Let's Encrypt 인증서 볼륨 마운트 (호스트의 /etc/letsencrypt 디렉토리)
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./frontend/letsencrypt-challenge:/usr/share/nginx/html/.well-known/acme-challenge
+    # 6) backend 서비스가 완전히 준비될 때까지 대기
     depends_on:
       backend:
         condition: service_healthy

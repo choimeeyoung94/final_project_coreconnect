@@ -21,6 +21,9 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     
     /**
      * ⭐ Department를 함께 로드하여 LazyInitializationException 방지
+     * User와 Departmemt를 한번에 조회
+     * 트랜잭션 종료 후에도 Department 접근가능
+     * 
      * @param email 사용자 이메일
      * @return Department가 함께 로드된 User Optional
      */
