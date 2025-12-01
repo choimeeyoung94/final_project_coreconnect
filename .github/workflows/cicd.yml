@@ -67,23 +67,70 @@ jobs:
       - name: Network Diagnostics
         run: |
           echo "🔍 네트워크 진단 시작..."
-          echo "📍 EC2 호스트 확인: ${{ secrets.EC2_HOST }}"
+          echo ""
+
+          # GitHub Actions Runner의 Public IP 확인
+          echo "📍 GitHub Actions Runner IP 주소:"
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          echo "✅ Runner IP: $RUNNER_IP"
+          echo "⚠️ EC2 보안 그룹에서 이 IP를 SSH(22) 포트에 허용해야 합니다!"
+          echo ""
+
+          # EC2 호스트 확인
+          echo "📍 EC2 호스트: ${{ secrets.EC2_HOST }}"
+          echo ""
 
           # DNS 조회
           echo "🌐 DNS 조회:"
-          nslookup ${{ secrets.EC2_HOST }} || echo "⚠️ DNS 조회 실패"
+          if nslookup ${{ secrets.EC2_HOST }}; then
+            echo "✅ DNS 조회 성공"
+          else
+            echo "❌ DNS 조회 실패 - EC2_HOST가 올바른지 확인하세요"
+          fi
+          echo ""
 
           # Ping 테스트
           echo "🏓 Ping 테스트 (4회):"
-          ping -c 4 ${{ secrets.EC2_HOST }} || echo "⚠️ Ping 실패"
+          if ping -c 4 -W 5 ${{ secrets.EC2_HOST }}; then
+            echo "✅ Ping 성공 - 네트워크 연결 가능"
+          else
+            echo "❌ Ping 실패 - EC2 보안 그룹에서 ICMP를 차단 중이거나 인스턴스가 중지됨"
+          fi
+          echo ""
 
           # 포트 22 연결 테스트
           echo "🔌 포트 22 연결 테스트:"
-          timeout 10 bash -c "</dev/tcp/${{ secrets.EC2_HOST }}/22 && echo '✅ 포트 22 연결 가능'" || echo "❌ 포트 22 연결 불가"
+          if timeout 10 bash -c "cat < /dev/null > /dev/tcp/${{ secrets.EC2_HOST }}/22" 2>/dev/null; then
+            echo "✅ 포트 22 연결 가능!"
+          else
+            echo "❌ 포트 22 연결 불가!"
+            echo "원인 가능성:"
+            echo "  1. EC2 보안 그룹에서 SSH(22) 포트가 $RUNNER_IP 에 대해 차단됨"
+            echo "  2. EC2 인스턴스가 중지됨"
+            echo "  3. 네트워크 ACL 문제"
+            echo ""
+            echo "해결 방법:"
+            echo "  AWS Console → EC2 → 보안 그룹 → 인바운드 규칙"
+            echo "  - 유형: SSH, 포트: 22, 소스: $RUNNER_IP/32 또는 0.0.0.0/0"
+          fi
+          echo ""
 
           # Traceroute (경로 추적)
-          echo "🗺️ Traceroute:"
-          traceroute -m 10 ${{ secrets.EC2_HOST }} || echo "⚠️ Traceroute 실패"
+          echo "🗺️ Traceroute (최대 15홉):"
+          traceroute -m 15 -w 2 ${{ secrets.EC2_HOST }} || echo "⚠️ Traceroute 완료"
+          echo ""
+
+          # 최종 요약
+          echo "========================================="
+          echo "📊 진단 요약"
+          echo "========================================="
+          echo "Runner IP: $RUNNER_IP"
+          echo "EC2 Host: ${{ secrets.EC2_HOST }}"
+          echo ""
+          echo "다음 단계에서 SSH 연결이 실패하면:"
+          echo "1. EC2 보안 그룹에 Runner IP ($RUNNER_IP) 추가"
+          echo "2. 또는 임시로 0.0.0.0/0 허용 (테스트용)"
+          echo "========================================="
 
       # 3-3. SSH 연결 테스트 (디버깅용)
       - name: Test SSH Connection to EC2
