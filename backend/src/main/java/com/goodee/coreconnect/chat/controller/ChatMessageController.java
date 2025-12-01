@@ -118,8 +118,8 @@ public class ChatMessageController {
 	@MessageMapping("/chat.sendMessage") // 프론트에서 /app/chat.sendMessage로 메시지 전송 (STOMP)
 	@org.springframework.transaction.annotation.Transactional // ⭐ LazyInitializationException 방지: 트랜잭션 유지
 	public void sendMessage(
-	        @Payload SendMessageRequestDTO req,
-	        SimpMessageHeaderAccessor headerAccessor
+	        @Payload SendMessageRequestDTO req,// STOMP 메시지 본문을 자동으로 Java객체로 매핑
+	        SimpMessageHeaderAccessor headerAccessor // 웹소켓 세션 정보와 메시지 헤더에 접근
 	) {
 	    // ⭐ 함수 진입 로그 (최우선 확인)
 	    log.info("🔥 [sendMessage] ========== 함수 진입 ========== - req: {}, headerAccessor: {}", 
@@ -129,7 +129,8 @@ public class ChatMessageController {
 	        log.info("[sendMessage] 메시지 수신 시작 - req: {}", req);
 	        
 	        // WebSocket 세션에서 사용자 이메일 가져오기 (WebSocketAuthInterceptor에서 설정)
-	        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
+	        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes(); // wsUserEmail, access_token이 들어있다
+	        
 	        if (sessionAttributes == null) {
 	            log.warn("[ChatMessageController] sendMessage - 세션 attributes가 null입니다.");
 	            return;

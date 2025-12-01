@@ -97,7 +97,15 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 			User user = userRepository.findById(userID).orElseThrow();
 			ChatRoomUser chatRoomUser = ChatRoomUser.createChatRoomUser(user, chatRoom);
 			chatRoomUserRepository.save(chatRoomUser);
+			// JPA 영속성 컨텍스트:
+			/*
+			 * 1차 캐시이다.
+			 * 한 트랜잭션 동안 엔티티를 메모리에 저장하고 같은 엔티티를 다시 조회하면 DB 쿼리 없이 메모리의 객체를 반환한다
+			 * 
+			 * */
+			// 이 채팅방에 누가 참여중인지 확인할 수 있게 하기 위함
 			chatRoom.getChatRoomUsers().add(chatRoomUser);
+			// 현재 로그인된 사용자가 어느 채팅방에 참여중인지 확인할 수 있게 하기 위함
 			user.getChatRoomUsers().add(chatRoomUser);
 		}
 		return chatRoom;		

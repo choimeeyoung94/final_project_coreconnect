@@ -19,7 +19,6 @@ import GroupwareNoticeModal from "../../../features/notice/components/GroupwareN
 import { useState, useContext } from "react";
 import { getJobGradeLabel } from "../../../utils/labelUtils";
 import { UserProfileContext } from "../../../App";
-import logoImage from "../../../assets/coreconnect-logo.png";
 import NotificationPopover from "./components/NotificationPopover";
 import ProfilePopover from "./components/ProfilePopover";
 import ThemeSelect from "./components/ThemeSelect";
@@ -140,8 +139,12 @@ export default function Topbar({ onLogout, themeMode, themeOptions, onThemeChang
           >
             <Box
               component="img"
-              src={logoImage}
+              src="/coreconnect-logo.png"
               alt="코어커넥트 로고"
+              onError={(e) => {
+                // 로고 로드 실패 시 vite.svg로 fallback
+                e.target.src = "/vite.svg";
+              }}
               sx={{
                 height: 32,
                 width: "auto",
