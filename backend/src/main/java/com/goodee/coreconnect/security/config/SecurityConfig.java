@@ -46,6 +46,7 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
+            // CORS 설정을 먼저 적용 (필터 체인 순서 중요)
             .cors(cors -> cors.configurationSource(corsConfigurationSource())) 
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(ex -> ex
@@ -74,9 +75,8 @@ public class SecurityConfig {
         } else {
             log.info("프로필: 배포용");
             http.authorizeHttpRequests(auth -> auth
-                // CORS 프리플라이트는 항상 허용
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // 공개 경로: 인증 없이 접근 가능
+                // 주의: OPTIONS 요청은 CORS 필터가 자동으로 처리하므로 permitAll()에서 제외
                 .requestMatchers(
                     "/v3/api-docs/**",                    // Swagger API 문서
                     "/swagger-ui/**",                     // Swagger UI
@@ -108,12 +108,29 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        // 환경 변수에서 허용할 Origin 목록을 읽어서 쉼표로 분리
-        List<String> allowedOrigins = List.of(corsAllowedOrigins.split(","));
-        config.setAllowedOrigins(allowedOrigins);
+        
+        // 환경 변수에서 직접 읽기 (CORS_ALLOWED_ORIGINS)
+        String envCorsOrigins = System.getenv("CORS_ALLOWED_ORIGINS");
+        String originsToUse = (envCorsOrigins != null && !envCorsOrigins.isEmpty()) 
+            ? envCorsOrigins 
+            : corsAllowedOrigins;
+        
+        // 허용할 Origin 목록을 읽어서 쉼표로 분리하고 공백 제거
+        List<String> allowedOrigins = List.of(originsToUse.split(","))
+            .stream()
+            .map(String::trim)
+            .filter(s -> !s.isEmpty())
+            .toList();
+        
+        log.info("[CORS] 환경 변수 CORS_ALLOWED_ORIGINS: {}", envCorsOrigins);
+        log.info("[CORS] 사용할 Origins: {}", allowedOrigins);
+        
+        // setAllowedOriginPatterns 사용 (Spring Boot 2.4+ 권장, credentials와 함께 사용 가능)
+        config.setAllowedOriginPatterns(allowedOrigins);
         config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization","Content-Type"));
+        config.setAllowedHeaders(List.of("Authorization","Content-Type","Cookie"));
         config.setAllowCredentials(true);
+        config.setExposedHeaders(List.of("Set-Cookie"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
