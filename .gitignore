@@ -2,4 +2,6 @@
 .cursorrules
 .vscode/
 .env
+!.env.example
+!.env.template
 .txt
