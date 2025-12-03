@@ -349,6 +349,7 @@ export function sendStompMessage({ roomId, content, fileYn = false, fileUrl = nu
       clientId: stompClient.clientId
     });
     
+    // stompClient는 있지만 연결이 끊어진 경우 처리
     if (!stompClient.connected) {
       console.error('🔥 [ChatSocket] STOMP 연결이 되어 있지 않습니다. 연결 상태:', {
         connected: stompClient.connected,
@@ -384,6 +385,12 @@ export function sendStompMessage({ roomId, content, fileYn = false, fileUrl = nu
       });
       
       // ⭐ STOMP 클라이언트 상태 재확인
+      /**
+       * 왜 세 번째 확인이 필요한가?
+       재연결 후 시간이 지나면서 연결이 끊어질 수 있음
+       네트워크 상태가 변할 수 있음
+      전송 직전에 한 번 더 확인하여 안전성 확보
+       */
       if (!stompClient.connected) {
         console.error('🔥 [ChatSocket] publish 호출 전 연결 상태 재확인 실패 - connected: false');
         return false;
@@ -394,6 +401,8 @@ export function sendStompMessage({ roomId, content, fileYn = false, fileUrl = nu
         active: stompClient.active
       });
       
+      // stomp 프로토콜의 send 명령어 실행
+      // 서버로 메시지 전송
       stompClient.publish({
         destination: "/app/chat.sendMessage",        // 서버 @MessageMapping 대상
         body: messageBody, // 메시지 본문
@@ -414,5 +423,16 @@ export function sendStompMessage({ roomId, content, fileYn = false, fileUrl = nu
   };
   
   // ⭐ 비동기 함수 호출 (프론트엔드에서 await 사용 가능하도록)
+  //Q: 왜 return을 해주는가?
+  //A:
+  // 호출하는 쪽에서 await를 사용할 수 있도록 하기 위해서입니다
+ //Promise를 반환하여 비동기 작업의 결과를 받을 수 있게 하기 위해서입니다
+ // 성공/실패 여부를 확인할 수 있도록 하기 위해서입니다
+ /**
+  * return이 없으면?
+함수가 undefined를 반환함
+await를 사용해도 의미가 없음
+성공/실패 여부를 확인할 수 없음
+  */
   return sendMessageInternal();
 }
