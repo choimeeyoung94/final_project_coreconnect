@@ -104,6 +104,7 @@ public class SecurityConfig {
     /**
      * Cors 허용 규칙을 정의하는 Bean.
      * 프론트엔드에서 오는 요청을 허용할 도메인, 메서드, 헤더를 지정한다.
+     * HTTPS 환경에서도 정상 작동하도록 설정.
      */
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
@@ -126,11 +127,36 @@ public class SecurityConfig {
         log.info("[CORS] 사용할 Origins: {}", allowedOrigins);
         
         // setAllowedOriginPatterns 사용 (Spring Boot 2.4+ 권장, credentials와 함께 사용 가능)
+        // HTTPS와 HTTP 모두 지원하도록 패턴 사용
         config.setAllowedOriginPatterns(allowedOrigins);
-        config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization","Content-Type","Cookie"));
+        
+        // 모든 HTTP 메서드 허용 (OPTIONS preflight 요청 포함)
+        config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS","HEAD"));
+        
+        // CORS 요청에 필요한 모든 헤더 허용
+        config.setAllowedHeaders(List.of(
+            "Authorization",
+            "Content-Type",
+            "Cookie",
+            "X-Requested-With",
+            "Accept",
+            "Origin",
+            "Access-Control-Request-Method",
+            "Access-Control-Request-Headers"
+        ));
+        
+        // credentials 허용 (쿠키 전송을 위해 필수)
         config.setAllowCredentials(true);
-        config.setExposedHeaders(List.of("Set-Cookie"));
+        
+        // 브라우저가 접근할 수 있는 응답 헤더 노출
+        config.setExposedHeaders(List.of(
+            "Set-Cookie",
+            "Authorization",
+            "Content-Type"
+        ));
+        
+        // Preflight 요청 캐시 시간 (24시간)
+        config.setMaxAge(86400L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
