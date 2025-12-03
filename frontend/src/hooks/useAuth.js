@@ -49,8 +49,8 @@ export default function useAuth() {
     try {
       // 서버에서 로그아웃 요청해서 access_token / refresh_token 쿠키 제거
       await logoutApi();
-    } catch (e) {
-      console.error("로그아웃 API 호출 실패:", e);
+    } catch (error) {
+      console.error("로그아웃 API 호출 실패:", error);
     }
     // 사용자 정보 캐시 초기화
     clearAuthCache();

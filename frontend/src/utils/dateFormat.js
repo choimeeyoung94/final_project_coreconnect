@@ -106,7 +106,7 @@ export const toBackendFormat = (input) => {
           log("toBackendFormat", input, result);
           return result;
         }
-      } catch (err) {
+      } catch {
         // Date 생성 실패
       }
     }
@@ -124,7 +124,7 @@ export const toBackendFormat = (input) => {
         log("toBackendFormat", input, result);
         return result;
       }
-    } catch (err) {
+    } catch {
       // 모든 변환 실패
     }
     
@@ -169,7 +169,7 @@ export const toISO = (input) => {
           log("toISO", input, result);
           return result;
         }
-      } catch (err) {
+      } catch {
         // Date 생성 실패 시 아래 로직으로 계속 진행
       }
     }
@@ -209,7 +209,7 @@ export const toISO = (input) => {
           log("toISO", input, result);
           return result;
         }
-      } catch (err) {
+      } catch {
         // Date 생성 실패
       }
     }
@@ -222,7 +222,7 @@ export const toISO = (input) => {
         log("toISO", input, result);
         return result;
       }
-    } catch (err) {
+    } catch {
       // 모든 변환 실패
     }
     
@@ -291,7 +291,7 @@ export const toDate = (input) => {
     if (isNaN(date)) throw new Error("Invalid date");
     log("toDate", input, date);
     return date;
-  } catch (err) {
+  } catch {
     return null;
   }
 };
