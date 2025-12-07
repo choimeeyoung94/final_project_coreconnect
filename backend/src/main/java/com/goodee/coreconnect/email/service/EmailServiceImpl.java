@@ -707,20 +707,30 @@ public class EmailServiceImpl implements EmailService {
     @Override
     @Transactional
     public EmailResponseDTO sendEmailViaSendGrid(EmailSendRequestDTO requestDTO, List<MultipartFile> attachments) throws IOException {
-        // 1) DB에 저장(reuse)
+        // 1) DB에 저장
         EmailResponseDTO savedDto = sendEmail(requestDTO, attachments);
 
-        // 2) SendGrid 외부 전송 (동기 호출)
+        // 2) 수신자가 모두 사내 도메인인지 확인
+        boolean allInternalRecipients = requestDTO.getRecipientAddress() != null &&
+                requestDTO.getRecipientAddress().stream()
+                        .allMatch(email -> email.endsWith("@coreconnect.io.kr"));
+
+        if (allInternalRecipients) {
+            log.info("[sendEmailViaSendGrid] All recipients are internal (@coreconnect.io.kr) - skipping SendGrid external send");
+            return savedDto;  // ⭐ 사내 이메일은 SendGrid 발송 안 함 (DB 저장만)
+        }
+
+        // 3) 외부 이메일이 있는 경우만 SendGrid로 발송
         try {
             if (senGridApiKey == null || senGridApiKey.isBlank()) {
                 log.warn("[sendEmailViaSendGrid] SendGrid API key not configured - skipping external send");
             } else {
                 com.sendgrid.Response sgResp = sendGridEmailSender.send(requestDTO, attachments);
-                log.info("[sendEmailViaSendGrid] sendgrid status={}, body={}", sgResp.getStatusCode(), sgResp.getBody());
+                log.info("[sendEmailViaSendGrid] SendGrid status={}, body={}", sgResp.getStatusCode(), sgResp.getBody());
             }
         } catch (Exception e) {
             log.error("[sendEmailViaSendGrid] SendGrid send failed", e);
-            // 실패는 로깅 후 흘려보내기(요구사항에 따라 예외 처리/재시도 구현)
+            // 실패는 로깅 후 흘려보내기 (DB에는 저장 완료)
         }
 
         return savedDto;
