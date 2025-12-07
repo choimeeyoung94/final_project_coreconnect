@@ -31,11 +31,14 @@ public class SendGridEmailSender {
     @Value("${sendgrid.api.key}")
     private String sendgridApiKey;
 
-    @Value("${sendgrid.from.email:no-reply@your-domain.com}")
+    @Value("${sendgrid.from.email}")
     private String defaultFromEmail;
 
-    @Value("${sendgrid.from.name:YourApp}")
+    @Value("${sendgrid.from.name}")
     private String defaultFromName;
+
+    @Value("${sendgrid.reply.to}")
+    private String defaultReplyTo;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -48,7 +51,9 @@ public class SendGridEmailSender {
      */
     public Response send(EmailSendRequestDTO requestDTO, List<MultipartFile> attachments) throws IOException {
         // Build Mail
+        // FROM: 시스템 발신 주소 (SendGrid 인증된 주소)
         Email from = new Email(defaultFromEmail, defaultFromName);
+        
         String subject = requestDTO.getEmailTitle() != null ? requestDTO.getEmailTitle() : "(No subject)";
         Mail mail = new Mail();
         mail.setFrom(from);
@@ -96,11 +101,20 @@ public class SendGridEmailSender {
         }
 
         // Optional: Add custom headers or reply-to
-        if (requestDTO.getReplyToEmailId() != null) {
-            // If replyTo is an email address you can set:
-            // mail.setReplyTo(new Email(requestDTO.getReplyToEmailId()));
-            // But our DTO has replyToEmailId (maybe id), so adapt as needed.
+        // Reply-To 주소 동적 설정
+        String replyToAddress = defaultReplyTo;
+        
+        // 1순위: 실제 발신자 이메일 (senderAddress) 사용
+        if (requestDTO.getSenderAddress() != null && !requestDTO.getSenderAddress().isBlank()) {
+            replyToAddress = requestDTO.getSenderAddress();
         }
+        // 2순위: 답장 원본 이메일 (replyToEmailId)이 있으면 사용
+        else if (requestDTO.getReplyToEmailId() != null && !requestDTO.getReplyToEmailId().isBlank()) {
+            // replyToEmailId가 이메일 주소 형식이면 그대로 사용
+            replyToAddress = requestDTO.getReplyToEmailId();
+        }
+        
+        mail.setReplyTo(new Email(replyToAddress));
 
         // Send using SendGrid client
         SendGrid sg = new SendGrid(sendgridApiKey);

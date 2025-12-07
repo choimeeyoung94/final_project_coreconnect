@@ -850,6 +850,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	        .collect(Collectors.toMap(row -> (Integer)row[0], row -> (Long)row[1]));
 
 	    // 3. 각 채팅방별 마지막 메시지를 쿼리로 batch 조회
+			// batch 조회 : 여러 건의 데이터를 한 번의 쿼리로 한꺼번에 조회하는 방법입니다.
 	    List<Chat> lastMessages = chatRepository.findLatestMessageByChatRoomIds(roomIds);
 	    Map<Integer, Chat> roomIdToLastMessage = lastMessages.stream()
 	    		.collect(Collectors.toMap(chat -> chat.getChatRoom().getId(), chat -> chat));

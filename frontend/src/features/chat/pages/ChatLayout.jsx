@@ -90,16 +90,6 @@ function formatTime(sendAt) {
   }
 }
 
-// 유저이름 얻기 유틸
-function getUserName() {
-  try {
-    const user = useContext(UserProfileContext);
-    return user?.name || "";
-  } catch {
-    return "";
-  }
-}
-
 export default function ChatLayout() {
   // ---------- 상태 변수 ----------
   const { userProfile } = useContext(UserProfileContext) || {};
@@ -111,8 +101,7 @@ export default function ChatLayout() {
   const [createOpen, setCreateOpen] = useState(false); // 방 생성 다이얼로그 열림 여부
   const [highlightedRoomId, setHighlightedRoomId] = useState(null); // 하이라이팅된 채팅방 ID
 
-  const userName = getUserName(); // 유저명
-  const accessToken = localStorage.getItem("accessToken"); // 엑세스토큰
+  const userName = userProfile?.name || ""; // 유저명
   const inputRef = useRef(); // 입력창 관리 ref
 
   const [socketConnected, setSocketConnected] = useState(false); // 소켓 연결 상태
