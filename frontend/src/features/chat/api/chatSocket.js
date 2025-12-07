@@ -65,7 +65,7 @@ export function connectStomp(roomId, onMessage, onConnect, onError) {
       }
     },
     reconnectDelay: 5000,                         // 자동 재연결(ms)
-    onConnect: () => {                            // 연결 성공 콜백
+    onConnect: () => {                            // 연결 성공 콜백, 구독 설정 및 메시지 수신 처리
       console.log('🔥 [ChatSocket] [STOMP] 연결 성공 - roomId:', roomId);
       // ⭐ 기존 구독 해제 (이중 수신 방지) - 안전하게 처리
       if (subscription && subscription.id) {
@@ -244,13 +244,15 @@ export function disconnectStomp() {
  */
 function ensureConnected(roomId, onMessage, onConnect, onError) {
   return new Promise((resolve) => {
+    // 연결 상태 확인인
     if (!stompClient || !stompClient.connected) {
       console.warn('🔥 [ChatSocket] STOMP 클라이언트가 연결되지 않았습니다. 재연결 시도...');
       
-      // 재연결 성공 시 resolve
+      // 재연결 준비
       const originalOnConnect = onConnect;
-      let resolved = false;
+      let resolved = false; // 중복 resolve 방지 플래그그
       
+      // 연결 성공 콜백 래핑
       const wrappedOnConnect = () => {
         if (originalOnConnect) originalOnConnect();
         // 연결 완료 후 실제 연결 상태 확인
@@ -279,6 +281,7 @@ function ensureConnected(roomId, onMessage, onConnect, onError) {
         }
       };
       
+      // 실제 연결작업은 connectonStomp 함수에서 수행
       connectStomp(roomId, onMessage, wrappedOnConnect, wrappedOnError);
       
       // 최대 10초 대기 후 타임아웃
@@ -323,8 +326,10 @@ export function sendStompMessage({ roomId, content, fileYn = false, fileUrl = nu
   
   // ⭐ 연결 상태 확인 및 재연결 시도
   const sendMessageInternal = async () => {
+    // stomp 클라이언트 초기화 여부 확인
     if (!stompClient) {
       console.error('🔥 [ChatSocket] STOMP 클라이언트가 초기화되지 않았습니다.');
+      // 재연결 콜백이 제공된 경우에만 재연결 시도
       if (reconnectCallbacks) {
         console.log('🔥 [ChatSocket] 재연결 시도...');
         const connected = await ensureConnected(roomId, reconnectCallbacks.onMessage, reconnectCallbacks.onConnect, reconnectCallbacks.onError);
@@ -350,6 +355,7 @@ export function sendStompMessage({ roomId, content, fileYn = false, fileUrl = nu
     });
     
     // stompClient는 있지만 연결이 끊어진 경우 처리
+    // 클라이언트 객체는 있지만 connected가 false 인 경우 (네트워크 끊김, 서버 재시작 등으로 연결이 끊어졌을 수 있음)
     if (!stompClient.connected) {
       console.error('🔥 [ChatSocket] STOMP 연결이 되어 있지 않습니다. 연결 상태:', {
         connected: stompClient.connected,
@@ -366,6 +372,7 @@ export function sendStompMessage({ roomId, content, fileYn = false, fileUrl = nu
           return false;
         }
         // 재연결 후 연결 완료 대기
+        // 재연결 직후 메시지를 전송하려 할 때 연결이 완전히 수립되지 않은 상태에서 전송이 실패하는 것을 방지 하기 위해 사용
         const ready = await waitForConnection();
         if (!ready) {
           console.error('🔥 [ChatSocket] 연결 완료 대기 시간 초과');
@@ -377,6 +384,7 @@ export function sendStompMessage({ roomId, content, fileYn = false, fileUrl = nu
     }
 
     try {
+      // 메시지 본문 JSON 반환
       const messageBody = JSON.stringify({ roomId, content, fileYn, fileUrl });
       console.log('🔥 [ChatSocket] 메시지 전송 시작:', { 
         destination: "/app/chat.sendMessage", 
@@ -403,6 +411,11 @@ export function sendStompMessage({ roomId, content, fileYn = false, fileUrl = nu
       
       // stomp 프로토콜의 send 명령어 실행
       // 서버로 메시지 전송
+      /**
+       * - `destination: "/app/chat.sendMessage"` → Spring의 `@MessageMapping("/chat.sendMessage")`로 라우팅
+       * 
+       * 
+       */
       stompClient.publish({
         destination: "/app/chat.sendMessage",        // 서버 @MessageMapping 대상
         body: messageBody, // 메시지 본문

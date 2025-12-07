@@ -20,6 +20,11 @@ public interface ChatRoomUserRepository extends JpaRepository<ChatRoomUser, Inte
 	List<ChatRoomUser> findByChatRoomIdWithUser(@Param("roomId") Integer roomId);
 	
 	// 내가 참여한 모든 채팅방
+	/**
+	 * ChatRoomUser 엔티티의 chatRoom이 LAZY 로딩으로 설정되어 있어서, 조회 후 getChatRoom()을 호출할 때마다 N+1 문제가 발생합니다. JOIN FETCH를 사용하면 한 번의 쿼리로 ChatRoomUser와 ChatRoom을 함께 조회해서 추가 쿼리를 방지할 수 있습니다."
+	 * 
+	 * 
+	 */
 	@Query("SELECT cru FROM ChatRoomUser cru JOIN FETCH cru.chatRoom WHERE cru.user.id = :userId")
 	List<ChatRoomUser> findByUserId(@Param("userId") Integer userId);
 	
