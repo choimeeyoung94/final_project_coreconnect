@@ -60,14 +60,16 @@ services:
       - my-network
     # 5) 재시작 정책: 수동으로 중지하지 않는 한 항상 재시작
     restart: unless-stopped
-    # 6) Let's Encrypt 인증서 볼륨 마운트 (호스트의 /etc/letsencrypt 디렉토리)
+    # 6) Let's Encrypt 인증서 볼륨 마운트 (HTTPS 사용 시에만 주석 해제)
+    # ⚠️ 주의: HTTPS를 사용하지 않는다면 아래 볼륨을 주석 처리해야 합니다.
     volumes:
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+      # - /etc/letsencrypt:/etc/letsencrypt:ro
       - ./frontend/letsencrypt-challenge:/usr/share/nginx/html/.well-known/acme-challenge
-    # 7) backend 서비스가 완전히 준비될 때까지 대기
+    # 7) backend 서비스가 시작될 때까지 대기 (healthcheck 조건 완화)
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
+      # backend:
+      #   condition: service_healthy  # ⚠️ 임시로 주석 처리 (curl 없는 경우)
 
 # 외부 네트워크 사용 (도커 네트워크 my-network는 도커 컴포즈 실행 전에 미리 만들어 두어야 함)
 networks:
