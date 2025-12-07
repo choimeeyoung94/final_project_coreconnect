@@ -14,6 +14,9 @@ RUN gradle bootJar --no-daemon -x test
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /website/backend
 
+# Health Check를 위한 curl 설치
+RUN apk add --no-cache curl
+
 # 빌드 스테이지에서 생성한 JAR 파일을 런타임 스테이지로 복사
 # Gradle 프로젝트의 빌드 디렉터리는 build임
 COPY --from=bootbuild /website/backend/build/libs/*.jar website.jar
