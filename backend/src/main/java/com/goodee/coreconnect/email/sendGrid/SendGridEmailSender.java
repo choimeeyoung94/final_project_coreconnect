@@ -59,11 +59,37 @@ public class SendGridEmailSender {
         mail.setFrom(from);
         mail.setSubject(subject);
 
-        // Content (use HTML if you prefer)
+        // Content (HTML + Plain Text for better deliverability)
         String htmlContent = requestDTO.getEmailContent() == null ? "" : requestDTO.getEmailContent();
-        // If you want plain text also, you can add another Content
-        Content content = new Content("text/html", htmlContent);
-        mail.addContent(content);
+        
+        // 회사 정보 푸터 추가 (스팸 필터 우회 + 신뢰도 향상)
+        String footer = "<hr style='border:none; border-top:1px solid #e0e0e0; margin:30px 0;'>" +
+                "<div style='color:#666; font-size:12px; line-height:1.6;'>" +
+                "<p><strong>CoreConnect</strong><br>" +
+                "Enterprise Collaboration Platform<br>" +
+                "Email: admin@coreconnect.io.kr<br>" +
+                "Website: <a href='http://coreconnect.io.kr' style='color:#0066cc;'>coreconnect.io.kr</a></p>" +
+                "<p style='font-size:11px; color:#999;'>" +
+                "본 메일은 CoreConnect 시스템에서 자동 발송되었습니다.<br>" +
+                "수신을 원하지 않으시면 시스템 설정에서 알림을 변경하실 수 있습니다.</p>" +
+                "</div>";
+        
+        String htmlWithFooter = htmlContent + footer;
+        
+        // 1) Plain text version (스팸 필터 우회용)
+        String plainText = htmlWithFooter
+            .replaceAll("<[^>]*>", "")  // HTML 태그 제거
+            .replaceAll("&nbsp;", " ")
+            .replaceAll("&lt;", "<")
+            .replaceAll("&gt;", ">")
+            .replaceAll("&amp;", "&")
+            .trim();
+        Content textContent = new Content("text/plain", plainText);
+        mail.addContent(textContent);
+        
+        // 2) HTML version (푸터 포함)
+        Content htmlContentObj = new Content("text/html", htmlWithFooter);
+        mail.addContent(htmlContentObj);
 
         // Personalization (TO/CC/BCC)
         Personalization personalization = new Personalization();
