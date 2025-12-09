@@ -99,4 +99,49 @@ public class S3Service {
         // 4. DB에 저장할 'URL'을 반환 (File 엔티티가 fileUrl을 필요로 하므로)
         return getFileUrl(key);
     }
+    
+    /**
+     * 채팅 파일 업로드 (모든 파일 타입 허용)
+     * @param file 업로드할 파일
+     * @param userId 사용자 ID (파일 경로 구분용)
+     * @return S3 키 (key)
+     */
+    public String uploadChatFile(MultipartFile file, Integer userId) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("업로드할 파일이 없습니다.");
+        }
+
+        // 1. 고유한 키 생성 (경로: chat/userId/UUID_파일명)
+        String originalFileName = file.getOriginalFilename();
+        if (originalFileName == null || originalFileName.isBlank()) {
+            originalFileName = "unnamed_file";
+        }
+        
+        // 파일명에 특수문자가 포함될 수 있으므로 안전하게 처리
+        String safeFileName = originalFileName.replaceAll("[^a-zA-Z0-9._-]", "_");
+        String uniqueFileName = UUID.randomUUID().toString() + "_" + safeFileName;
+        String key = "chat/" + userId + "/" + uniqueFileName;
+
+        // 2. Content-Type 설정 (파일 타입이 null이면 application/octet-stream 사용)
+        String contentType = file.getContentType();
+        if (contentType == null || contentType.isBlank()) {
+            contentType = "application/octet-stream";
+        }
+
+        // 3. S3 업로드 요청 생성
+        PutObjectRequest request = PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .contentType(contentType)
+                .build();
+
+        // 4. 파일 업로드
+        s3Client.putObject(request, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+        
+        log.info("[S3Service] 채팅 파일 업로드 성공 - key: {}, originalFileName: {}, contentType: {}, size: {} bytes", 
+                key, originalFileName, contentType, file.getSize());
+
+        // 5. S3 키 반환 (URL이 아닌 키)
+        return key;
+    }
 }

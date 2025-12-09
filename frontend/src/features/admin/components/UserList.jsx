@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { getAdminUsers } from "../../user/api/userAPI";
 import { updateUser } from "../api/adminAPI";
 import { fetchDepartmentsFlat } from "../api/departmentAPI";
-import { getJobGradeLabel } from "../../../utils/labelUtils";
+import { getJobGradeLabel, getStatusLabel, getRoleLabel } from "../../../utils/labelUtils";
 import http from "../../../api/http";
 import {
   Box,
@@ -226,7 +226,7 @@ export default function UserList() {
                       <TableCell sx={{ fontWeight: 600 }}>이름</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>이메일</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>전화번호</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>역할</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>역할(권한)</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>상태</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>직급</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>부서</TableCell>
@@ -276,7 +276,7 @@ export default function UserList() {
                             {/* 역할 */}
                             <TableCell sx={{ py: 1.5 }}>
                               <Chip
-                                label={u.role}
+                                label={getRoleLabel(u.role)}
                                 size="small"
                                 color={roleColor(u.role)}
                                 sx={{
@@ -291,7 +291,7 @@ export default function UserList() {
                             {/* 상태 */}
                             <TableCell sx={{ py: 1.5 }}>
                               <Chip
-                                label={u.status}
+                                label={getStatusLabel(u.status)}
                                 size="small"
                                 color={statusColor(u.status)}
                                 sx={{
@@ -302,7 +302,7 @@ export default function UserList() {
                             </TableCell>
                             {/* 직급 - 한글 변환 */}
                             <TableCell sx={{ py: 1.5, whiteSpace: "nowrap" }}>
-                              {getJobGradeLabel(u.jobGrade)}
+                              {u.jobGrade ? getJobGradeLabel(u.jobGrade) : "-"}
                             </TableCell>
                             {/* 부서 */}
                             <TableCell sx={{ py: 1.5, whiteSpace: "nowrap" }}>{u.deptName}</TableCell>
@@ -374,7 +374,7 @@ export default function UserList() {
                                     >
                                       {roles.map((role) => (
                                         <MenuItem key={role} value={role}>
-                                          {role}
+                                          {getRoleLabel(role)}
                                         </MenuItem>
                                       ))}
                                     </Select>
@@ -390,9 +390,9 @@ export default function UserList() {
                                         handleFormChange("status", e.target.value)
                                       }
                                     >
-                                      <MenuItem value="ACTIVE">ACTIVE</MenuItem>
+                                      <MenuItem value="ACTIVE">{getStatusLabel("ACTIVE")}</MenuItem>
                                       <MenuItem value="INACTIVE">
-                                        INACTIVE
+                                        {getStatusLabel("INACTIVE")}
                                       </MenuItem>
                                     </Select>
                                   </FormControl>
@@ -415,7 +415,7 @@ export default function UserList() {
                                           key={jg.value}
                                           value={jg.value}
                                         >
-                                          {jg.label}
+                                          {getJobGradeLabel(jg.value)}
                                         </MenuItem>
                                       ))}
                                     </Select>

@@ -4,8 +4,10 @@ import Topbar from "./components/layout/Topbar/Topbar";
 import Sidebar from "./components/layout/Sidebar";
 import { getMyProfileInfo } from "./features/user/api/userAPI";
 import {
+  fetchInboxCount,
   fetchUnreadCount,
   fetchDraftbox,
+  fetchFavoriteCount,
 } from "./features/email/api/emailApi";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { Box, CssBaseline } from "@mui/material";
@@ -80,8 +82,10 @@ const themeOptions = {
 function App() {
   const [userProfile, setUserProfile] = useState(null);
 
+  const [inboxCount, setInboxCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
   const [draftCount, setDraftCount] = useState(0);
+  const [favoriteCount, setFavoriteCount] = useState(0);
   const navigate = useNavigate();
 
   // 실시간 알림 구독
@@ -124,6 +128,14 @@ function App() {
     }
   };
 
+  // 받은메일함 전체 개수
+  const refreshInboxCount = useCallback(async () => {
+    const userEmail = userProfile?.email;
+    if (!userEmail) return;
+    const count = await fetchInboxCount(userEmail);
+    setInboxCount(count || 0);
+  }, [userProfile?.email]);
+
   // 받은메일함(안읽은)
   const refreshUnreadCount = useCallback(async () => {
     const userEmail = userProfile?.email;
@@ -144,6 +156,14 @@ function App() {
         ? res.data.data.totalElements
         : 0;
     setDraftCount(count);
+  }, [userProfile?.email]);
+
+  // 중요 메일 개수
+  const refreshFavoriteCount = useCallback(async () => {
+    const userEmail = userProfile?.email;
+    if (!userEmail) return;
+    const count = await fetchFavoriteCount(userEmail);
+    setFavoriteCount(count || 0);
   }, [userProfile?.email]);
 
   const refreshApprovalCount = useCallback(async () => {
@@ -211,11 +231,13 @@ function App() {
     }
   };
 
-  // 최초 마운트 시 개수 상태 동기화 (안읽은+임시보관+채팅+알림)
+  // 최초 마운트 시 개수 상태 동기화 (받은메일함+안읽은+임시보관+중요메일+채팅+알림)
   useEffect(() => {
     if (userProfile?.email) {
+      refreshInboxCount();
       refreshUnreadCount();
       refreshDraftCount();
+      refreshFavoriteCount();
       refreshApprovalCount();
       refreshChatRooms();
       refreshNotificationCount();
@@ -235,11 +257,16 @@ function App() {
   // context value: count, set, refresh 함수
   // useMemo를 사용하여 항상 동일한 객체 참조를 유지하고, userProfile이 없어도 기본값 제공
   const mailCountContextValue = useMemo(() => ({
+    inboxCount: inboxCount || 0,
+    refreshInboxCount,
     unreadCount: unreadCount || 0,
     refreshUnreadCount,
+    setUnreadCountDirectly: setUnreadCount,
     draftCount: draftCount || 0,
     refreshDraftCount,
-  }), [unreadCount, draftCount, refreshUnreadCount, refreshDraftCount]);
+    favoriteCount: favoriteCount || 0,
+    refreshFavoriteCount,
+  }), [inboxCount, unreadCount, draftCount, favoriteCount, refreshInboxCount, refreshUnreadCount, refreshDraftCount, refreshFavoriteCount]);
 
   const approvalCountContextValue = useMemo(() => ({
     approvalCount: approvalCount || 0,

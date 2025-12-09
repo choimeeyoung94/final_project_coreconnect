@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useContext } from "react";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Button, Box, Typography, Radio, RadioGroup, FormControlLabel,
@@ -7,12 +7,14 @@ import {
 } from "@mui/material";
 import http from "../../../api/http";
 import { useSnackbarContext } from "../../../components/utils/SnackbarContext";
+import { UserProfileContext } from "../../../App";
 
 // open: 다이얼로그 show/hide
 // onClose: 다이얼로그 닫기 콜백
 // onCreate: 생성 버튼 눌렀을 때 콜백. 인자로 { roomName, roomType: boolean, userIds: number[] }를 넘겨줌
 function ChatRoomCreateDialog({ open, onClose, onCreate, presetUsers }) {
   const { showSnack } = useSnackbarContext();
+  const { userProfile } = useContext(UserProfileContext) || {};
   const [roomName, setRoomName] = useState("");
   const [roomType, setRoomType] = useState("group"); // "group" or "alone"
   const [selectedUsers, setSelectedUsers] = useState([]);
@@ -20,13 +22,73 @@ function ChatRoomCreateDialog({ open, onClose, onCreate, presetUsers }) {
   const [searchTerm, setSearchTerm] = useState(""); // 검색어
   const [allUsers, setAllUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  
+  // 현재 로그인된 사용자 ID 가져오기
+  const currentUserId = userProfile?.id || userProfile?.userId;
 
-  // 조직도에서 넘어온 presetUsers 적용
+  // 다이얼로그가 열릴 때 현재 로그인된 사용자를 자동으로 선택
   useEffect(() => {
-    if (open && presetUsers && Array.isArray(presetUsers)) {
-      setSelectedUsers(presetUsers);
+    if (open && currentUserId && userProfile) {
+      setSelectedUsers((prev) => {
+        // 이미 선택되어 있는지 확인
+        const isAlreadySelected = prev.some(u => (u.userId || u.id) === currentUserId);
+        if (isAlreadySelected) {
+          return prev;
+        }
+
+        // allUsers에서 현재 사용자 찾기
+        if (allUsers.length > 0) {
+          const currentUser = allUsers.find(u => (u.userId || u.id) === currentUserId);
+          if (currentUser) {
+            // 현재 사용자를 맨 앞에 추가
+            return [currentUser, ...prev];
+          }
+        }
+
+        // allUsers에 없으면 userProfile에서 직접 생성
+        // userProfile의 구조를 allUsers 형식에 맞게 변환
+        const currentUserFromProfile = {
+          userId: userProfile.id || userProfile.userId,
+          id: userProfile.id || userProfile.userId,
+          name: userProfile.name,
+          email: userProfile.email,
+          profileImageUrl: userProfile.profileImageUrl,
+          jobGrade: userProfile.jobGrade,
+          positionName: userProfile.positionName,
+          deptName: userProfile.deptName,
+          departmentName: userProfile.departmentName
+        };
+        
+        return [currentUserFromProfile, ...prev];
+      });
     }
-  }, [open, presetUsers]);
+  }, [open, allUsers, currentUserId, userProfile]);
+
+  // 조직도에서 넘어온 presetUsers 적용 (현재 사용자 제외)
+  useEffect(() => {
+    if (open && presetUsers && Array.isArray(presetUsers) && currentUserId) {
+      // presetUsers에서 현재 사용자 제외하고 추가
+      const presetUsersWithoutMe = presetUsers.filter(u => (u.userId || u.id) !== currentUserId);
+      setSelectedUsers((prev) => {
+        // 현재 사용자가 이미 선택되어 있는지 확인
+        const hasCurrentUser = prev.some(u => (u.userId || u.id) === currentUserId);
+        const currentUser = allUsers.find(u => (u.userId || u.id) === currentUserId);
+        
+        // 현재 사용자가 없으면 추가
+        let newSelected = hasCurrentUser ? prev : (currentUser ? [currentUser, ...prev] : prev);
+        
+        // presetUsers 추가 (중복 제거)
+        presetUsersWithoutMe.forEach(presetUser => {
+          const presetUserId = presetUser.userId || presetUser.id;
+          if (!newSelected.some(u => (u.userId || u.id) === presetUserId)) {
+            newSelected = [...newSelected, presetUser];
+          }
+        });
+        
+        return newSelected;
+      });
+    }
+  }, [open, presetUsers, currentUserId, allUsers]);
 
   // 사용자 목록 DB에서 가져오기
   useEffect(() => {
@@ -228,6 +290,24 @@ function ChatRoomCreateDialog({ open, onClose, onCreate, presetUsers }) {
     }
   }, [open, showSnack]);
 
+  // 직급 라벨 변환 함수 (filteredUsers useMemo에서 사용되므로 먼저 정의)
+  const getJobGradeLabel = (jobGrade) => {
+    if (!jobGrade) return "";
+    const gradeMap = {
+      INTERN: "인턴",
+      STAFF: "사원",
+      ASSISTANT_MANAGER: "대리",
+      MANAGER: "과장",
+      DEPUTY_GENERAL_MANAGER: "차장",
+      GENERAL_MANAGER: "부장",
+      DIRECTOR: "이사",
+      EXECUTIVE_DIRECTOR: "상무",
+      VICE_PRESIDENT: "전무",
+      PRESIDENT: "대표",
+    };
+    return gradeMap[jobGrade] || jobGrade;
+  };
+
   // 검색 필터링
   const filteredUsers = useMemo(() => {
     if (searchTerm.trim() === "") {
@@ -257,11 +337,17 @@ function ChatRoomCreateDialog({ open, onClose, onCreate, presetUsers }) {
       return;
     }
 
+    // 현재 로그인된 사용자는 선택 해제 불가
+    if (userId === currentUserId) {
+      showSnack("본인은 선택 해제할 수 없습니다.", "warning");
+      return;
+    }
+
     setSelectedUsers((prev) => {
       const isSelected = prev.some(u => (u.userId || u.id) === userId);
 
       if (isSelected) {
-        // 이미 선택된 경우 제거
+        // 이미 선택된 경우 제거 (현재 사용자 제외)
         return prev.filter(u => (u.userId || u.id) !== userId);
       } else {
         // 1:1 채팅방인 경우 본인 포함 3명 이상 체크
@@ -282,6 +368,13 @@ function ChatRoomCreateDialog({ open, onClose, onCreate, presetUsers }) {
   // 선택된 사용자 제거 (Chip X 버튼)
   const handleRemoveUser = (userToRemove) => {
     const userId = userToRemove.userId || userToRemove.id;
+    
+    // 현재 로그인된 사용자는 제거 불가
+    if (userId === currentUserId) {
+      showSnack("본인은 선택 해제할 수 없습니다.", "warning");
+      return;
+    }
+    
     setSelectedUsers((prev) => prev.filter((user) => (user.userId || user.id) !== userId));
     setError(""); // 에러 초기화
   };
@@ -299,24 +392,6 @@ function ChatRoomCreateDialog({ open, onClose, onCreate, presetUsers }) {
   const isUserSelected = (user) => {
     const userId = user.userId || user.id;
     return selectedUsers.some(u => (u.userId || u.id) === userId);
-  };
-
-  // 직급 라벨 변환 함수
-  const getJobGradeLabel = (jobGrade) => {
-    if (!jobGrade) return "";
-    const gradeMap = {
-      INTERN: "인턴",
-      STAFF: "사원",
-      ASSISTANT_MANAGER: "대리",
-      MANAGER: "과장",
-      DEPUTY_GENERAL_MANAGER: "차장",
-      GENERAL_MANAGER: "부장",
-      DIRECTOR: "이사",
-      EXECUTIVE_DIRECTOR: "상무",
-      VICE_PRESIDENT: "전무",
-      PRESIDENT: "대표",
-    };
-    return gradeMap[jobGrade] || jobGrade;
   };
 
   // 생성 버튼 누를 때 유효성 체크 및 전달
@@ -417,6 +492,7 @@ function ChatRoomCreateDialog({ open, onClose, onCreate, presetUsers }) {
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
                 {selectedUsers.map((user) => {
                   const userId = user.userId || user.id;
+                  const isCurrentUser = userId === currentUserId;
                   return (
                     <Chip
                       key={userId}
@@ -429,7 +505,7 @@ function ChatRoomCreateDialog({ open, onClose, onCreate, presetUsers }) {
                               ? user.profileImageUrl
                               : undefined
                           }
-                          sx={{ bgcolor: "#10c16d", width: 24, height: 24 }}
+                          sx={{ bgcolor: "primary.main", width: 24, height: 24 }}
                           imgProps={{
                             onError: (e) => {
                               // 이미지 로드 실패 시 숨기고 이니셜 표시
@@ -447,8 +523,8 @@ function ChatRoomCreateDialog({ open, onClose, onCreate, presetUsers }) {
                             (user.name?.[0]?.toUpperCase() || "?")}
                         </Avatar>
                       }
-                      label={`${user.name} (${user.email})`}
-                      onDelete={() => handleRemoveUser(user)}
+                      label={`${user.name} (${user.email})${isCurrentUser ? ' (나)' : ''}`}
+                      onDelete={isCurrentUser ? undefined : () => handleRemoveUser(user)} // 현재 사용자는 삭제 불가
                       color="primary"
                       variant="outlined"
                     />
@@ -494,6 +570,9 @@ function ChatRoomCreateDialog({ open, onClose, onCreate, presetUsers }) {
               {filteredUsers.map((user) => {
                 // userId 또는 id 필드 사용 (OrganizationUserResponseDTO는 userId, UserDTO는 id)
                 const userId = user.userId || user.id;
+                const isCurrentUser = userId === currentUserId;
+                const isSelected = isUserSelected(user);
+                
                 return (
                   <ListItem
                     key={userId}
@@ -506,6 +585,10 @@ function ChatRoomCreateDialog({ open, onClose, onCreate, presetUsers }) {
                   >
                     <ListItemButton
                       onClick={(e) => {
+                        // 현재 사용자는 클릭해도 토글하지 않음
+                        if (isCurrentUser) {
+                          return;
+                        }
                         // 체크박스가 아닌 영역 클릭 시에만 토글
                         if (e.target.type !== 'checkbox' && !e.target.closest('input[type="checkbox"]')) {
                           handleToggleUser(user);
@@ -514,15 +597,18 @@ function ChatRoomCreateDialog({ open, onClose, onCreate, presetUsers }) {
                       sx={{ py: 1.5, px: 2 }}
                     >
                       <Checkbox
-                        checked={isUserSelected(user)}
+                        checked={isSelected}
+                        disabled={isCurrentUser} // 현재 사용자는 disabled
                         onChange={(e) => {
                           e.stopPropagation();
-                          handleToggleUser(user);
+                          if (!isCurrentUser) {
+                            handleToggleUser(user);
+                          }
                         }}
                         onClick={(e) => {
                           e.stopPropagation();
                         }}
-                        sx={{ mr: 1, pointerEvents: 'auto' }}
+                        sx={{ mr: 1, pointerEvents: isCurrentUser ? 'none' : 'auto' }}
                       />
                       <ListItemAvatar>
                         <Avatar
@@ -533,7 +619,7 @@ function ChatRoomCreateDialog({ open, onClose, onCreate, presetUsers }) {
                               ? user.profileImageUrl
                               : undefined
                           }
-                          sx={{ bgcolor: "#10c16d", width: 40, height: 40 }}
+                          sx={{ bgcolor: "primary.main", width: 40, height: 40 }}
                           imgProps={{
                             onError: (e) => {
                               // 이미지 로드 실패 시 숨기고 이니셜 표시

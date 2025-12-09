@@ -24,7 +24,8 @@ public class UnreadNotificationSummaryDTO {
 	private Integer notificationId; // 최신 알림 ID
     private String message;         // 최신 알림 메시지
     private String senderName;      // 알림 보낸 사람 이름
-    @JsonFormat(pattern = "yyyy-MM-dd H HH:mm:ss")
+    // ⭐ ISO 8601 형식으로 직렬화 (프론트엔드에서 한국 시간대로 파싱)
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime sentAt;   // 최신 알림 발송 시간
     private String notificationType;// 알림 타입
     private int unreadCount;        // 미읽은 알림 개수

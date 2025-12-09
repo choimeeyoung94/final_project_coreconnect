@@ -38,6 +38,7 @@ import com.goodee.coreconnect.approval.entity.Template;
 import com.goodee.coreconnect.approval.enums.ApprovalLineStatus;
 import com.goodee.coreconnect.approval.enums.ApprovalLineType;
 import com.goodee.coreconnect.approval.enums.DocumentStatus;
+import com.goodee.coreconnect.common.exception.FileUploadException;
 import com.goodee.coreconnect.approval.repository.ApprovalLineRepository;
 import com.goodee.coreconnect.approval.repository.DocumentRepository;
 import com.goodee.coreconnect.approval.repository.TemplateRepository;
@@ -145,7 +146,7 @@ public class ApprovalServiceImpl implements ApprovalService {
               );
         }
       } catch (IOException e) {
-        throw new RuntimeException("파일 업로드 중 오류가 발생했습니다.", e);
+        throw new FileUploadException("파일 업로드 중 오류가 발생했습니다.", e);
       }
     }
 
@@ -297,7 +298,7 @@ public class ApprovalServiceImpl implements ApprovalService {
               );
         }
       } catch (IOException e) {
-        throw new RuntimeException("파일 업로드 중 오류가 발생했습니다.", e);
+        throw new FileUploadException("파일 업로드 중 오류가 발생했습니다.", e);
       }
     }
 
@@ -419,7 +420,6 @@ public class ApprovalServiceImpl implements ApprovalService {
     
     // 1. "진행중" 상태 정의 (임시저장, 진행중)
     List<DocumentStatus> pendingStatuses = Arrays.asList(
-        DocumentStatus.DRAFT, 
         DocumentStatus.IN_PROGRESS
     );
 
@@ -858,7 +858,7 @@ public class ApprovalServiceImpl implements ApprovalService {
           File.createFile(document, file.getName(), fileUrl, file.getSize());
         }
       } catch (IOException e) {
-        throw new RuntimeException("파일 업로드 중 오류가 발생했습니다.", e);
+        throw new FileUploadException("파일 업로드 중 오류가 발생했습니다.", e);
       }
     }
   }

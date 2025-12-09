@@ -2,3 +2,9 @@
 .cursorrules
 .vscode/
 .env
+!.env.example
+!.env.template
+.txt
+
+# 배포 로그
+deploy-*.log

@@ -11,6 +11,49 @@ import org.springframework.beans.factory.annotation.Value;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * 1. 서버 시작 시
+   └─ WebSocketConfig.registerStompEndpoints() 실행
+   └─ 인터셉터 등록 (호출 아님!)
+
+2. 클라이언트 연결 요청 시
+   └─ 프론트엔드가 /ws/chat으로 연결 시도
+
+3. Spring 프레임워크가 자동으로
+   └─ 연결 요청 감지
+   └─ 등록된 인터셉터 확인
+   └─ beforeHandshake() 자동 호출 
+ * 
+ * ┌─────────────────────────────────────────────────────────────┐
+│ 1️ 서버 시작 시 (등록 단계)                                           │
+│                                                                │
+│ WebSocketConfig                                                │
+│   └─ registerStompEndpoints() 실행                              │
+│       └─ addInterceptors(webSocketAuthInterceptor)             │
+│           └─ Spring 내부 레지스트리에 등록                            │
+│                                                                │
+│ 결과: 인터셉터가 등록됨 (아직 호출 안 됨)                                 │
+└────────────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 2️ 클라이언트 연결 시 (호출 단계)                                    │
+│                                                             │
+│ 프론트엔드                                                   │
+│   └─ new SockJS('/ws/chat')                                │
+│                                                             │
+│ Spring WebSocket 프레임워크                                 │
+│   └─ 연결 요청 감지                                         │
+│   └─ /ws/chat 엔드포인트 매칭                              │
+│   └─ 등록된 인터셉터 목록 확인                              │
+│   └─ beforeHandshake() 자동 호출 ⭐                        │
+│       └─ WebSocketAuthInterceptor.beforeHandshake()        │
+│                                                             │
+│ 결과: 인증 처리 후 연결 허용/거부                            │
+└─────────────────────────────────────────────────────────────┘
+ * 
+ * */
+
+
 @Slf4j
 @Configuration
 @EnableWebSocketMessageBroker
@@ -22,6 +65,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Value("${app.websocket.allowed-origins:http://localhost:5173}")
     private String allowedOrigins;
     
+    // stomp 엔드포인트 등록
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         log.info("🔥 [WebSocketConfig] STOMP 엔드포인트 등록 시작");
@@ -34,7 +78,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         log.info("🔥 [WebSocketConfig] 허용된 Origins: {}", java.util.Arrays.toString(origins));
         
         // 엔드포인트 경로, allow origins 등 설정
-        registry.addEndpoint("/ws/chat")
+        registry.addEndpoint("/ws/chat") // 프론트엔드 엔드포인트와 일치해야 한다
                 .setAllowedOrigins(origins)
                 .addInterceptors(webSocketAuthInterceptor) // WebSocket 인증 인터셉터 추가
                 .withSockJS(); // 필요하다면 SockJS 지원도 추가
@@ -45,6 +89,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         log.info("🔥 [WebSocketConfig] STOMP 엔드포인트 등록 완료");
     }
     
+    // 메시지 브로커 설정
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         log.info("🔥 [WebSocketConfig] 메시지 브로커 설정 시작");
@@ -57,6 +102,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         log.info("🔥 [WebSocketConfig] 메시지 브로커 설정 완료");
     }
     
+    // 인바운드 채널 인터셉터 설정
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
         log.info("🔥 [WebSocketConfig] 클라이언트 인바운드 채널 설정 시작");

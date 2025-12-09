@@ -13,6 +13,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Builder.Default;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -34,12 +35,15 @@ public class EmailRecipient {
 	private String emailRecipientAddress; // 외부메일주소
 	private Integer userId; // 내부직원 FK(user)
 	
+	@Builder.Default
 	private Boolean emailReadYn = false;
 	private LocalDateTime emailReadAt;
 	
+	@Builder.Default
 	private Boolean deleted = false; // 받은메일함에서 삭제 여부
 	private LocalDateTime deletedAt; // 삭제 시간
 	
+	@Builder.Default
 	private Boolean emailIsAlarmSent = false;
 	
 	

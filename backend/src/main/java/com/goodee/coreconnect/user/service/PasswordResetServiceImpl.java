@@ -69,15 +69,25 @@ public class PasswordResetServiceImpl implements PasswordResetService {
                    .collect(Collectors.toList());
   }
 
-  /** 승인 처리 - 랜덤 비밀번호 생성 후 반환 */
+  /** 승인 처리 - 랜덤 비밀번호 생성 후 외부 이메일 주소 반환 */
   @Override
-  public void approve(Long requestId, User admin) {
+  public String approve(Long requestId, User admin) {
     PasswordResetRequest req = passwordResetRequestRepository.findById(requestId)
                                                              .orElseThrow(() -> new IllegalArgumentException("요청을 찾을 수 없습니다."));
     if(req.getStatus() != ResetStatus.PENDING) {
       throw new IllegalStateException("이미 처리된 요청입니다.");
     }
     User user = req.getUser();
+    
+    // 외부 이메일 확인
+    String externalEmail = null;
+    if (user.getUserDetailProfile() != null) {
+      externalEmail = user.getUserDetailProfile().getExternalEmail();
+    }
+    
+    if (externalEmail == null || externalEmail.isBlank()) {
+      throw new IllegalStateException("연결된 외부 이메일이 없습니다. 사용자 프로필에 외부 이메일을 등록해주세요.");
+    }
     
     // 랜덤 임시 비밀번호 생성
     String tempPassword = generateTempPassword(5); // 비밀번호 길이: 5자리
@@ -88,8 +98,11 @@ public class PasswordResetServiceImpl implements PasswordResetService {
     // 요청 엔티티 상태 변경
     req.approve(admin);
     
-    // 이메일 발송
-    mailService.sendTempPassword(user.getEmail(), tempPassword);
+    // 외부 이메일로 발송
+    mailService.sendTempPassword(externalEmail, tempPassword);
+    
+    // 외부 이메일 주소 반환
+    return externalEmail;
   }
   
   /** 거절 처리 */

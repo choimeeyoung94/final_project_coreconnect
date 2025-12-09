@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Builder.Default;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -37,6 +38,7 @@ public class MailUserVisibility {
     @Column(name = "role", nullable = false)
     private String role; // "SENDER" or "RECIPIENT"
 
+    @Builder.Default
     @Column(name = "deleted", nullable = false)
     private boolean deleted = false;
 

@@ -45,7 +45,7 @@ const BoardLayout = () => {
         showSnack("카테고리 목록을 불러오지 못했습니다.", "error");
       }
     })();
-  }, []); // 컴포넌트 마운트 시 1회 실행
+  }, [localStorage.getItem("categoryRefresh")]); // 컴포넌트 마운트 시 1회 실행
 
   // URL 경로(location)가 바뀔 때마다 카테고리 상태를 동기화
   // - /board/:categoryId 형태에서는 categoryId를 활성화

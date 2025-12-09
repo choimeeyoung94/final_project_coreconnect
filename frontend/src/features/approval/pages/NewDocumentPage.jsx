@@ -85,7 +85,7 @@ const getInitialFormData = templateKey => {
     case 'EXPENSE':
       return {
         ...commonData,
-        purpose: " ",
+        purpose: "",
         items: [],
         totalAmount: 0,
       }
@@ -218,7 +218,7 @@ function NewDocumentPage() {
       setLoading(false);
     }
 
-  }, [documentId, templateId, isEditMode, currentUser]);
+  }, [documentId, templateId, isEditMode]);
 
   const handleFileChange = e => {
     setFiles(Array.from(e.target.files));
@@ -238,9 +238,30 @@ function NewDocumentPage() {
       return;
     }
 
+    // ... (기존 제목 체크 코드) ...
     if (!documentTitle.trim()) {
       showSnack("문서 제목을 입력해주세요.", "warning");
       return;
+    }
+
+    // ============================================================
+    // [추가할 코드] 휴가 신청서일 경우 날짜 필수 입력 체크 (백엔드 에러 방지용)
+    // ============================================================
+    if (selectedTemplate.temp_key === 'VACATION' && !isDraft) {
+        // 1. 날짜가 비어있는지 확인
+        if (!formData.startDate || !formData.endDate) {
+            showSnack("휴가 시작일과 종료일을 모두 선택해주세요.", "warning");
+            return; 
+        }
+        
+        // 2. 휴가 종류가 비어있는지 확인
+        if (!formData.vacationType) {
+            showSnack("휴가 종류를 선택해주세요.", "warning");
+            return;
+        }
+
+        // (선택사항) 날짜 형식이 yyyy-MM-dd 인지 확실히 하기 위해 로그 확인 가능
+        // console.log("전송할 날짜:", formData.startDate, formData.endDate);
     }
   
     if (!isDraft) {

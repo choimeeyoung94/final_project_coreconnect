@@ -1,32 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Tabs, Tab, List, ListItem, ListItemButton, ListItemAvatar, ListItemText, Badge, Avatar, Typography, Chip } from "@mui/material";
+import { Box, Tabs, Tab, List, ListItem, ListItemButton, ListItemText, Badge, Typography, Chip } from "@mui/material";
 import http from "../../../api/http"; // axios 인스턴스 불러오기
 
 // 채팅방 목록(좌측) & 탭
 function ChatRoomListPane({
-  tabIdx, setTabIdx, roomList, selectedRoomId, setSelectedRoomId, formatTime
+  tabIdx, setTabIdx, roomList, selectedRoomId, setSelectedRoomId, formatTime, highlightedRoomId
 }) {
   // 정렬 상태: 기본값은 최신 메시지부터 (내림차순)
   const sortOrder = 'desc';
+  
+  // 채팅방 목록에서 초 단위를 제거하는 헬퍼 함수
+  const formatTimeWithoutSeconds = (time) => {
+    const formatted = formatTime(time);
+    if (!formatted) return "";
+    // "2025-11-27 12:35:51" 형식에서 ":51" 부분 제거
+    return formatted.replace(/:\d{2}$/, "");
+  };
   // 참여자 수 정보를 저장할 state: { [roomId]: 참여자수 }
   const [roomMemberCounts, setRoomMemberCounts] = useState({});
 
   // roomList가 바뀔 때마다 각 방의 참여자 수 API 호출
   useEffect(() => {
     async function fetchAllMemberCounts() {
-      const obj = {};
+      const countObj = {};
       await Promise.all(
         roomList.map(async (room) => {
           try {
             // GET /chat/{roomId}/users → 응답 data.data에 사용자 배열
             const res = await http.get(`/chat/${room.roomId}/users`);
-            obj[room.roomId] = Array.isArray(res.data.data) ? res.data.data.length : 0;
+            const users = Array.isArray(res.data.data) ? res.data.data : [];
+            countObj[room.roomId] = users.length;
           } catch {
-            obj[room.roomId] = 0;
+            countObj[room.roomId] = 0;
           }
         })
       );
-      setRoomMemberCounts(obj);
+      setRoomMemberCounts(countObj);
     }
     if (Array.isArray(roomList) && roomList.length > 0) {
       fetchAllMemberCounts();
@@ -61,7 +70,7 @@ function ChatRoomListPane({
     if (count === 2)
       return <Chip label="1:1" size="small" color="primary" sx={{ fontWeight: 700, ml: 0.5, flexShrink: 0 }} />;
     if (count > 2)
-      return <Chip label="단체 채팅" size="small" color="success" sx={{ fontWeight: 700, ml: 0.5, flexShrink: 0 }} />;
+      return <Chip label="단체 채팅" size="small" color="primary" sx={{ fontWeight: 700, ml: 0.5, flexShrink: 0 }} />;
     return null;
   }
 
@@ -110,7 +119,7 @@ function ChatRoomListPane({
             <ListItemText
               primary={
                 <Box sx={{ width: "100%", textAlign: "center", color: 'text.disabled', fontSize: 15 }}>
-                  채팅방을 생성해서 대화를 시작해보세요
+                  {tabIdx === 1 ? "안읽은 메시지가 있는 채팅방이 없습니다." : "채팅방을 생성해서 대화를 시작해보세요"}
                 </Box>
               }
             />
@@ -135,14 +144,20 @@ function ChatRoomListPane({
                   py: 2.4,
                   px: 1.2,
                   minHeight: "64px",
-                  cursor: "pointer"
+                  cursor: "pointer",
+                  // 새로 생성된 방 하이라이팅
+                  ...(highlightedRoomId === room.roomId && {
+                    background: "#e3f2fd",
+                    borderLeft: "4px solid #1976d2",
+                    animation: "highlightPulse 2s ease-in-out",
+                    "@keyframes highlightPulse": {
+                      "0%": { background: "#e3f2fd" },
+                      "50%": { background: "#bbdefb" },
+                      "100%": { background: "#e3f2fd" }
+                    }
+                  })
                 }}
               >
-                <ListItemAvatar>
-                  <Avatar sx={{ bgcolor: "#10c16d", mr: 1 }}>
-                    {room.roomName?.[0]?.toUpperCase()}
-                  </Avatar>
-                </ListItemAvatar>
                 <ListItemText
                 primary={
                   <Box sx={{ display: "flex", alignItems: "center", flexWrap: "nowrap", width: "100%" }}>
@@ -218,7 +233,7 @@ function ChatRoomListPane({
                           mr: 2
                         }}
                       >
-                        {room.lasMessageTime ? formatTime(room.lasMessageTime) : ""}
+                        {room.lasMessageTime ? formatTimeWithoutSeconds(room.lasMessageTime) : ""}
                       </Typography>
                       {room.lastSenderName && (
                         <Typography

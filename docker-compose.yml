@@ -12,20 +12,37 @@ services:
     # 4) 컨테이너 간의 통신만 허용 (외부에서 8080으로 직접 접속할 수 없어 보안 향상)
     expose:
       - "8080"
-    # 5) docker-compose를 사용하면 Dockerfile를 통하지 않아도 환경 변수를 직접 컨테이너(boot-container)로 전달 가능
+    # 5) 재시작 정책: 수동으로 중지하지 않는 한 항상 재시작
+    restart: unless-stopped
+    # 6) Healthcheck: Spring Boot Actuator를 사용한 헬스 체크
+    # Rolling Update 시 새 컨테이너가 완전히 준비될 때까지 대기
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+    # 7) docker-compose를 사용하면 Dockerfile를 통하지 않아도 환경 변수를 직접 컨테이너(boot-container)로 전달 가능
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://${MYSQL_DATABASE}:3306/db_coreconnect
+      SPRING_DATASOURCE_URL: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
-      WEBSOCKET_ALLOWED_ORIGINS: ${WEBSOCKET_ALLOWED_ORIGINS}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://coreconnect.io.kr}
+      WEBSOCKET_ALLOWED_ORIGINS: ${WEBSOCKET_ALLOWED_ORIGINS:-http://coreconnect.io.kr}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-Lax}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_REGION: ${AWS_REGION}
       AWS_BUCKET_NAME: ${AWS_BUCKET_NAME}
       SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-admin@coreconnect.io.kr}
+      SENDGRID_FROM_NAME: ${SENDGRID_FROM_NAME:-CoreConnect}
+      SENDGRID_REPLY_TO: ${SENDGRID_REPLY_TO:-admin@coreconnect.io.kr}
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
   
   # 2. frontend 서비스 생성
   frontend:
@@ -34,20 +51,25 @@ services:
     # 2) ./frontend 경로에 있는 Dockerfile로 도커 이미지를 빌드할 것
     build: 
       context: ./frontend
-      args:
-        # 프론트엔드 빌드 타임 환경 변수
-        # 배포 환경에서는 nginx가 프록시하므로 상대 경로 사용 (기본값)
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1/}
-        VITE_WS_BASE_URL: ${VITE_WS_BASE_URL:-}
-    # 3) 포트 포워딩 (외부에서 80 접속 허용)
+    # 3) 포트 포워딩 (HTTP 80, HTTPS 443)
     ports:
       - 80:80
+      - 443:443
     # 4) boot-container와 동일한 도커 네트워크 사용
     networks:
       - my-network
-    # 5) backend 서비스 생성을 먼저할 것
+    # 5) 재시작 정책: 수동으로 중지하지 않는 한 항상 재시작
+    restart: unless-stopped
+    # 6) Let's Encrypt 인증서 볼륨 마운트 (HTTPS 사용 시에만 주석 해제)
+    # ⚠️ 주의: HTTPS를 사용하지 않는다면 아래 볼륨을 주석 처리해야 합니다.
+    volumes:
+      # - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./frontend/letsencrypt-challenge:/usr/share/nginx/html/.well-known/acme-challenge
+    # 7) backend 서비스가 시작될 때까지 대기 (healthcheck 조건 완화)
     depends_on:
       - backend
+      # backend:
+      #   condition: service_healthy  # ⚠️ 임시로 주석 처리 (curl 없는 경우)
 
 # 외부 네트워크 사용 (도커 네트워크 my-network는 도커 컴포즈 실행 전에 미리 만들어 두어야 함)
 networks:

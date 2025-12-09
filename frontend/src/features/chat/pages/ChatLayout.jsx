@@ -25,34 +25,67 @@ import {
 import http from "../../../api/http";
 
 // ===================== 시간 및 유저명 유틸 함수 =====================
-// 시간 포맷팅 유틸
+// 시간 포맷팅 유틸 (한국 시간 기준)
 function formatTime(sendAt) {
   if (!sendAt) return "";
-  const d = new Date(sendAt);
-  const today = new Date();
-  const isToday =
-    d.getFullYear() === today.getFullYear() &&
-    d.getMonth() === today.getMonth() &&
-    d.getDate() === today.getDate();
-  if (isToday) {
-    return d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
-  } else {
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const hh = String(d.getHours()).padStart(2, "0");
-    const min = String(d.getMinutes()).padStart(2, "0");
-    const ss = String(d.getSeconds()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
-  }
-}
-
-// 유저이름 얻기 유틸
-function getUserName() {
+  
   try {
-    const user = useContext(UserProfileContext);
-    return user?.name || "";
-  } catch {
+    let d;
+    const dateStr = String(sendAt);
+    
+    // ISO 8601 형식인 경우 (서버에서 "2025-11-25T00:42:00" 형식으로 보냄)
+    if (dateStr.includes('T')) {
+      // 타임존 정보가 없으면 한국 시간(UTC+9)으로 간주하여 파싱
+      if (!dateStr.includes('Z') && !dateStr.includes('+') && !dateStr.match(/-\d{2}:\d{2}$/)) {
+        // "2025-11-25T00:42:00" 형식을 한국 시간으로 파싱
+        const [datePart, timePart] = dateStr.split('T');
+        const [year, month, day] = datePart.split('-');
+        const [timeOnly] = (timePart || '').split('.');
+        const [hour, minute, second = '00'] = (timeOnly || '').split(':');
+        
+        // UTC로 Date 객체 생성 후 한국 시간(UTC+9)으로 변환
+        d = new Date(Date.UTC(
+          parseInt(year, 10),
+          parseInt(month, 10) - 1,
+          parseInt(day, 10),
+          parseInt(hour, 10),
+          parseInt(minute, 10),
+          parseInt(second, 10)
+        ));
+        // 한국 시간은 UTC+9이므로 9시간을 빼서 UTC로 변환
+        d = new Date(d.getTime() - (9 * 60 * 60 * 1000));
+      } else {
+        d = new Date(dateStr);
+      }
+    } else {
+      d = new Date(sendAt);
+    }
+    
+    // 한국 시간으로 변환
+    const koreaTimeStr = d.toLocaleString('en-US', { timeZone: 'Asia/Seoul' });
+    const koreaTime = new Date(koreaTimeStr);
+    const today = new Date();
+    const todayKoreaStr = today.toLocaleString('en-US', { timeZone: 'Asia/Seoul' });
+    const todayKorea = new Date(todayKoreaStr);
+    
+    const isToday =
+      koreaTime.getFullYear() === todayKorea.getFullYear() &&
+      koreaTime.getMonth() === todayKorea.getMonth() &&
+      koreaTime.getDate() === todayKorea.getDate();
+      
+    if (isToday) {
+      return koreaTime.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", timeZone: 'Asia/Seoul' });
+    } else {
+      const yyyy = koreaTime.getFullYear();
+      const mm = String(koreaTime.getMonth() + 1).padStart(2, "0");
+      const dd = String(koreaTime.getDate()).padStart(2, "0");
+      const hh = String(koreaTime.getHours()).padStart(2, "0");
+      const min = String(koreaTime.getMinutes()).padStart(2, "0");
+      const ss = String(koreaTime.getSeconds()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+    }
+  } catch (error) {
+    console.error('[ChatLayout] formatTime 에러:', error, sendAt);
     return "";
   }
 }
@@ -66,9 +99,9 @@ export default function ChatLayout() {
   const [tabIdx, setTabIdx] = useState(0); // 탭 인덱스
   const [toastRooms, setToastRooms] = useState([]); // 토스트 알림 Rooms
   const [createOpen, setCreateOpen] = useState(false); // 방 생성 다이얼로그 열림 여부
+  const [highlightedRoomId, setHighlightedRoomId] = useState(null); // 하이라이팅된 채팅방 ID
 
-  const userName = getUserName(); // 유저명
-  const accessToken = localStorage.getItem("accessToken"); // 엑세스토큰
+  const userName = userProfile?.name || ""; // 유저명
   const inputRef = useRef(); // 입력창 관리 ref
 
   const [socketConnected, setSocketConnected] = useState(false); // 소켓 연결 상태
@@ -209,10 +242,18 @@ export default function ChatLayout() {
         return sortRoomList(updated);
       });
 
+      // 새로 생성된 방 하이라이팅
+      setHighlightedRoomId(roomId);
+      // 5초 후 하이라이팅 제거
+      setTimeout(() => {
+        setHighlightedRoomId(null);
+      }, 5000);
+
       setSelectedRoomId(roomId); // 방 생성시에만 바로 진입
       setCreateOpen(false);
       // 목록 새로고침하여 최신 상태 유지 (백엔드에서 받은 데이터로 동기화)
-      setTimeout(() => loadRooms(), 500);
+      // 하이라이팅을 유지하기 위해 selectedRoomId를 보존
+      setTimeout(() => loadRooms(true, roomId), 500);
     } catch (error) {
       console.error("채팅방 생성 에러:", error);
       alert("채팅방 생성 에러: " + (error.message || "응답 데이터 없음"));
@@ -397,6 +438,26 @@ export default function ChatLayout() {
             targetChatId: chatId
           });
         }, 0);
+
+        // ⭐ 현재 선택된 방의 채팅방 목록 unreadCount도 업데이트 (실시간 반영)
+        // ⭐ 접속 중인 사용자는 읽음 처리되므로 unreadCount를 0으로 설정
+        setRoomList((prevRoomList) => {
+          return prevRoomList.map((room) => {
+            if (Number(room.roomId) === Number(roomId)) {
+              console.log("📊 [ChatLayout] UNREAD_COUNT_UPDATE - 채팅방 목록 unreadCount 업데이트 (접속 중이므로 0으로 설정):", {
+                roomId: room.roomId,
+                roomName: room.roomName,
+                이전unreadCount: room.unreadCount,
+                새로운unreadCount: 0
+              });
+              return {
+                ...room,
+                unreadCount: 0 // 접속 중이므로 읽음 처리됨
+              };
+            }
+            return room;
+          });
+        });
       } else {
         // ⭐ 다른 방의 메시지인 경우 로그만 출력
         console.log("📊 [ChatLayout] UNREAD_COUNT_UPDATE 수신 (다른 방):", {
@@ -413,28 +474,56 @@ export default function ChatLayout() {
     // ⭐ ROOM_UNREAD_COUNT_UPDATE 메시지 처리 (채팅방 목록의 unreadCount 업데이트용)
     // ⭐ 백엔드에서 새로운 메시지가 왔을 때 채팅방 목록의 unreadCount를 업데이트하기 위해 브로드캐스트
     // ⭐ 자신이 해당 채팅방에 접속 중이 아닌 경우, 채팅방 목록의 unreadCount를 증가시켜야 함
-    // ⭐ 중요: 자신이 보낸 메시지인 경우 채팅방 목록의 unreadCount를 업데이트하지 않음
+    // ⭐ 중요: 접속 중인 사용자가 메시지를 보낼 때는 채팅방 목록의 unreadCount를 0으로 설정해야 함
     if (msg && msg.type === "ROOM_UNREAD_COUNT_UPDATE") {
       // ⭐ 자신이 보낸 메시지인지 확인
       const isMyMessage = msg.senderEmail && userProfile?.email &&
         msg.senderEmail.trim().toLowerCase() === userProfile.email.trim().toLowerCase();
 
-      if (isMyMessage) {
-        console.log("📊 [ChatLayout] ROOM_UNREAD_COUNT_UPDATE 무시 - 자신이 보낸 메시지:", {
-          roomId: msg.roomId,
-          chatId: msg.chatId,
-          senderEmail: msg.senderEmail,
-          myEmail: userProfile?.email
-        });
-        return; // 자신이 보낸 메시지는 채팅방 목록의 unreadCount를 업데이트하지 않음
-      }
-
-      console.log("📊 [ChatLayout] ⭐ ROOM_UNREAD_COUNT_UPDATE 조건 만족! 처리 시작");
       const { roomId, chatId } = msg;
-
       const roomIdNum = Number(roomId);
       const isCurrentlySelected = Number(selectedRoomId) === roomIdNum;
 
+      // ⭐ 자신이 보낸 메시지이고 현재 선택된 방인 경우, unreadCount를 0으로 설정
+      // (접속 중인 사용자는 이미 읽음 처리되었으므로 unreadCount는 0이어야 함)
+      if (isMyMessage && isCurrentlySelected) {
+        console.log("📊 [ChatLayout] ROOM_UNREAD_COUNT_UPDATE - 자신이 보낸 메시지이고 접속 중: unreadCount를 0으로 설정", {
+          roomId: roomIdNum,
+          chatId: chatId,
+          senderEmail: msg.senderEmail,
+          myEmail: userProfile?.email
+        });
+        
+        // ⭐ 채팅방 목록에서 해당 방의 unreadCount를 0으로 설정
+        setRoomList((prevRoomList) => {
+          return prevRoomList.map((room) => {
+            if (Number(room.roomId) === roomIdNum) {
+              return {
+                ...room,
+                unreadCount: 0 // 접속 중인 사용자는 읽음 처리되므로 0
+              };
+            }
+            return room;
+          });
+        });
+        
+        return;
+      }
+
+      // ⭐ 자신이 보낸 메시지이지만 다른 방인 경우는 무시 (일반적으로 발생하지 않음)
+      if (isMyMessage) {
+        console.log("📊 [ChatLayout] ROOM_UNREAD_COUNT_UPDATE 무시 - 자신이 보낸 메시지 (다른 방):", {
+          roomId: roomIdNum,
+          chatId: chatId,
+          selectedRoomId: selectedRoomId,
+          senderEmail: msg.senderEmail,
+          myEmail: userProfile?.email
+        });
+        return;
+      }
+
+      console.log("📊 [ChatLayout] ⭐ ROOM_UNREAD_COUNT_UPDATE 조건 만족! 처리 시작");
+      
       // ⭐ 현재 선택된 방이 아닌 경우에만 채팅방 목록의 unreadCount 증가
       // (현재 선택된 방이면 이미 메시지를 보고 있으므로 읽음 처리됨)
       if (!isCurrentlySelected) {
@@ -449,10 +538,23 @@ export default function ChatLayout() {
         // ⭐ 또는 프론트엔드에서 직접 +1 증가시킬 수도 있지만, 백엔드에서 정확한 값을 가져오는 것이 더 정확함
         loadRooms();
       } else {
-        console.log("📊 [ChatLayout] ROOM_UNREAD_COUNT_UPDATE 수신 (현재 선택된 방):", {
+        // ⭐ 현재 선택된 방이면 접속 중이므로 unreadCount를 0으로 설정
+        console.log("📊 [ChatLayout] ROOM_UNREAD_COUNT_UPDATE 수신 (현재 선택된 방): unreadCount를 0으로 설정", {
           roomId: roomIdNum,
           chatId: chatId,
           selectedRoomId: selectedRoomId
+        });
+        
+        setRoomList((prevRoomList) => {
+          return prevRoomList.map((room) => {
+            if (Number(room.roomId) === roomIdNum) {
+              return {
+                ...room,
+                unreadCount: 0 // 접속 중이므로 읽음 처리됨
+              };
+            }
+            return room;
+          });
         });
       }
 
@@ -729,9 +831,12 @@ export default function ChatLayout() {
         }
       }
 
+      // ⭐ 현재 선택된 방에서 메시지를 받는 경우, 접속 중인 사용자는 이미 읽음 처리되므로 unreadCount를 0으로 설정
+      // ⭐ 백엔드에서 계산한 전체 unreadCount는 다른 접속하지 않은 사용자들의 수이지만,
+      // ⭐ 현재 접속 중인 사용자 입장에서는 자신이 읽었으므로 0으로 표시
       const newMessage = {
         ...msg,
-        unreadCount: msg.unreadCount != null ? msg.unreadCount : 0,
+        unreadCount: 0, // 현재 선택된 방이므로 접속 중인 사용자는 읽음 처리됨
         fileUrls: fileUrls, // fileUrls 명시적으로 설정
         fileUrl: msg.fileUrl, // 하위 호환성을 위해 fileUrl도 유지
         fileYn: msg.fileYn
@@ -798,10 +903,11 @@ export default function ChatLayout() {
       });
 
       // ⭐ 현재 선택된 방에서 다른 사람이 보낸 메시지인 경우에도 채팅방 목록의 메시지 내용과 시간을 업데이트해야 함
+      // ⭐ 중요: 현재 선택된 방이므로 접속 중인 사용자는 읽음 처리되므로 unreadCount를 0으로 설정
       setRoomList((prevRoomList) => {
         const updated = prevRoomList.map(room => {
           if (Number(room.roomId) === roomIdNum) {
-            // ⭐ 현재 선택된 방이므로 unreadCount는 업데이트하지 않지만, 메시지 내용과 시간은 업데이트
+            // ⭐ 현재 선택된 방이므로 접속 중인 사용자는 이미 읽음 처리되므로 unreadCount를 0으로 설정
             return {
               ...room,
               lastMessageContent: msg.messageContent,
@@ -809,8 +915,8 @@ export default function ChatLayout() {
               lastMessageFileYn: msg.fileYn || false, // 마지막 메시지의 파일 첨부 여부
               fileYn: msg.fileYn,
               sendAt: msg.sendAt,
-              // ⭐ 현재 선택된 방이므로 unreadCount는 유지 (이미 읽고 있으므로)
-              unreadCount: room.unreadCount || 0
+              // ⭐ 현재 선택된 방이므로 접속 중인 사용자는 읽음 처리되므로 unreadCount를 0으로 설정
+              unreadCount: 0
             };
           }
           return room;
@@ -996,49 +1102,66 @@ export default function ChatLayout() {
   };
 
   // ---------- 메시지 보내기 ----------
-  const handleSend = () => {
+  const handleSend = async () => {
     const message = inputRef.current.value;
     if (!message.trim()) {
       return;
     }
 
-    if (!socketConnected) {
-      alert("채팅 서버와 연결되어 있지 않습니다. 잠시 후 다시 시도해 주세요.");
+    if (!selectedRoomId) {
+      alert("채팅방을 선택해주세요.");
       return;
     }
 
+    // ⭐ 메시지 전송 전: 접속 중인 사용자가 메시지를 보내므로 채팅방 목록의 unreadCount를 0으로 설정
+    // (백엔드에서 WebSocket 메시지를 받기 전에 먼저 UI를 업데이트하여 즉시 피드백 제공)
+    setRoomList((prevRoomList) => {
+      return prevRoomList.map((room) => {
+        if (Number(room.roomId) === Number(selectedRoomId)) {
+          console.log("📊 [ChatLayout] 메시지 전송 전: 채팅방 목록의 unreadCount를 0으로 설정", {
+            roomId: room.roomId,
+            roomName: room.roomName,
+            이전unreadCount: room.unreadCount
+          });
+          return {
+            ...room,
+            unreadCount: 0 // 접속 중인 사용자가 메시지를 보내므로 읽음 처리됨
+          };
+        }
+        return room;
+      });
+    });
+
     // ⭐ WebSocket을 통해 메시지 전송 (서버에서 브로드캐스트된 메시지를 수신하여 표시)
     // ⭐ 재연결이 필요한 경우를 대비해 콜백 전달
-    sendStompMessage(
-      { roomId: selectedRoomId, content: message },
-      {
-        onMessage: msg => handleNewMessage(msg),
-        onConnect: () => {
-          console.log('🔥 [ChatLayout] 재연결 성공 - socketConnected를 true로 설정');
-          setSocketConnected(true);
-        },
-        onError: () => {
-          console.log('🔥 [ChatLayout] 재연결 실패 - socketConnected를 false로 설정');
-          setSocketConnected(false);
+    // ⭐ socketConnected 체크 제거 - sendStompMessage가 자동으로 재연결 처리
+    try {
+      const success = await sendStompMessage(
+        { roomId: selectedRoomId, content: message },
+        {
+          onMessage: msg => handleNewMessage(msg),
+          onConnect: () => {
+            console.log('🔥 [ChatLayout] 재연결 성공 - socketConnected를 true로 설정');
+            setSocketConnected(true);
+          },
+          onError: () => {
+            console.log('🔥 [ChatLayout] 재연결 실패 - socketConnected를 false로 설정');
+            setSocketConnected(false);
+          }
         }
-      }
-    ).then((success) => {
+      );
+      
       if (success) {
         inputRef.current.value = "";
       } else {
-        // ⭐ 연결이 안 되어 있으면 재연결 시도 후 다시 전송 시도
-        if (!socketConnected) {
-          console.warn('🔥 [ChatLayout] 연결이 끊어져 재연결 시도 중...');
-          // 재연결은 connectStomp가 useEffect에서 처리됨
-          alert("채팅 서버와 연결되어 있지 않습니다. 잠시 후 다시 시도해 주세요.");
-        } else {
-          alert("메시지 전송에 실패했습니다. 연결 상태를 확인해주세요.");
-        }
+        // ⭐ 재연결 시도 후에도 실패한 경우
+        console.warn('🔥 [ChatLayout] 메시지 전송 실패 - 재연결 시도 후에도 실패');
+        alert("채팅 서버와 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.");
       }
-    }).catch((error) => {
+    } catch (error) {
       console.error('🔥 [ChatLayout] 메시지 전송 중 예외 발생:', error);
       alert("메시지 전송 중 오류가 발생했습니다.");
-    });
+    }
   };
 
   // ---------- 스크롤로 읽음 처리 ----------
@@ -1072,6 +1195,30 @@ export default function ChatLayout() {
       }
     }
   }, []);
+
+  // ---------- 채팅방 나가기 핸들러 ----------
+  const handleLeaveRoom = useCallback(async (roomId) => {
+    try {
+      // WebSocket 연결 해제
+      await disconnectStomp();
+      
+      // 채팅방 목록에서 제거
+      setRoomList(prev => prev.filter(room => room.roomId !== roomId));
+      
+      // 선택된 채팅방 해제
+      if (selectedRoomId === roomId) {
+        setSelectedRoomId(null);
+        setMessages([]);
+      }
+      
+      // 채팅방 목록 새로고침
+      await loadRooms();
+      
+      console.log("[ChatLayout] 채팅방 나가기 완료 - roomId:", roomId);
+    } catch (error) {
+      console.error("[ChatLayout] 채팅방 나가기 처리 중 오류:", error);
+    }
+  }, [selectedRoomId, loadRooms]);
 
   // ---------- 채팅방 선택 핸들러 (안읽은 메시지가 있으면 읽음 처리) ----------
   const handleRoomSelect = useCallback(async (roomId) => {
@@ -1737,6 +1884,7 @@ export default function ChatLayout() {
             setSelectedRoomId={handleRoomSelect}
             unreadRoomCount={unreadRoomCount}
             formatTime={formatTime}
+            highlightedRoomId={highlightedRoomId}
           />
           <ChatDetailPane
             selectedRoom={Array.isArray(roomList)
@@ -1803,6 +1951,7 @@ export default function ChatLayout() {
                 }
               }
             }}
+            onLeaveRoom={handleLeaveRoom}
           />
         </Box>
       </Box>

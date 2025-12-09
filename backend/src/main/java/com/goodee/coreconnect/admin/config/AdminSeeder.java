@@ -32,8 +32,8 @@ public class AdminSeeder {
     private final DepartmentRepository departmentRepository;
     private final EmployeeNumberService employeeNumberService; 
 
-    private static final String ADMIN_EMAIL = "admin@gmail.com";
-    private static final String ADMIN_NAME  = "시스템관리자";
+    private static final String ADMIN_EMAIL = "admin@coreconnect.io.kr";
+    private static final String ADMIN_NAME  = "관리자";
     private static final String ADMIN_PHONE = "010-0000-0000";
     private static final String ADMIN_RAW_PASSWORD = "1"; 
     private static final String ADMIN_DEPT_NAME = "코어커넥트 1.0"; 

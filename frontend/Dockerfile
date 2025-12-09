@@ -18,6 +18,9 @@ ARG VITE_WS_BASE_URL=
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 ENV VITE_WS_BASE_URL=${VITE_WS_BASE_URL}
 
+# 파비콘 파일을 public 폴더로 복사 (빌드 전에 실행)
+RUN cp src/assets/coreconnect-logo.png public/coreconnect-logo.png || echo "⚠️ 파비콘 파일 복사 실패 (계속 진행)"
+
 RUN npm run build
 
 # 2. 배포 스테이지
@@ -34,8 +37,8 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # 아래 명령들은 생략 가능하지만 작성해 두는 것을 추천 (EXPOSE, CMD는 nginx:alpine 버전에 포함되어 있음)
 
-# 포트 노출 (HTTP 포트 노출)
-EXPOSE 80
+# 포트 노출 (HTTP 80, HTTPS 443)
+EXPOSE 80 443
 
 # 실행 명령 (포그라운드 실행을 위해서 daemon off; 추가. 포그라운드 프로세스가 없으면 컨테이너가 즉시 종료되므로 필수 옵션)
 CMD ["nginx", "-g", "daemon off;"]

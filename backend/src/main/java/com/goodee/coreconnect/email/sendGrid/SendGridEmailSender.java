@@ -31,11 +31,14 @@ public class SendGridEmailSender {
     @Value("${sendgrid.api.key}")
     private String sendgridApiKey;
 
-    @Value("${sendgrid.from.email:no-reply@your-domain.com}")
+    @Value("${sendgrid.from.email}")
     private String defaultFromEmail;
 
-    @Value("${sendgrid.from.name:YourApp}")
+    @Value("${sendgrid.from.name}")
     private String defaultFromName;
+
+    @Value("${sendgrid.reply.to}")
+    private String defaultReplyTo;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -48,17 +51,45 @@ public class SendGridEmailSender {
      */
     public Response send(EmailSendRequestDTO requestDTO, List<MultipartFile> attachments) throws IOException {
         // Build Mail
+        // FROM: 시스템 발신 주소 (SendGrid 인증된 주소)
         Email from = new Email(defaultFromEmail, defaultFromName);
+        
         String subject = requestDTO.getEmailTitle() != null ? requestDTO.getEmailTitle() : "(No subject)";
         Mail mail = new Mail();
         mail.setFrom(from);
         mail.setSubject(subject);
 
-        // Content (use HTML if you prefer)
+        // Content (HTML + Plain Text for better deliverability)
         String htmlContent = requestDTO.getEmailContent() == null ? "" : requestDTO.getEmailContent();
-        // If you want plain text also, you can add another Content
-        Content content = new Content("text/html", htmlContent);
-        mail.addContent(content);
+        
+        // 회사 정보 푸터 추가 (스팸 필터 우회 + 신뢰도 향상)
+        String footer = "<hr style='border:none; border-top:1px solid #e0e0e0; margin:30px 0;'>" +
+                "<div style='color:#666; font-size:12px; line-height:1.6;'>" +
+                "<p><strong>CoreConnect</strong><br>" +
+                "Enterprise Collaboration Platform<br>" +
+                "Email: admin@coreconnect.io.kr<br>" +
+                "Website: <a href='http://coreconnect.io.kr' style='color:#0066cc;'>coreconnect.io.kr</a></p>" +
+                "<p style='font-size:11px; color:#999;'>" +
+                "본 메일은 CoreConnect 시스템에서 자동 발송되었습니다.<br>" +
+                "수신을 원하지 않으시면 시스템 설정에서 알림을 변경하실 수 있습니다.</p>" +
+                "</div>";
+        
+        String htmlWithFooter = htmlContent + footer;
+        
+        // 1) Plain text version (스팸 필터 우회용)
+        String plainText = htmlWithFooter
+            .replaceAll("<[^>]*>", "")  // HTML 태그 제거
+            .replaceAll("&nbsp;", " ")
+            .replaceAll("&lt;", "<")
+            .replaceAll("&gt;", ">")
+            .replaceAll("&amp;", "&")
+            .trim();
+        Content textContent = new Content("text/plain", plainText);
+        mail.addContent(textContent);
+        
+        // 2) HTML version (푸터 포함)
+        Content htmlContentObj = new Content("text/html", htmlWithFooter);
+        mail.addContent(htmlContentObj);
 
         // Personalization (TO/CC/BCC)
         Personalization personalization = new Personalization();
@@ -96,11 +127,20 @@ public class SendGridEmailSender {
         }
 
         // Optional: Add custom headers or reply-to
-        if (requestDTO.getReplyToEmailId() != null) {
-            // If replyTo is an email address you can set:
-            // mail.setReplyTo(new Email(requestDTO.getReplyToEmailId()));
-            // But our DTO has replyToEmailId (maybe id), so adapt as needed.
+        // Reply-To 주소 동적 설정
+        String replyToAddress = defaultReplyTo;
+        
+        // 1순위: 실제 발신자 이메일 (senderAddress) 사용
+        if (requestDTO.getSenderAddress() != null && !requestDTO.getSenderAddress().isBlank()) {
+            replyToAddress = requestDTO.getSenderAddress();
         }
+        // 2순위: 답장 원본 이메일 (replyToEmailId)이 있으면 사용
+        else if (requestDTO.getReplyToEmailId() != null && !requestDTO.getReplyToEmailId().isBlank()) {
+            // replyToEmailId가 이메일 주소 형식이면 그대로 사용
+            replyToAddress = requestDTO.getReplyToEmailId();
+        }
+        
+        mail.setReplyTo(new Email(replyToAddress));
 
         // Send using SendGrid client
         SendGrid sg = new SendGrid(sendgridApiKey);

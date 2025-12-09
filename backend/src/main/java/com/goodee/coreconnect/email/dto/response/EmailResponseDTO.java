@@ -20,6 +20,7 @@ public class EmailResponseDTO {
     private Integer senderId;                 // 발신자 ID
     private String senderEmail; // [수정] 이메일로 발신자 표시
     private String senderDept;  // [수정] 발신자 부서 (부서명이 User에 연관)
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Seoul")
     private LocalDateTime sentTime;           // 발송 시각
     private String emailStatus;               // 메일 상태 (SENT/FAILED/BOUNCE 등)
     private String senderName;                // ★ 발신자명 추가!
@@ -37,7 +38,7 @@ public class EmailResponseDTO {
 		
     private List<AttachmentDTO> attachments;
     
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Seoul")
     private LocalDateTime reservedAt; // 예약시간
     
     private Boolean favoriteStatus; // 중요 메일 표시 여부

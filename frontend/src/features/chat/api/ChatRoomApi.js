@@ -51,3 +51,9 @@ export async function fetchChatRoomUsers(roomId) {
   // 실제 리스트는 res.data.data에 있음
   return res.data?.data || res.data || [];
 }
+
+// 채팅방 나가기 API
+export async function leaveChatRoom(roomId) {
+  const res = await http.delete(`/chat/${roomId}/leave`);
+  return res.data;
+}

@@ -6,6 +6,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CookieValue;
@@ -49,6 +50,12 @@ public class AuthController {
   private final UserRepository userRepository;  
   private final PasswordEncoder passwordEncoder;
   private final AccountLogService accountLogService;
+  
+  @Value("${app.cookie.secure:false}")
+  private boolean cookieSecure;
+  
+  @Value("${app.cookie.same-site:Lax}")
+  private String cookieSameSite;
 
   @Operation(summary = "로그인", 
              description = "이메일/비밀번호로 로그인하여 Access Token과 Refresh Token을 HttpOnly 쿠키로 발급합니다.")
@@ -89,8 +96,8 @@ public class AuthController {
       // Access Token 쿠키 (HttpOnly)
       ResponseCookie accessCookie = ResponseCookie.from("access_token", access)
           .httpOnly(true)
-          .secure(false) // 로컬 개발 시 false, HTTPS 환경에서는 true
-          .sameSite("Lax")
+          .secure(cookieSecure) // 환경 변수로 설정 (배포 환경: true, 로컬: false)
+          .sameSite(cookieSameSite)
           .path("/")
           .maxAge(Duration.ofMinutes(JwtConstants.ACCESS_TOKEN_MINUTES))
           .build();
@@ -98,8 +105,8 @@ public class AuthController {
       // Refresh Token 쿠키 (HttpOnly)
       ResponseCookie refreshCookie = ResponseCookie.from("refresh_token", refresh)
           .httpOnly(true)
-          .secure(false)       
-          .sameSite("Lax")     
+          .secure(cookieSecure) // 환경 변수로 설정 (배포 환경: true, 로컬: false)
+          .sameSite(cookieSameSite)
           .path("/")
           .maxAge(Duration.ofDays(JwtConstants.REFRESH_TOKEN_DAYS))
           .build();
@@ -142,8 +149,8 @@ public class AuthController {
       // 새 Access Token 쿠키 재발급
       ResponseCookie newAccessCookie = ResponseCookie.from("access_token", newAccess)
           .httpOnly(true)
-          .secure(false)
-          .sameSite("Lax")
+          .secure(cookieSecure) // 환경 변수로 설정 (배포 환경: true, 로컬: false)
+          .sameSite(cookieSameSite)
           .path("/")
           .maxAge(Duration.ofMinutes(JwtConstants.ACCESS_TOKEN_MINUTES))
           .build();
@@ -171,21 +178,21 @@ public class AuthController {
       @AuthenticationPrincipal CustomUserDetails userDetails,
       HttpServletRequest request,
       HttpServletResponse res) {
-    // access_token (HttpOnly=false, Secure=false, SameSite=None, Path=/)
+    // access_token 삭제 쿠키
     ResponseCookie deleteAccess = ResponseCookie.from("access_token", "")
         .httpOnly(true)
-        .secure(false)
-        .sameSite("Lax")
+        .secure(cookieSecure) // 환경 변수로 설정 (배포 환경: true, 로컬: false)
+        .sameSite(cookieSameSite)
         .path("/")
         .maxAge(0)
         .build();
     res.addHeader(HttpHeaders.SET_COOKIE, deleteAccess.toString());
 
-    // refresh_token (HttpOnly=true, Secure=false, SameSite=Lax, Path=/)
+    // refresh_token 삭제 쿠키
     ResponseCookie deleteRefresh = ResponseCookie.from("refresh_token", "")
         .httpOnly(true)
-        .secure(false)
-        .sameSite("Lax")
+        .secure(cookieSecure) // 환경 변수로 설정 (배포 환경: true, 로컬: false)
+        .sameSite(cookieSameSite)
         .path("/")
         .maxAge(0)
         .build();

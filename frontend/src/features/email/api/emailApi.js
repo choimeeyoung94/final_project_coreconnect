@@ -21,9 +21,19 @@ export const fetchInbox = (
   return http.get('/email/inbox', { params });
 };
 
+// 받은메일함 전체 개수 조회 (Controller의 /email/inbox/count와 매칭)
+export const fetchInboxCount = (userEmail) =>
+  http.get('/email/inbox/count', { params: { userEmail } })
+    .then(res => res.data.data);
+
 // '안읽은 메일' 개수 조회 (Controller의 /email/inbox/unread-count와 매칭)
 export const fetchUnreadCount = (userEmail) =>
   http.get('/email/inbox/unread-count', { params: { userEmail } })
+    .then(res => res.data.data);
+
+// 중요 메일 개수 조회 (Controller의 /email/favorite/count와 매칭)
+export const fetchFavoriteCount = (userEmail) =>
+  http.get('/email/favorite/count', { params: { userEmail } })
     .then(res => res.data.data);
 
 // 메일 상세 조회 (userEmail 동봉)
@@ -33,7 +43,11 @@ export const getEmailDetail = (emailId, userEmail) => {
 
 // 메일 읽음 처리 API (PATCH)
 export const markMailAsRead = (emailId, userEmail) =>
-  http.patch(`/email/${emailId}/read`, { userEmail });
+  http.patch(`/email/${emailId}/read`, { userEmail }, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
 
 // 메일 중요 표시 토글 API (PATCH)
 export const toggleFavoriteStatus = (emailId, userEmail) =>

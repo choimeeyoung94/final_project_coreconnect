@@ -44,12 +44,10 @@ const ExpenseForm = ({ formData, onFormChange }) => {
       processedValue = processedValue.slice(0, 100);
     }
 
-    const valToSend = processedValue === ''? ' ' : processedValue;
-
     onFormChange({
       target: {
         name: name,
-        value: valToSend
+        value: processedValue
       }
     });
   }

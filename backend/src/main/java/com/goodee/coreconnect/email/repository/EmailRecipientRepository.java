@@ -24,12 +24,37 @@ public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, 
 
     // 안읽은 메일 개수 (수신자 이메일, 읽음여부, 삭제되지 않은 것만)
     // emailReadYn이 false이거나 null인 경우를 안읽은 메일로 간주
+    // DRAFT, RESERVED 상태 제외 (실제 목록 조회와 동일한 조건)
     @Query("SELECT COUNT(r) FROM EmailRecipient r " +
            "WHERE r.emailRecipientAddress = :emailRecipientAddress " +
+           "AND r.emailRecipientType IN ('TO', 'CC', 'BCC') " +
            "AND (r.emailReadYn = false OR r.emailReadYn IS NULL) " +
-           "AND r.email.emailStatus NOT IN ('TRASH', 'DELETED') " +
+           "AND r.email.emailStatus NOT IN ('TRASH', 'DELETED', 'DRAFT', 'RESERVED') " +
            "AND (r.deleted IS NULL OR r.deleted = false)")
     int countUnreadInboxMails(
+        @Param("emailRecipientAddress") String emailRecipientAddress
+    );
+
+    // 받은 메일함 전체 개수 (수신자 이메일, 삭제되지 않은 것만, DRAFT/RESERVED 제외)
+    @Query("SELECT COUNT(r) FROM EmailRecipient r " +
+           "WHERE r.emailRecipientAddress = :emailRecipientAddress " +
+           "AND r.emailRecipientType IN ('TO', 'CC', 'BCC') " +
+           "AND r.email.emailStatus NOT IN ('TRASH', 'DELETED', 'DRAFT', 'RESERVED') " +
+           "AND (r.deleted IS NULL OR r.deleted = false)")
+    int countInboxMails(
+        @Param("emailRecipientAddress") String emailRecipientAddress
+    );
+
+    // 중요 메일 개수 (수신자 이메일, 중요 표시된 메일, 삭제되지 않은 것만)
+    @Query("SELECT COUNT(r) FROM EmailRecipient r " +
+           "WHERE r.emailRecipientAddress = :emailRecipientAddress " +
+           "AND r.emailRecipientType IN ('TO', 'CC', 'BCC') " +
+           "AND r.email.favoriteStatus = true " +
+           "AND r.email.emailStatus = 'SENT' " +
+           "AND r.email.emailStatus NOT IN ('TRASH', 'DELETED') " +
+           "AND (r.deleted IS NULL OR r.deleted = false) " +
+           "AND r.email.emailSentTime IS NOT NULL")
+    int countFavoriteInboxMails(
         @Param("emailRecipientAddress") String emailRecipientAddress
     );
 

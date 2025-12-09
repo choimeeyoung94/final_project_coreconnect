@@ -3,7 +3,6 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { Box, Typography, Container } from "@mui/material";
 import LoginForm from "./LoginForm";
 import useAuth from "../../../hooks/useAuth";
-import logo from "../../../assets/coreconnect-logo.png";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -47,7 +46,16 @@ export default function LoginPage() {
             mb: 4,
           }}
         >
-          <Box component="img" src={logo} alt="logo" sx={{ height: 70 }} />
+          <Box 
+            component="img" 
+            src="/coreconnect-logo.png" 
+            alt="logo" 
+            onError={(e) => {
+              // 로고 로드 실패 시 vite.svg로 fallback
+              e.target.src = "/vite.svg";
+            }}
+            sx={{ height: 70 }} 
+          />
           <Typography variant="h3" fontWeight={500}>
             코어커넥트
           </Typography>

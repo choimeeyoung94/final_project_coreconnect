@@ -102,11 +102,44 @@ public class DepartmentServiceImpl implements DepartmentService {
   public Integer create(String name, Integer orderNo, Integer parentId) {
     
     Department parent = (parentId == null) ? null : get(parentId);
-    Department dept = Department.createDepartment(name, orderNo);
+    
+    // orderNo가 null이면 자동 계산: 같은 parentId를 가진 부서 중 최대값 + 10
+    Integer finalOrderNo = orderNo;
+    if (finalOrderNo == null) {
+      finalOrderNo = calculateNextOrderNo(parentId);
+    }
+    
+    Department dept = Department.createDepartment(name, finalOrderNo);
     if(parent != null) {
       dept.changeParent(parent);
     }
     return departmentRepository.save(dept).getId();
+  }
+  
+  /** 같은 상위 부서 내에서 다음 정렬 순서 계산 (최대값 + 10) */
+  @Transactional(readOnly = true)
+  private Integer calculateNextOrderNo(Integer parentId) {
+    List<Department> siblings;
+    if (parentId == null) {
+      // 최상위 부서인 경우
+      siblings = departmentRepository.findByParentIsNullOrderByDeptOrderNoAsc();
+    } else {
+      // 특정 부모의 자식들
+      siblings = departmentRepository.findByParentIdOrderByDeptOrderNoAsc(parentId);
+    }
+    
+    if (siblings.isEmpty()) {
+      // 첫 번째 부서인 경우 기본값 10
+      return 10;
+    }
+    
+    // 최대 orderNo 찾기
+    Integer maxOrderNo = siblings.stream()
+        .map(Department::getDeptOrderNo)
+        .max(Integer::compareTo)
+        .orElse(0);
+    
+    return maxOrderNo + 10;
   }
   
   /** 부서 기본정보 변경(이름/정렬) */

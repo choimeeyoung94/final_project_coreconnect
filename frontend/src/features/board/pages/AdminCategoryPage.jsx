@@ -74,6 +74,7 @@ const AdminCategoryPage = () => {
     try {
       await updateCategory(id, editedData); // 수정 API 요청
       showSnack("카테고리가 수정되었습니다.", "success");
+      localStorage.setItem("categoryRefresh", Date.now());
       setEditingId(null); // 수정 모드 종료
       loadCategories(); // 목록 새로 불러오기
     } catch (err) {
@@ -108,6 +109,7 @@ const AdminCategoryPage = () => {
     try {
       await deleteCategory(id); // 삭제 API 요청
       showSnack("카테고리가 삭제되었습니다.", "success");
+      localStorage.setItem("categoryRefresh", Date.now());
       loadCategories(); // 목록 새로 불러오기
     } catch (err) {
       showSnack("카테고리 삭제 중 오류가 발생했습니다.", "error");
@@ -120,9 +122,11 @@ const AdminCategoryPage = () => {
       showSnack("카테고리명을 입력해주세요.", "error");
       return;
     }
+
     try {
       await createCategory(newCategory); // 등록 API 요청
       showSnack("새 카테고리가 등록되었습니다.", "success");
+      localStorage.setItem("categoryRefresh", Date.now());
       setNewCategory({ name: "", orderNo: "" }); // 입력창 초기화
       loadCategories(); // 목록 새로고침
     } catch (err) {

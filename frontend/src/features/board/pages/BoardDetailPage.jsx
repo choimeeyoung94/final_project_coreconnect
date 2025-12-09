@@ -85,11 +85,52 @@ const BoardDetailPage = () => {
   // 날짜 포맷 변환 함수
   const formatDateTime = (str) => {
     if (!str) return ""; // 값이 없으면 빈 문자열 반환 (표시 안 함)
-    const d = new Date(str); // 문자열을 Date 객체로 변환 (ISO 날짜 문자열 가정)
-    const pad = (n) => String(n).padStart(2, "0"); // 숫자를 항상 2자리 문자열로 만들기 위해 0을 앞에 채움
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
-      d.getDate()
-    )} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; // "YYYY-MM-DD HH:mm:ss" 형식으로 문자열 반환
+    
+    try {
+      let d;
+      const dateString = String(str);
+      
+      // ISO 8601 형식인 경우 (서버에서 "2025-11-25T00:42:00" 형식으로 보냄)
+      if (dateString.includes('T')) {
+        // 타임존 정보가 없으면 한국 시간(UTC+9)으로 간주하여 파싱
+        if (!dateString.includes('Z') && !dateString.includes('+') && !dateString.match(/-\d{2}:\d{2}$/)) {
+          // "2025-11-25T00:42:00" 형식을 한국 시간으로 파싱
+          const [datePart, timePart] = dateString.split('T');
+          const [year, month, day] = datePart.split('-');
+          const [timeOnly] = (timePart || '').split('.');
+          const [hour, minute, second = '00'] = (timeOnly || '').split(':');
+          
+          // UTC로 Date 객체 생성 후 한국 시간(UTC+9)으로 변환
+          d = new Date(Date.UTC(
+            parseInt(year, 10),
+            parseInt(month, 10) - 1,
+            parseInt(day, 10),
+            parseInt(hour, 10),
+            parseInt(minute, 10),
+            parseInt(second, 10)
+          ));
+          // 한국 시간은 UTC+9이므로 9시간을 빼서 UTC로 변환
+          d = new Date(d.getTime() - (9 * 60 * 60 * 1000));
+        } else {
+          d = new Date(dateString);
+        }
+      } else {
+        d = new Date(str);
+      }
+      
+      // 한국 시간으로 변환하여 포맷팅
+      const koreaTimeStr = d.toLocaleString('en-US', { timeZone: 'Asia/Seoul' });
+      const koreaTime = new Date(koreaTimeStr);
+      const pad = (n) => String(n).padStart(2, "0"); // 숫자를 항상 2자리 문자열로 만들기 위해 0을 앞에 채움
+      
+      // "YYYY-MM-DD HH:mm:ss" 형식으로 문자열 반환
+      return `${koreaTime.getFullYear()}-${pad(koreaTime.getMonth() + 1)}-${pad(
+        koreaTime.getDate()
+      )} ${pad(koreaTime.getHours())}:${pad(koreaTime.getMinutes())}:${pad(koreaTime.getSeconds())}`;
+    } catch (error) {
+      console.error('[BoardDetailPage] formatDateTime 에러:', error, str);
+      return "";
+    }
   };
 
   // 게시글, 댓글, 파일 데이터 전체 로드

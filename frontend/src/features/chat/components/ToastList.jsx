@@ -92,7 +92,7 @@ const ToastList = ({ rooms, formatTime }) => {
                     }
                   }}
                 />
-                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "primary.main" }}>
                   {room.lastUnreadMessageContent}
                 </Typography>
               </Box>

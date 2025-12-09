@@ -108,12 +108,14 @@ public class AdminUserController {
   
   /** 비밀번호 변경 요청 승인 */
   @PutMapping("/password-reset/requests/{id}/approve")
-  public ResponseEntity<TempPasswordResponseDTO> approve(@PathVariable(name = "id") Long id,
+  public ResponseEntity<Map<String, String>> approve(@PathVariable(name = "id") Long id,
                                                          @AuthenticationPrincipal CustomUserDetails customUserDetails) {
     String email = customUserDetails.getEmail();
     User user = userService.getUserByEmail(email);
-    passwordResetService.approve(id, user);
-    return ResponseEntity.noContent().build();
+    String externalEmail = passwordResetService.approve(id, user);
+    Map<String, String> response = new HashMap<>();
+    response.put("externalEmail", externalEmail);
+    return ResponseEntity.ok(response);
   }
   
   /** 비밀번호 변경 요청 거절 */

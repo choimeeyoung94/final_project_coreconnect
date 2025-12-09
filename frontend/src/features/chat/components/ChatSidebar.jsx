@@ -15,10 +15,10 @@ function ChatSidebar({ unreadRoomCount, onCreateRoom }) {
     }}>
       {/* + 버튼: 직접 콜백으로 방 생성 다이얼로그 열기 */}
       <IconButton
-        color="success"
+        color="primary"
         sx={{
           width: 42, height: 42, borderRadius: "50%", mb: 0.5,
-          bgcolor: "#10c16d", color: "#852b2bff", fontSize: 22
+          bgcolor: "primary.main", color: "#fff", fontSize: 22
         }}
         onClick={onCreateRoom}
       >
@@ -26,7 +26,7 @@ function ChatSidebar({ unreadRoomCount, onCreateRoom }) {
       </IconButton>
       <IconButton component={NavLink} to="/chat/sort" sx={{
         width: 42, height: 42, borderRadius: "50%",
-        bgcolor: "#fff", color: "#10c16d", fontSize: 20
+        bgcolor: "#fff", color: "primary.main", fontSize: 20
       }}>
         <SortIcon />
       </IconButton>

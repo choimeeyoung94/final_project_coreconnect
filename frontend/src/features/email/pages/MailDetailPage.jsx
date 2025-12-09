@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { getEmailDetail, downloadAttachment, markMailAsRead, moveToTrash, toggleFavoriteStatus } from '../api/emailApi';
 import http from '../../../api/http';
 import JSZip from 'jszip';
@@ -13,11 +13,12 @@ import StarIcon from '@mui/icons-material/Star';
 import Star from '@mui/icons-material/Star';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
-import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
+import { useParams, useNavigate, useOutletContext, useLocation } from 'react-router-dom';
 import { useContext } from "react";
-import { UserProfileContext } from "../../../App";
+import { UserProfileContext, MailCountContext } from "../../../App";
 import ConfirmDialog from "../../../components/utils/ConfirmDialog";
 import { useSnackbarContext } from "../../../components/utils/SnackbarContext";
+import { UNREAD_REFRESH_FLAG, UNREAD_PENDING_IDS_KEY } from "../constants";
 
 // 파일 사이즈 변환
 function formatBytes(bytes) {
@@ -39,14 +40,45 @@ function getStatusLabel(emailStatus) {
 function MailDetailPage() {
   const { emailId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { showSnack } = useSnackbarContext();
   const [mailDetail, setMailDetail] = useState(null);
   const [snack, setSnack] = useState({ open: false, severity: 'info', message: '' });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { refreshUnreadCount } = useOutletContext();
   const { userProfile } = useContext(UserProfileContext) || {};
+  const mailCountContext = useContext(MailCountContext);
+  const { refreshInboxCount, refreshFavoriteCount, setUnreadCountDirectly } = mailCountContext || {};
   const userEmail = userProfile?.email;
+  const fromTab = location.state?.fromTab; // 어느 탭에서 왔는지 확인
 
+  const decrementSidebarUnread = useCallback(() => {
+    if (typeof setUnreadCountDirectly === "function") {
+      setUnreadCountDirectly(prev => Math.max(0, prev - 1));
+    }
+  }, [setUnreadCountDirectly]);
+
+  const markUnreadListNeedsRefresh = useCallback(() => {
+    sessionStorage.setItem(UNREAD_REFRESH_FLAG, 'true');
+  }, []);
+
+  const addPendingUnreadId = useCallback((id) => {
+    if (!id) return;
+    try {
+      const raw = sessionStorage.getItem(UNREAD_PENDING_IDS_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(arr)) {
+        sessionStorage.setItem(UNREAD_PENDING_IDS_KEY, JSON.stringify([id]));
+        return;
+      }
+      if (!arr.includes(id)) {
+        arr.push(id);
+        sessionStorage.setItem(UNREAD_PENDING_IDS_KEY, JSON.stringify(arr));
+      }
+    } catch (err) {
+      console.error("[MailDetailPage] addPendingUnreadId error", err);
+    }
+  }, []);
   
   useEffect(() => {
   if (!emailId || !userEmail) return;
@@ -63,24 +95,107 @@ function MailDetailPage() {
       favoriteStatus: favoriteStatus
     });
 
-    if (data.readYn === false || data.readYn === null || data.readYn === undefined) {
+    // 백엔드의 getEmailDetail에서 이미 읽음 처리를 했으므로,
+    // 응답의 emailReadYn을 확인합니다.
+    // 백엔드에서 읽음 처리를 했으면 emailReadYn이 true로 반환되어야 합니다.
+    const isUnread = data.emailReadYn === false || data.emailReadYn === null || data.emailReadYn === undefined;
+    const wasReadByBackend = data.emailReadYn === true;
+    
+    console.log("[MailDetailPage] 읽음 상태 확인:", {
+      emailId,
+      emailReadYn: data.emailReadYn,
+      isUnread,
+      wasReadByBackend,
+      fromTab
+    });
+    
+    if (isUnread) {
+      // 백엔드에서 읽음 처리가 안 된 경우에만 프론트엔드에서 처리
+      console.log("[MailDetailPage] 백엔드에서 읽음 처리가 안 됨, 프론트엔드에서 처리");
       markMailAsRead(emailId, userEmail)
         .then(() => {
-          // DB 반영을 위한 짧은 대기 후 카운트 업데이트
+          decrementSidebarUnread();
+          if (fromTab === "unread") {
+            addPendingUnreadId(Number(emailId));
+            markUnreadListNeedsRefresh();
+          }
+          // DB 반영을 위한 대기 후 카운트 업데이트
           setTimeout(() => {
+            // useOutletContext에서 받은 refreshUnreadCount 호출
             if (refreshUnreadCount) {
-              refreshUnreadCount(); // ★여기!
+              refreshUnreadCount();
             }
-          }, 100);
+            // mailCountContext의 refreshUnreadCount도 호출 (사이드바 뱃지 업데이트)
+            if (mailCountContext?.refreshUnreadCount) {
+              mailCountContext.refreshUnreadCount();
+            }
+            if (refreshInboxCount) {
+              refreshInboxCount(); // 받은 메일함 전체 개수도 새로고침
+            }
+            // mailCountContext의 refreshInboxCount도 명시적으로 호출
+            if (mailCountContext?.refreshInboxCount) {
+              mailCountContext.refreshInboxCount();
+            }
+            
+            // 안읽은 메일 탭에서 왔다면 목록 새로고침을 위한 이벤트 발생
+            if (fromTab === "unread") {
+              setTimeout(() => {
+                window.dispatchEvent(new CustomEvent('refreshUnreadMailList'));
+              }, 300);
+            }
+          }, 500);
         })
         .catch(err => {
           console.error("markMailAsRead error in MailDetailPage:", err);
+          // 에러가 발생해도 안읽은 메일 탭에서 왔다면 이벤트 발생
+          if (fromTab === "unread") {
+            markUnreadListNeedsRefresh();
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent('refreshUnreadMailList'));
+            }, 500);
+          }
         });
+    } else if (wasReadByBackend) {
+      // 백엔드에서 읽음 처리를 했으므로 카운트만 업데이트
+      console.log("[MailDetailPage] 백엔드에서 읽음 처리 완료, 카운트 업데이트");
+      setTimeout(() => {
+        // useOutletContext에서 받은 refreshUnreadCount 호출
+        if (refreshUnreadCount) {
+          refreshUnreadCount();
+        }
+        // mailCountContext의 refreshUnreadCount도 호출 (사이드바 뱃지 업데이트)
+        if (mailCountContext?.refreshUnreadCount) {
+          mailCountContext.refreshUnreadCount();
+        }
+        if (refreshInboxCount) {
+          refreshInboxCount(); // 받은 메일함 전체 개수도 새로고침
+        }
+        // mailCountContext의 refreshInboxCount도 명시적으로 호출
+        if (mailCountContext?.refreshInboxCount) {
+          mailCountContext.refreshInboxCount();
+        }
+        
+        // 안읽은 메일 탭에서 왔다면 목록 새로고침을 위한 이벤트 발생
+        if (fromTab === "unread") {
+          markUnreadListNeedsRefresh();
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('refreshUnreadMailList'));
+          }, 300);
+        }
+      }, 300); // 백엔드에서 이미 처리했으므로 짧은 대기 시간
+    } else {
+      // 이미 읽은 메일이지만 안읽은 메일 탭에서 왔다면 목록 새로고침 (상태 동기화)
+      if (fromTab === "unread") {
+        markUnreadListNeedsRefresh();
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('refreshUnreadMailList'));
+        }, 300);
+      }
     }
   }).catch(err => {
     console.error("[MailDetailPage] getEmailDetail error:", err);
   });
-}, [emailId, userEmail, refreshUnreadCount]);
+}, [emailId, userEmail, refreshUnreadCount, mailCountContext, refreshInboxCount, fromTab, decrementSidebarUnread, markUnreadListNeedsRefresh, addPendingUnreadId]);
 
 
   if (!mailDetail) return <div>Loading...</div>;
@@ -110,6 +225,13 @@ function MailDetailPage() {
         newStatus ? '중요 메일로 설정되었습니다.' : '중요 메일 해제되었습니다.',
         'success'
       );
+      
+      // 중요 메일 개수 새로고침
+      if (refreshFavoriteCount) {
+        setTimeout(() => {
+          refreshFavoriteCount();
+        }, 100);
+      }
     } catch (err) {
       console.error('handleToggleFavorite error', err);
       showSnack('중요 메일 설정 중 오류가 발생했습니다.', 'error');
@@ -350,46 +472,126 @@ function MailDetailPage() {
         </Box>
         <Box sx={{ display: 'flex', alignItems: "center", flexWrap: "wrap", gap: 2, mb: 1 }}>
           <Typography fontWeight={600} fontSize={15}>받는사람:</Typography>
-          {(mailDetail.toRecipients || []).map(r => (
-            <Chip
-              label={`${r.emailRecipientAddress}${r.userDept ? ' / ' + r.userDept : ''}`}
-              key={r.emailRecipientId}
-              size="small"
-              sx={{ mr: 1 }}
-            />
-          ))}
+          {(() => {
+            // 이메일 주소 기준으로 중복 제거
+            const seen = new Set();
+            return (mailDetail.toRecipients || []).filter(r => {
+              const address = r.emailRecipientAddress?.toLowerCase();
+              if (seen.has(address)) {
+                return false;
+              }
+              seen.add(address);
+              return true;
+            }).map(r => (
+              <Chip
+                label={`${r.emailRecipientAddress}${r.userDept ? ' / ' + r.userDept : ''}`}
+                key={r.emailRecipientId}
+                size="small"
+                sx={{ mr: 1 }}
+              />
+            ));
+          })()}
         </Box>
-        {(mailDetail.ccRecipients || []).length > 0 && (
-          <Box sx={{ display: 'flex', alignItems: "center", flexWrap: "wrap", gap: 2, mb: 1 }}>
-            <Typography color="textSecondary" fontSize={15}>참조:</Typography>
-            {mailDetail.ccRecipients.map(r =>
-              <Chip
-                label={`${r.emailRecipientAddress}${r.userDept ? ' / ' + r.userDept : ''}`}
-                key={r.emailRecipientId}
-                size="small"
-                variant="outlined"
-                sx={{ mr: 1, color: "#90b2cc" }}
-              />
-            )}
-          </Box>
-        )}
-        {(mailDetail.bccRecipients || []).length > 0 && (
-          <Box sx={{ display: 'flex', alignItems: "center", flexWrap: "wrap", gap: 2, mb: 1 }}>
-            <Typography color="textSecondary" fontSize={15}>숨은참조:</Typography>
-            {mailDetail.bccRecipients.map(r =>
-              <Chip
-                label={`${r.emailRecipientAddress}${r.userDept ? ' / ' + r.userDept : ''}`}
-                key={r.emailRecipientId}
-                size="small"
-                variant="outlined"
-                sx={{ mr: 1, color: "#b09dcc" }}
-              />
-            )}
-          </Box>
-        )}
+        {(() => {
+          // 참조(CC) 중복 제거
+          const seen = new Set();
+          const uniqueCcRecipients = (mailDetail.ccRecipients || []).filter(r => {
+            const address = r.emailRecipientAddress?.toLowerCase();
+            if (seen.has(address)) {
+              return false;
+            }
+            seen.add(address);
+            return true;
+          });
+          return uniqueCcRecipients.length > 0 && (
+            <Box sx={{ display: 'flex', alignItems: "center", flexWrap: "wrap", gap: 2, mb: 1 }}>
+              <Typography color="textSecondary" fontSize={15}>참조:</Typography>
+              {uniqueCcRecipients.map(r =>
+                <Chip
+                  label={`${r.emailRecipientAddress}${r.userDept ? ' / ' + r.userDept : ''}`}
+                  key={r.emailRecipientId}
+                  size="small"
+                  variant="outlined"
+                  sx={{ mr: 1, color: "#90b2cc" }}
+                />
+              )}
+            </Box>
+          );
+        })()}
+        {(() => {
+          // 숨은참조(BCC) 중복 제거
+          const seen = new Set();
+          const uniqueBccRecipients = (mailDetail.bccRecipients || []).filter(r => {
+            const address = r.emailRecipientAddress?.toLowerCase();
+            if (seen.has(address)) {
+              return false;
+            }
+            seen.add(address);
+            return true;
+          });
+          return uniqueBccRecipients.length > 0 && (
+            <Box sx={{ display: 'flex', alignItems: "center", flexWrap: "wrap", gap: 2, mb: 1 }}>
+              <Typography color="textSecondary" fontSize={15}>숨은참조:</Typography>
+              {uniqueBccRecipients.map(r =>
+                <Chip
+                  label={`${r.emailRecipientAddress}${r.userDept ? ' / ' + r.userDept : ''}`}
+                  key={r.emailRecipientId}
+                  size="small"
+                  variant="outlined"
+                  sx={{ mr: 1, color: "#b09dcc" }}
+                />
+              )}
+            </Box>
+          );
+        })()}
         {/* 보낸 날짜 라인 */}
         <Box sx={{ mt: 0.5, mb: 2, color: "#777", fontSize: 14 }}>
-          보낸날짜: {mailDetail.sentTime ? (typeof mailDetail.sentTime === "string" ? new Date(mailDetail.sentTime).toLocaleString() : mailDetail.sentTime) : "-"}
+          보낸날짜: {mailDetail.sentTime ? (() => {
+            try {
+              let d;
+              const dateStr = String(mailDetail.sentTime);
+              
+              // ISO 8601 형식인 경우 (서버에서 "2025-11-25T00:42:00" 형식으로 보냄)
+              if (dateStr.includes('T')) {
+                // 타임존 정보가 없으면 한국 시간(UTC+9)으로 간주하여 파싱
+                if (!dateStr.includes('Z') && !dateStr.includes('+') && !dateStr.match(/-\d{2}:\d{2}$/)) {
+                  // "2025-11-25T00:42:00" 형식을 한국 시간으로 파싱
+                  const [datePart, timePart] = dateStr.split('T');
+                  const [year, month, day] = datePart.split('-');
+                  const [timeOnly] = (timePart || '').split('.');
+                  const [hour, minute, second = '00'] = (timeOnly || '').split(':');
+                  
+                  // UTC로 Date 객체 생성 후 한국 시간(UTC+9)으로 변환
+                  d = new Date(Date.UTC(
+                    parseInt(year, 10),
+                    parseInt(month, 10) - 1,
+                    parseInt(day, 10),
+                    parseInt(hour, 10),
+                    parseInt(minute, 10),
+                    parseInt(second, 10)
+                  ));
+                  // 한국 시간은 UTC+9이므로 9시간을 빼서 UTC로 변환
+                  d = new Date(d.getTime() - (9 * 60 * 60 * 1000));
+                } else {
+                  d = new Date(dateStr);
+                }
+              } else {
+                d = typeof mailDetail.sentTime === "string" ? new Date(mailDetail.sentTime) : mailDetail.sentTime;
+              }
+              
+              // 한국 시간으로 변환하여 포맷팅
+              const koreaTimeStr = d.toLocaleString('en-US', { timeZone: 'Asia/Seoul' });
+              const koreaTime = new Date(koreaTimeStr);
+              const yyyy = koreaTime.getFullYear();
+              const mm = String(koreaTime.getMonth() + 1).padStart(2, "0");
+              const dd = String(koreaTime.getDate()).padStart(2, "0");
+              const HH = String(koreaTime.getHours()).padStart(2, "0");
+              const mi = String(koreaTime.getMinutes()).padStart(2, "0");
+              return `${yyyy}-${mm}-${dd} ${HH}:${mi}`;
+            } catch {
+              return "-";
+            }
+          })() : "-"}
         </Box>
         {/* === 첨부파일 영역 (파일명 표시/다운로드) === */}
         {(mailDetail.attachments && mailDetail.attachments.length > 0) && (

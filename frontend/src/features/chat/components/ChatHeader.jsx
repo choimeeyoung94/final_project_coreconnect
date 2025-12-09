@@ -16,7 +16,7 @@ function ChatHeader({ onCreateRoom }) {
       px: 3, gap: 2
     }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <PersonIcon sx={{ fontSize: 26, color: "#10c16d" }} />
+        <PersonIcon sx={{ fontSize: 26, color: "primary.main" }} />
         <Typography sx={{ fontSize: 20, fontWeight: 600, color: "#222" }}>
           채팅
         </Typography>
@@ -39,11 +39,11 @@ function ChatHeader({ onCreateRoom }) {
               width: 36,
               height: 36,
               borderRadius: "50%",
-              bgcolor: "#10c16d",
-              color: "#852b2b",
+              bgcolor: "primary.main",
+              color: "#fff",
               fontSize: 20,
               "&:hover": {
-                bgcolor: "#0ea55e",
+                bgcolor: "primary.dark",
               },
             }}
           >
@@ -60,7 +60,7 @@ function ChatHeader({ onCreateRoom }) {
               height: 36,
               borderRadius: "50%",
               bgcolor: "#fff",
-              color: "#10c16d",
+              color: "primary.main",
               fontSize: 20,
               border: "1px solid #e0e0e0",
               "&:hover": {

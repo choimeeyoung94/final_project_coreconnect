@@ -123,33 +123,73 @@ public class AttendanceServiceImpl implements AttendanceService {
     
     // 해당 주의 근태 기록 모두 조회
     List<Attendance> attendanceList = attendanceRepository.findByUser_IdAndWorkDateBetween(user.getId(), startOfWeek, endOfWeek);
+    
+    // 해당 기간 내 승인된 휴가 조회
+    List<LeaveRequest> approvedLeaves = leaveRequestRepository.findByUserAndStatusAndDateRange(
+        user, LeaveStatus.APPROVED, startOfWeek, endOfWeek);
+    
+    // 휴가 날짜 Set 생성 (시작일부터 종료일까지 모든 날짜 포함)
+    Set<LocalDate> leaveDates = new HashSet<>();
+    for (LeaveRequest leave : approvedLeaves) {
+      LocalDate leaveStart = leave.getStartDate();
+      LocalDate leaveEnd = leave.getEndDate();
+      for (LocalDate date = leaveStart; !date.isAfter(leaveEnd); date = date.plusDays(1)) {
+        leaveDates.add(date);
+      }
+    }
+    
     LocalDate today = LocalDate.now();
     int totalMinutes = 0;
     
-    for(Attendance att : attendanceList) {
-      LocalDate workDate = att.getWorkDate();
-      LocalDateTime checkIn = att.getCheckIn();
-      LocalDateTime checkOut = att.getCheckOut();
+    // 주의 각 날짜를 순회하며 평일만 계산 (주간 통계와 동일한 로직)
+    for (LocalDate date = startOfWeek; !date.isAfter(endOfWeek); date = date.plusDays(1)) {
+      // 주말 제외 (토요일, 일요일)
+      if (date.getDayOfWeek() == DayOfWeek.SATURDAY || date.getDayOfWeek() == DayOfWeek.SUNDAY) {
+        continue;
+      }
       
-      // 출근 기록이 없으면 스킵
-      if(checkIn == null) { continue; }
+      // 미래 날짜는 제외
+      if (date.isAfter(today)) {
+        continue;
+      }
+      
+      // 해당 날짜의 근태 기록 찾기
+      final LocalDate currentDate = date;
+      
+      // 휴가인지 확인
+      boolean isLeave = leaveDates.contains(currentDate);
+      if (isLeave) {
+        continue;  // 휴가는 근무 시간에 포함하지 않음
+      }
+      
+      Attendance attendance = attendanceList.stream()
+          .filter(att -> att.getWorkDate() != null && att.getWorkDate().equals(currentDate))
+          .findFirst()
+          .orElse(null);
+      
+      if (attendance == null || attendance.getCheckIn() == null) {
+        // 출근 기록이 없으면 스킵
+        continue;
+      }
+      
+      // 근무 시간 계산
+      LocalDateTime checkIn = attendance.getCheckIn();
+      LocalDateTime checkOut = attendance.getCheckOut();
       
       LocalDateTime endDateTime;
-      
-      if(checkOut != null) {
+      if (checkOut != null) {
         // 정상적으로 퇴근한 날
         endDateTime = checkOut;
-      } else if(workDate.equals(today)) {
+      } else if (currentDate.equals(today)) {
         // 오늘인데 아직 퇴근 안 찍은 경우 -> 지금까지 근무한 시간 포함
         endDateTime = LocalDateTime.now();
       } else {
-        // 과거인데 퇴근 시간이 없다면 -> 0분으로 처리
+        // 과거인데 퇴근 시간이 없으면 스킵
         continue;
       }
       
       long minutes = Duration.between(checkIn, endDateTime).toMinutes();
-      
-      if(minutes > 0) {
+      if (minutes > 0) {
         totalMinutes += (int) minutes;
       }
     }
@@ -190,6 +230,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     int totalWorkDays = 0;  // 총 근무일수 (주말만 제외, 평일 전체)
     int workDays = 0;
     int lateDays = 0;
+    int leaveEarlyDays = 0;  // 조퇴일수
     int absentDays = 0;
     int leaveDays = 0;  // 휴가일수 (평일 중 휴가인 날짜)
     int totalMinutes = 0;
@@ -229,8 +270,11 @@ public class AttendanceServiceImpl implements AttendanceService {
         absentDays++;
       } else {
         // 출근 기록이 있으면
-        if (attendance.getStatus() == AttendanceStatus.LATE) {
+        AttendanceStatus status = attendance.getStatus();
+        if (status == AttendanceStatus.LATE) {
           lateDays++;
+        } else if (status == AttendanceStatus.LEAVE_EARLY) {
+          leaveEarlyDays++;
         }
         workDays++;
         
@@ -256,7 +300,7 @@ public class AttendanceServiceImpl implements AttendanceService {
       }
     }
     
-    return new AttendanceStatisticsDTO(totalWorkDays, workDays, lateDays, absentDays, leaveDays, totalMinutes);
+    return new AttendanceStatisticsDTO(totalWorkDays, workDays, lateDays, leaveEarlyDays, absentDays, leaveDays, totalMinutes);
   }
 
   /** 월간 근태 통계 조회 */
@@ -292,6 +336,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     int totalWorkDays = 0;  // 총 근무일수 (주말만 제외, 평일 전체)
     int workDays = 0;
     int lateDays = 0;
+    int leaveEarlyDays = 0;  // 조퇴일수
     int absentDays = 0;
     int leaveDays = 0;  // 휴가일수 (평일 중 휴가인 날짜)
     int totalMinutes = 0;
@@ -331,8 +376,11 @@ public class AttendanceServiceImpl implements AttendanceService {
         absentDays++;
       } else {
         // 출근 기록이 있으면
-        if (attendance.getStatus() == AttendanceStatus.LATE) {
+        AttendanceStatus status = attendance.getStatus();
+        if (status == AttendanceStatus.LATE) {
           lateDays++;
+        } else if (status == AttendanceStatus.LEAVE_EARLY) {
+          leaveEarlyDays++;
         }
         workDays++;
         
@@ -358,7 +406,7 @@ public class AttendanceServiceImpl implements AttendanceService {
       }
     }
     
-    return new AttendanceStatisticsDTO(totalWorkDays, workDays, lateDays, absentDays, leaveDays, totalMinutes);
+    return new AttendanceStatisticsDTO(totalWorkDays, workDays, lateDays, leaveEarlyDays, absentDays, leaveDays, totalMinutes);
   }
 
   /** 전사원 오늘 근태 현황 조회 */

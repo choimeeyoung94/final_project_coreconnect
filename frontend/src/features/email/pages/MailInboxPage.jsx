@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext, useRef, useMemo } from 'react';
 import {
   Box, Typography, Paper, Table, TableHead, TableBody, TableRow, TableCell,
   IconButton, ButtonGroup, Button, InputBase, Divider, Checkbox, Chip, Pagination, Badge, Tabs, Tab,
-  Menu, MenuItem, Select, LinearProgress
+  Menu, MenuItem, Select, LinearProgress, CircularProgress
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ReplyIcon from '@mui/icons-material/Reply';
@@ -19,6 +19,7 @@ import { MailCountContext } from "../../../App"; // 메일 카운트 컨텍스�
 import { UserProfileContext } from "../../../App";
 import { useSnackbarContext } from "../../../components/utils/SnackbarContext";
 import ConfirmDialog from "../../../components/utils/ConfirmDialog";
+import { UNREAD_REFRESH_FLAG, UNREAD_PENDING_IDS_KEY } from "../constants";
 
 const MailInboxPage = () => {
   const { showSnack } = useSnackbarContext();
@@ -37,6 +38,7 @@ const MailInboxPage = () => {
   const [appliedKeyword, setAppliedKeyword] = useState("");
   const [sortOrder, setSortOrder] = useState("desc"); // 날짜 정렬 순서: "desc" (내림차순, 최신순), "asc" (오름차순, 오래된순)
   const [isRefreshing, setIsRefreshing] = useState(false); // 새로고침 로딩 상태
+  const [isLoading, setIsLoading] = useState(false); // 초기 로딩 상태
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const pendingReadIdsRef = useRef(new Set());
   const { userProfile } = useContext(UserProfileContext) || {};
@@ -44,6 +46,7 @@ const MailInboxPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const mailCountContext = useContext(MailCountContext);
+  const setUnreadCountDirectly = mailCountContext?.setUnreadCountDirectly;
 
   // 쿼리파라미터에 따라 탭 상태 반영
   useEffect(() => {
@@ -72,19 +75,41 @@ const MailInboxPage = () => {
     }
   };
 
+  const loadPendingIdsFromStorage = () => {
+    try {
+      const raw = sessionStorage.getItem(UNREAD_PENDING_IDS_KEY);
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return new Set();
+      return new Set(arr.filter(id => typeof id === "number"));
+    } catch (err) {
+      console.error("[MailInboxPage] loadPendingIdsFromStorage error", err);
+      return new Set();
+    }
+  };
+
+  const persistPendingIds = () => {
+    const ids = Array.from(pendingReadIdsRef.current);
+    if (ids.length === 0) {
+      sessionStorage.removeItem(UNREAD_PENDING_IDS_KEY);
+    } else {
+      sessionStorage.setItem(UNREAD_PENDING_IDS_KEY, JSON.stringify(ids));
+    }
+  };
+
   // 받은메일함 목록 로딩
   const loadInbox = async (
     pageIdx = page,
     pageSize = size,
     activeTab = tab,
     keywordParam = appliedKeyword,
-    searchTypeParam = appliedSearchType
+    searchTypeParam = appliedSearchType,
+    showLoading = true
   ) => {
     if (!userEmail) {
       console.warn("[MailInboxPage] loadInbox: userEmail이 없어서 메일 목록을 불러오지 않습니다.", {
         userProfile,
-        userEmail,
-        userProfileContext
+        userEmail
       });
       setMails([]);
       setTotal(0);
@@ -99,6 +124,10 @@ const MailInboxPage = () => {
       keywordParam,
       searchTypeParam
     });
+    
+    if (showLoading) {
+      setIsLoading(true);
+    }
     
     try {
       // 서버에서 삭제된 메일이 제외되어 반환됨(DB/JPQL 필터)
@@ -125,39 +154,119 @@ const MailInboxPage = () => {
       });
 
       if (activeTab === "unread") {
-        if (pendingReadIdsRef.current.size > 0) {
+        // 안읽은 메일 탭: 서버에서 읽음 처리된 메일도 필터링
+        console.log("[MailInboxPage] 안읽은 메일 탭 필터링 시작:", {
+          mailListLength: mailList.length,
+          pendingReadIdsSize: pendingReadIdsRef.current.size,
+          pendingReadIds: Array.from(pendingReadIdsRef.current)
+        });
+
+        // 1단계: 서버에서 읽음 처리된 메일 필터링 및 pendingReadIds 정리
+        const readMailIdsFromServer = new Set();
+        const actuallyUnreadMails = mailList.filter(mail => {
+          // emailReadYn이 true이면 읽음 처리된 메일이므로 제외
+          if (mail.emailReadYn === true) {
+            readMailIdsFromServer.add(mail.emailId);
+            return false;
+          }
+          // pendingReadIds에 있는 메일도 제외 (Optimistic Update)
+          if (pendingReadIdsRef.current.has(mail.emailId)) {
+            return false;
+          }
+          return true;
+        });
+
+        console.log("[MailInboxPage] 필터링 결과:", {
+          readMailIdsFromServer: Array.from(readMailIdsFromServer),
+          actuallyUnreadMailsLength: actuallyUnreadMails.length,
+          actuallyUnreadMailsIds: actuallyUnreadMails.map(m => m.emailId)
+        });
+
+        // 2단계: pendingReadIds 정리
+        // - 서버에서 읽음 처리된 메일 ID는 pendingReadIds에서 제거 (DB 반영 완료)
+        // - 서버에서 반환되지 않는 ID도 제거 (DB 반영 완료)
+        // - 서버에서 여전히 안읽은 메일로 반환되는 ID만 유지 (아직 DB 반영 안 된 경우)
+        if (pendingReadIdsRef.current.size > 0 || readMailIdsFromServer.size > 0) {
           const idsFromServer = new Set(mailList.map(m => m.emailId));
           const stillPending = new Set();
+          
           pendingReadIdsRef.current.forEach(id => {
+            // 서버에서 읽음 처리된 메일이면 제거 (DB 반영 완료)
+            if (readMailIdsFromServer.has(id)) {
+              console.log("[MailInboxPage] pendingReadIds에서 제거 (서버에서 읽음 처리됨):", id);
+              return; // 제거
+            }
+            // 서버에서 여전히 안읽은 메일로 반환되는 경우만 유지 (아직 DB 반영 안 된 경우)
             if (idsFromServer.has(id)) {
               stillPending.add(id);
+              console.log("[MailInboxPage] pendingReadIds 유지 (서버에서 여전히 반환됨):", id);
+            } else {
+              console.log("[MailInboxPage] pendingReadIds에서 제거 (서버에서 반환되지 않음):", id);
             }
           });
+          
           pendingReadIdsRef.current = stillPending;
+          persistPendingIds();
+          
+          console.log("[MailInboxPage] pendingReadIds 정리 완료:", {
+            before: Array.from(pendingReadIdsRef.current),
+            after: Array.from(stillPending),
+            removed: Array.from(readMailIdsFromServer)
+          });
         }
-      } else if (pendingReadIdsRef.current.size > 0) {
-        pendingReadIdsRef.current = new Set();
+
+        const listForState = actuallyUnreadMails;
+        setMails(listForState);
+        const serverTotal = typeof boxData?.totalElements === "number" ? boxData.totalElements : 0;
+        // 서버에서 읽음 처리된 메일 수를 계산하여 총 개수 조정
+        const readMailsCount = readMailIdsFromServer.size;
+        const adjustedTotal = Math.max(0, serverTotal - readMailsCount - pendingReadIdsRef.current.size);
+        setTotal(adjustedTotal);
+        
+        console.log("[MailInboxPage] 최종 상태:", {
+          listForStateLength: listForState.length,
+          serverTotal,
+          readMailsCount,
+          pendingReadIdsSize: pendingReadIdsRef.current.size,
+          adjustedTotal
+        });
+        
+        // selected 상태 업데이트
+        setSelected(prev => {
+          const idsOnPage = new Set(listForState.map(m => m.emailId));
+          const newSet = new Set([...prev].filter(id => idsOnPage.has(id)));
+          return newSet;
+        });
+      } else {
+        // 다른 탭에서는 pendingReadIds 초기화하지 않음 (탭 전환 시 상태 유지)
+        const listForState = mailList;
+        setMails(listForState);
+        const serverTotal = typeof boxData?.totalElements === "number" ? boxData.totalElements : 0;
+        setTotal(serverTotal);
+        
+        // selected 상태 업데이트
+        setSelected(prev => {
+          const idsOnPage = new Set(listForState.map(m => m.emailId));
+          const newSet = new Set([...prev].filter(id => idsOnPage.has(id)));
+          return newSet;
+        });
       }
-
-      const listForState = activeTab === "unread"
-        ? mailList.filter(mail => !pendingReadIdsRef.current.has(mail.emailId))
-        : mailList;
-
-      setMails(listForState);
-      const serverTotal = typeof boxData?.totalElements === "number" ? boxData.totalElements : 0;
-      const adjustedTotal = activeTab === "unread"
-        ? Math.max(0, serverTotal - pendingReadIdsRef.current.size)
-        : serverTotal;
-      setTotal(adjustedTotal);
-      setSelected(prev => {
-        const idsOnPage = new Set(listForState.map(m => m.emailId));
-        const newSet = new Set([...prev].filter(id => idsOnPage.has(id)));
-        return newSet;
-      });
     } catch (err) {
       console.error("fetchInbox error", err);
       setMails([]);
       setTotal(0);
+    } finally {
+      if (showLoading) {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const decrementUnreadCounters = (count = 1) => {
+    if (!count || count <= 0) return;
+    setUnreadCount(prev => Math.max(0, prev - count));
+    if (typeof setUnreadCountDirectly === "function") {
+      setUnreadCountDirectly(prev => Math.max(0, prev - count));
     }
   };
 
@@ -165,7 +274,7 @@ const MailInboxPage = () => {
     setIsRefreshing(true);
     try {
       await Promise.all([
-        loadInbox(1, size, tab),
+        loadInbox(1, size, tab, appliedKeyword, appliedSearchType, false),
         loadUnreadCount()
       ]);
     } catch (err) {
@@ -304,9 +413,24 @@ const MailInboxPage = () => {
 
   // 탭/페이지 등 변경시 메일함 새로고침
   useEffect(() => {
+    // 탭이 변경될 때 pendingReadIds를 세션 스토리지에서 다시 로드
+    if (tab === "unread") {
+      const loadedIds = loadPendingIdsFromStorage();
+      pendingReadIdsRef.current = loadedIds;
+      console.log("[MailInboxPage] 안읽은 메일 탭으로 전환 - pendingReadIds 로드:", {
+        loadedIds: Array.from(loadedIds),
+        size: loadedIds.size
+      });
+    } else {
+      // 다른 탭으로 전환할 때는 pendingReadIds를 유지 (초기화하지 않음)
+      console.log("[MailInboxPage] 다른 탭으로 전환 - pendingReadIds 유지:", {
+        pendingReadIds: Array.from(pendingReadIdsRef.current),
+        size: pendingReadIdsRef.current.size
+      });
+    }
     loadInbox();
     // eslint-disable-next-line
-  }, [userEmail, page, size, tab, appliedKeyword, appliedSearchType]);
+  }, [userEmail, page, size, tab, appliedKeyword, appliedSearchType, location.key]);
 
   // 페이지 포커스 시 목록 새로고침 (뒤로가기 시 목록 업데이트)
   useEffect(() => {
@@ -314,6 +438,10 @@ const MailInboxPage = () => {
       if (userEmail && tab === "unread") {
         loadInbox();
         loadUnreadCount();
+        // 사이드바 뱃지도 업데이트
+        if (mailCountContext?.refreshUnreadCount) {
+          mailCountContext.refreshUnreadCount();
+        }
       }
     };
     window.addEventListener('focus', handleFocus);
@@ -326,12 +454,66 @@ const MailInboxPage = () => {
       if (!document.hidden && userEmail && tab === "unread") {
         loadInbox();
         loadUnreadCount();
+        // 사이드바 뱃지도 업데이트
+        if (mailCountContext?.refreshUnreadCount) {
+          mailCountContext.refreshUnreadCount();
+        }
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userEmail, tab]);
+
+  // 안읽은 메일 목록 새로고침 이벤트 리스너 (MailDetailPage에서 메일을 읽을 때 발생)
+  useEffect(() => {
+    pendingReadIdsRef.current = loadPendingIdsFromStorage();
+  }, []);
+
+  useEffect(() => {
+    const handleRefreshUnreadMailList = () => {
+      if (userEmail && tab === "unread") {
+        // DB 반영을 위한 대기 후 목록 새로고침 (대기 시간 증가)
+        setTimeout(async () => {
+          try {
+            await loadInbox(page, size, "unread");
+            await loadUnreadCount();
+            // 사이드바 뱃지도 업데이트
+            if (mailCountContext?.refreshUnreadCount) {
+              await mailCountContext.refreshUnreadCount();
+            }
+            // 받은 메일함 전체 개수도 업데이트
+            if (mailCountContext?.refreshInboxCount) {
+              await mailCountContext.refreshInboxCount();
+            }
+          } catch (err) {
+            console.error("handleRefreshUnreadMailList error:", err);
+          }
+        }, 800); // 500ms -> 800ms로 증가하여 DB 반영 시간 확보
+      }
+    };
+    
+    window.addEventListener('refreshUnreadMailList', handleRefreshUnreadMailList);
+    return () => window.removeEventListener('refreshUnreadMailList', handleRefreshUnreadMailList);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userEmail, tab, page, size]);
+
+  useEffect(() => {
+    if (tab !== "unread") return;
+    const shouldRefresh = sessionStorage.getItem(UNREAD_REFRESH_FLAG);
+    if (shouldRefresh === 'true') {
+      sessionStorage.removeItem(UNREAD_REFRESH_FLAG);
+      (async () => {
+        try {
+          await loadInbox(page, size, "unread");
+          await loadUnreadCount();
+        } catch (err) {
+          console.error("[MailInboxPage] unread refresh sync error", err);
+        }
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, location.key]);
 
   // 안읽은 개수 fetch + 컨텍스트 연동
   const loadUnreadCount = async () => {
@@ -340,9 +522,12 @@ const MailInboxPage = () => {
       const count = await fetchUnreadCount(userEmail);
       const finalCount = count || 0;
       setUnreadCount(finalCount);
-      // 컨텍스트도 직접 업데이트하여 사이드바에 반영 (refreshUnreadCount 호출)
+      // 컨텍스트도 직접 업데이트하여 사이드바에 반영 (refreshUnreadCount, refreshInboxCount 호출)
       if (mailCountContext?.refreshUnreadCount) {
         await mailCountContext.refreshUnreadCount();
+      }
+      if (mailCountContext?.refreshInboxCount) {
+        await mailCountContext.refreshInboxCount();
       }
     } catch (err) {
       console.error("loadUnreadCount error:", err);
@@ -409,13 +594,48 @@ const MailInboxPage = () => {
       }
 
       // 각 메일을 읽음 처리
-      const readPromises = unreadMails.map(mail => markMailAsRead(mail.emailId, userEmail));
-      await Promise.all(readPromises);
+      console.log("[MailInboxPage] markSelectedAsRead: 읽음 처리 시작:", {
+        unreadMailsCount: unreadMails.length,
+        emailIds: unreadMails.map(m => m.emailId)
+      });
+      
+      const readPromises = unreadMails.map(async (mail) => {
+        try {
+          console.log("[MailInboxPage] markSelectedAsRead: 개별 메일 읽음 처리 시작:", { emailId: mail.emailId });
+          const result = await markMailAsRead(mail.emailId, userEmail);
+          console.log("[MailInboxPage] markSelectedAsRead: 개별 메일 읽음 처리 응답:", { emailId: mail.emailId, result });
+          return { emailId: mail.emailId, success: result?.data?.data === true };
+        } catch (error) {
+          console.error("[MailInboxPage] markSelectedAsRead: 개별 메일 읽음 처리 에러:", { emailId: mail.emailId, error });
+          return { emailId: mail.emailId, success: false, error };
+        }
+      });
+      
+      const results = await Promise.all(readPromises);
+      const successCount = results.filter(r => r.success).length;
+      const failCount = results.filter(r => !r.success).length;
+      
+      console.log("[MailInboxPage] markSelectedAsRead: 읽음 처리 완료:", {
+        successCount,
+        failCount,
+        results
+      });
+      
+      if (failCount > 0) {
+        console.warn("[MailInboxPage] markSelectedAsRead: 일부 메일 읽음 처리 실패:", {
+          failedIds: results.filter(r => !r.success).map(r => r.emailId)
+        });
+      }
+
+      if (unreadMails.length > 0) {
+        decrementUnreadCounters(unreadMails.length);
+      }
 
       // 안읽은 메일 탭인 경우 읽음 처리된 메일들을 목록에서 즉시 제거 (Optimistic Update)
       if (tab === "unread") {
         const readMailIds = new Set(unreadMails.map(m => m.emailId));
         readMailIds.forEach(id => pendingReadIdsRef.current.add(id));
+        persistPendingIds();
         setMails(prev => prev.filter(m => !readMailIds.has(m.emailId)));
         setTotal(prev => Math.max(0, prev - readMailIds.size));
       }
@@ -431,14 +651,30 @@ const MailInboxPage = () => {
           try {
             await loadInbox(page, size, "unread");
             await loadUnreadCount();
+            // 사이드바 뱃지 업데이트
+            if (mailCountContext?.refreshUnreadCount) {
+              await mailCountContext.refreshUnreadCount();
+            }
+            // 받은 메일함 전체 개수도 업데이트
+            if (mailCountContext?.refreshInboxCount) {
+              await mailCountContext.refreshInboxCount();
+            }
           } catch (err) {
             console.error("loadInbox error after mark as read", err);
           }
         }, 800);
       } else {
-        // 다른 탭에서는 안읽은 메일 개수만 업데이트
+        // 다른 탭에서는 안읽은 메일 개수와 받은 메일함 개수 업데이트
         setTimeout(async () => {
           await loadUnreadCount();
+          // 사이드바 뱃지 업데이트
+          if (mailCountContext?.refreshUnreadCount) {
+            await mailCountContext.refreshUnreadCount();
+          }
+          // 받은 메일함 전체 개수도 업데이트
+          if (mailCountContext?.refreshInboxCount) {
+            await mailCountContext.refreshInboxCount();
+          }
         }, 500);
       }
     } catch (err) {
@@ -471,25 +707,62 @@ const MailInboxPage = () => {
       });
       await loadInbox();      // 새로고침: 이동한 항목 즉시 사라짐
       await loadUnreadCount();// 언리드카운트까지 새로고침
+      // 받은 메일함 전체 개수도 새로고침
+      if (mailCountContext?.refreshInboxCount) {
+        await mailCountContext.refreshInboxCount();
+      }
     } catch (err) {
       console.error('deleteSelected error', err);
       showSnack('메일 삭제 중 오류가 발생했습니다.', 'error');
     }
   };
 
-  // 날짜 포맷 (YYYY-MM-DD HH시 mm분 ss초)
+  // 날짜 포맷 (YYYY-MM-DD HH:mm) - 한국 시간 기준
   const formatSentTime = (sentTime) => {
     if (!sentTime) return '-';
     try {
-      const d = (typeof sentTime === "string" || typeof sentTime === "number") ? new Date(sentTime) : sentTime;
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      const HH = String(d.getHours()).padStart(2, "0");
-      const mi = String(d.getMinutes()).padStart(2, "0");
-      const ss = String(d.getSeconds()).padStart(2, "0");
-      return `${yyyy}-${mm}-${dd} ${HH}시 ${mi}분 ${ss}초`;
-    } catch {
+      let d;
+      const dateStr = String(sentTime);
+      
+      // ISO 8601 형식인 경우 (서버에서 "2025-11-25T00:42:00" 형식으로 보냄)
+      if (dateStr.includes('T')) {
+        // 타임존 정보가 없으면 한국 시간(UTC+9)으로 간주하여 파싱
+        if (!dateStr.includes('Z') && !dateStr.includes('+') && !dateStr.match(/-\d{2}:\d{2}$/)) {
+          // "2025-11-25T00:42:00" 형식을 한국 시간으로 파싱
+          const [datePart, timePart] = dateStr.split('T');
+          const [year, month, day] = datePart.split('-');
+          const [timeOnly] = (timePart || '').split('.');
+          const [hour, minute, second = '00'] = (timeOnly || '').split(':');
+          
+          // UTC로 Date 객체 생성 후 한국 시간(UTC+9)으로 변환
+          d = new Date(Date.UTC(
+            parseInt(year, 10),
+            parseInt(month, 10) - 1,
+            parseInt(day, 10),
+            parseInt(hour, 10),
+            parseInt(minute, 10),
+            parseInt(second, 10)
+          ));
+          // 한국 시간은 UTC+9이므로 9시간을 빼서 UTC로 변환
+          d = new Date(d.getTime() - (9 * 60 * 60 * 1000));
+        } else {
+          d = new Date(dateStr);
+        }
+      } else {
+        d = (typeof sentTime === "string" || typeof sentTime === "number") ? new Date(sentTime) : sentTime;
+      }
+      
+      // 한국 시간으로 변환하여 포맷팅
+      const koreaTimeStr = d.toLocaleString('en-US', { timeZone: 'Asia/Seoul' });
+      const koreaTime = new Date(koreaTimeStr);
+      const yyyy = koreaTime.getFullYear();
+      const mm = String(koreaTime.getMonth() + 1).padStart(2, "0");
+      const dd = String(koreaTime.getDate()).padStart(2, "0");
+      const HH = String(koreaTime.getHours()).padStart(2, "0");
+      const mi = String(koreaTime.getMinutes()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd} ${HH}:${mi}`;
+    } catch (error) {
+      console.error('[MailInboxPage] formatSentTime 에러:', error, sentTime);
       return '-';
     }
   };
@@ -502,14 +775,42 @@ const MailInboxPage = () => {
       
       if (isUnread) {
         // DB에 읽음 처리 (await로 완료 대기)
-        const result = await markMailAsRead(mail.emailId, userEmail);
-        console.log("markMailAsRead result:", result);
+        console.log("[MailInboxPage] markMailAsRead 호출 시작:", { emailId: mail.emailId, userEmail });
+        try {
+          const result = await markMailAsRead(mail.emailId, userEmail);
+          console.log("[MailInboxPage] markMailAsRead 응답:", result);
+          
+          // 응답 확인
+          const success = result?.data?.data;
+          if (success === false) {
+            console.warn("[MailInboxPage] markMailAsRead 실패 또는 이미 읽은 메일:", { emailId: mail.emailId, result });
+          } else if (success === true) {
+            console.log("[MailInboxPage] markMailAsRead 성공:", { emailId: mail.emailId });
+          }
+        } catch (apiError) {
+          console.error("[MailInboxPage] markMailAsRead API 에러:", apiError);
+          console.error("[MailInboxPage] markMailAsRead API 에러 상세:", {
+            message: apiError?.message,
+            response: apiError?.response?.data,
+            status: apiError?.response?.status
+          });
+          showSnack("메일 읽음 처리 중 오류가 발생했습니다.", 'error');
+          // API 에러가 발생해도 상세 페이지로 이동은 허용
+          navigate(`/email/${mail.emailId}`, { state: { fromTab: tab } });
+          return;
+        }
         
         // 안읽은 메일 탭에서 읽으면 목록에서 즉시 제거 (Optimistic Update)
         if (tab === "unread") {
           pendingReadIdsRef.current = new Set(pendingReadIdsRef.current).add(mail.emailId);
+          persistPendingIds();
           setMails(prev => prev.filter(m => m.emailId !== mail.emailId));
           setTotal(prev => Math.max(0, prev - 1));
+          // 뱃지 즉시 감소
+          decrementUnreadCounters(1);
+        } else {
+          // 다른 탭에서도 뱃지 즉시 감소
+          decrementUnreadCounters(1);
         }
         
         // 안읽은 메일 탭에서 읽으면 DB 반영 후 목록 새로고침
@@ -520,18 +821,34 @@ const MailInboxPage = () => {
               // DB 반영 후 목록 새로고침 (안읽은 메일 필터 적용하여 서버와 동기화)
               await loadInbox(page, size, "unread");
               await loadUnreadCount();
+              // 사이드바 뱃지 업데이트
+              if (mailCountContext?.refreshUnreadCount) {
+                await mailCountContext.refreshUnreadCount();
+              }
+              // 받은 메일함 전체 개수도 업데이트
+              if (mailCountContext?.refreshInboxCount) {
+                await mailCountContext.refreshInboxCount();
+              }
             } catch (err) {
               console.error("loadInbox error after read", err);
             }
           }, 800); // DB 트랜잭션 커밋/반영 딜레이를 고려한 충분한 대기 시간
         } else {
-          // 다른 탭에서는 안읽은 메일 개수만 업데이트
+          // 다른 탭에서는 안읽은 메일 개수와 받은 메일함 개수 업데이트
           setTimeout(async () => {
             await loadUnreadCount();
+            // 사이드바 뱃지 업데이트
+            if (mailCountContext?.refreshUnreadCount) {
+              await mailCountContext.refreshUnreadCount();
+            }
+            // 받은 메일함 전체 개수도 업데이트
+            if (mailCountContext?.refreshInboxCount) {
+              await mailCountContext.refreshInboxCount();
+            }
           }, 500);
         }
       }
-      navigate(`/email/${mail.emailId}`);   // 상세 페이지 이동
+      navigate(`/email/${mail.emailId}`, { state: { fromTab: tab } });   // 상세 페이지 이동 (현재 탭 정보 전달)
     } catch (err) {
       console.error("markMailAsRead error:", err);
       showSnack("메일 읽음처리 중 오류", 'error');
@@ -724,24 +1041,29 @@ const MailInboxPage = () => {
         <Divider sx={{ mb: 2 }} />
 
         {/* 메일 테이블 */}
-        <Table sx={{ minWidth: 900 }}>
-          <TableHead>
-            <TableRow sx={{ bgcolor: "#f8fafd", borderBottom: '2px solid #e1e3ea' }}>
-              <TableCell padding="checkbox"></TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>발신자</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>제목</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>일자</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700 }}>상태</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}></TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {/* 메일이 없을 때 안내 */}
-            {Array.isArray(sortedMails) && sortedMails.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} align="center">받은 메일이 없습니다.</TableCell>
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <Table sx={{ minWidth: 900 }}>
+            <TableHead>
+              <TableRow sx={{ bgcolor: "#f8fafd", borderBottom: '2px solid #e1e3ea' }}>
+                <TableCell padding="checkbox"></TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>발신자</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>제목</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>일자</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700 }}>상태</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}></TableCell>
               </TableRow>
-            ) : (
+            </TableHead>
+            <TableBody>
+              {/* 메일이 없을 때 안내 */}
+              {Array.isArray(sortedMails) && sortedMails.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} align="center">받은 메일이 없습니다.</TableCell>
+                </TableRow>
+              ) : (
               sortedMails.map(mail => {
                 const id = mail.emailId;
                 const checked = selected.has(id);
@@ -784,9 +1106,10 @@ const MailInboxPage = () => {
                   </TableRow>
                 );
               })
-            )}
-          </TableBody>
-        </Table>
+              )}
+            </TableBody>
+          </Table>
+        )}
         {/* 하단 페이징 */}
         <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
           <Pagination

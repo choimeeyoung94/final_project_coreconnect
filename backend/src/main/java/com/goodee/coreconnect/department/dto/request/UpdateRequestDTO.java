@@ -1,15 +1,12 @@
 package com.goodee.coreconnect.department.dto.request;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-
 /**
  * 부서 수정 요청용 DTO
  */
 public record UpdateRequestDTO(
     
-    @NotBlank(message = "부서 이름은 비워둘 수 없습니다.")
+    // 부서 이름: null일 경우 변경하지 않음
     String name, 
     
-    @NotNull(message = "정렬 순서를 입력해야 합니다.")
+    // 정렬 순서: null일 경우 변경하지 않음 (화살표 버튼으로만 변경 가능)
     Integer orderNo) {}

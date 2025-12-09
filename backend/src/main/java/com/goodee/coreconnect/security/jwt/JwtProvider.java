@@ -36,7 +36,28 @@ public class JwtProvider {
     /** @PostConstruct는 Spring의 모든 주입이 끝난 뒤 실행됨 */
     @PostConstruct
     public void init() {
-      this.key = Keys.hmacShaKeyFor(SECRET.getBytes());
+        // JWT secret key 검증
+        if (SECRET == null || SECRET.trim().isEmpty()) {
+            throw new IllegalStateException(
+                "JWT secret key is not configured. Please set JWT_SECRET_KEY environment variable. " +
+                "The key must be at least 256 bits (32 characters) long."
+            );
+        }
+        
+        byte[] secretBytes = SECRET.getBytes();
+        // 최소 256 bits (32 bytes) 필요
+        if (secretBytes.length < 32) {
+            throw new IllegalStateException(
+                String.format(
+                    "JWT secret key is too short. Current length: %d bytes. " +
+                    "The key must be at least 256 bits (32 bytes) long for HMAC-SHA256. " +
+                    "Please set JWT_SECRET_KEY environment variable with a longer key.",
+                    secretBytes.length
+                )
+            );
+        }
+        
+        this.key = Keys.hmacShaKeyFor(secretBytes);
     }
     
     /** Access 토큰 발급 */

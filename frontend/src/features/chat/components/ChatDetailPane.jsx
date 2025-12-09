@@ -1,13 +1,14 @@
 import React, { useRef, useEffect, useState } from "react";
-import { Box, Avatar, Typography, IconButton, AvatarGroup } from "@mui/material";
+import { Box, Avatar, Typography, IconButton, AvatarGroup, Menu, MenuItem } from "@mui/material";
 import GroupIcon from "@mui/icons-material/Group";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import ChatMessageList from "./ChatMessageList";
 import ChatMessageInputBox from "./ChatMessageInputBox";
 import ChatRoomParticipantsDialog from "./ChatRoomParticipantsDialog";
 import ChatRoomInviteDialog from "./ChatRoomInviteDialog";
-import { fetchChatRoomUsers } from "../api/ChatRoomApi";
+import { fetchChatRoomUsers, leaveChatRoom } from "../api/ChatRoomApi";
 
 // 오른쪽 채팅방 상세패널(상단 Room, 메시지, 입력창)
 function ChatDetailPane({
@@ -16,12 +17,15 @@ function ChatDetailPane({
   inputRef, onSend, onFileUpload, socketConnected,
   onScrollTop, isLoadingMore, hasMoreAbove,
   scrollToUnread = false, onScrollToUnreadComplete,
-  onMarkAllAsRead // 모두 읽음 처리 함수
+  onMarkAllAsRead, // 모두 읽음 처리 함수
+  onLeaveRoom // 채팅방 나가기 콜백
 }) {
   const messagesEndRef = useRef(null);
   const [participantsDialogOpen, setParticipantsDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [participants, setParticipants] = useState([]);
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const menuOpen = Boolean(menuAnchorEl);
 
   useEffect(() => {
     if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({behavior: "smooth"});
@@ -54,13 +58,9 @@ function ChatDetailPane({
         borderBottom: "1px solid #e3e8ef", background: "#f8fbfd",
         height: 64, position: "relative",
       }}>
-        <Avatar sx={{
-          bgcolor: "#10c16d",
-          mr: 2, width: 33, height: 33, ml: 2
-        }}>{selectedRoom.roomName?.[0]?.toUpperCase()}
-        </Avatar>
         <Typography sx={{
-          fontWeight: 700, fontSize: 18, color: "#1aaf54",
+          fontWeight: 700, fontSize: 18, color: "primary.main",
+          ml: 2
         }}>
           {selectedRoom.roomName}
         </Typography>
@@ -84,7 +84,7 @@ function ChatDetailPane({
                 <Avatar
                   key={user.id}
                   src={user.profileImageUrl}
-                  sx={{ bgcolor: "#10c16d" }}
+                  sx={{ bgcolor: "primary.main" }}
                 >
                   {user.name?.[0]?.toUpperCase() || "?"}
                 </Avatar>
@@ -113,7 +113,44 @@ function ChatDetailPane({
           >
             <GroupIcon />
           </IconButton>
-          <IconButton><MoreVertIcon /></IconButton>
+          <IconButton
+            onClick={(e) => setMenuAnchorEl(e.currentTarget)}
+            title="더보기"
+          >
+            <MoreVertIcon />
+          </IconButton>
+          <Menu
+            anchorEl={menuAnchorEl}
+            open={menuOpen}
+            onClose={() => setMenuAnchorEl(null)}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+          >
+            <MenuItem
+              onClick={async () => {
+                setMenuAnchorEl(null);
+                if (selectedRoom?.roomId && onLeaveRoom) {
+                  try {
+                    await leaveChatRoom(selectedRoom.roomId);
+                    onLeaveRoom(selectedRoom.roomId);
+                  } catch (error) {
+                    console.error("채팅방 나가기 실패:", error);
+                    alert("채팅방 나가기에 실패했습니다: " + (error.response?.data?.message || error.message));
+                  }
+                }
+              }}
+              sx={{ color: 'error.main' }}
+            >
+              <ExitToAppIcon sx={{ mr: 1, fontSize: 20 }} />
+              채팅방 나가기
+            </MenuItem>
+          </Menu>
         </Box>
       </Box>
       <ChatMessageList

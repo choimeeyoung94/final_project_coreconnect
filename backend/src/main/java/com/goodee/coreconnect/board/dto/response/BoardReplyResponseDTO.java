@@ -2,6 +2,7 @@ package com.goodee.coreconnect.board.dto.response;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.goodee.coreconnect.board.entity.BoardReply;
 import com.goodee.coreconnect.department.dto.response.OrganizationTreeDTO;
 
@@ -21,10 +22,12 @@ import lombok.Setter;
  */
 public class BoardReplyResponseDTO {
 
-    private Integer id;              
-    private String content;          
-    private LocalDateTime createdAt; 
-    private LocalDateTime updatedAt; 
+    private Integer id;
+    private String content;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Seoul")
+    private LocalDateTime createdAt;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Seoul")
+    private LocalDateTime updatedAt;
     private Boolean deletedYn;       
     private String writerName; 
     private String writerEmail; 

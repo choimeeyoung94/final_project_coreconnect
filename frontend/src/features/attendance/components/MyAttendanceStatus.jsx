@@ -29,6 +29,7 @@ function MyAttendanceStatus() {
     totalWorkDays: 0,  // 총 근무일수
     workDays: 0,
     lateDays: 0,
+    leaveEarlyDays: 0,  // 조퇴일수
     absentDays: 0,
     leaveDays: 0,  // 휴가일수
     totalWorkMinutes: 0,
@@ -64,6 +65,7 @@ function MyAttendanceStatus() {
           totalWorkDays: period === "weekly" ? 5 : 22,
           workDays: period === "weekly" ? 3 : 15,
           lateDays: period === "weekly" ? 1 : 2,
+          leaveEarlyDays: period === "weekly" ? 0 : 1,
           absentDays: period === "weekly" ? 1 : 3,
           leaveDays: period === "weekly" ? 0 : 2,
           totalWorkMinutes: period === "weekly" ? 24 * 60 : 120 * 60,
@@ -200,6 +202,14 @@ function MyAttendanceStatus() {
                   </Typography>
                   <Typography variant="h6">
                     {stats.lateDays}일
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                    조퇴
+                  </Typography>
+                  <Typography variant="h6">
+                    {stats.leaveEarlyDays}일
                   </Typography>
                 </Box>
                 <Box>

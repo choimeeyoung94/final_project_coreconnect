@@ -548,7 +548,53 @@ const MailSentBoxPage = () => {
                     )}
                   </TableCell>
                   <TableCell>
-                    {mail.sentTime ? new Date(mail.sentTime).toLocaleString() : "-"}
+                    {mail.sentTime ? (() => {
+                      try {
+                        const dateStr = mail.sentTime;
+                        let d;
+                        
+                        // ISO 8601 형식인 경우 (서버에서 "2025-11-25T00:42:00" 형식으로 보냄)
+                        if (typeof dateStr === 'string' && dateStr.includes('T')) {
+                          // 타임존 정보가 없으면 한국 시간(UTC+9)으로 간주하여 파싱
+                          if (!dateStr.includes('Z') && !dateStr.includes('+') && !dateStr.match(/-\d{2}:\d{2}$/)) {
+                            // "2025-11-25T00:42:00" 형식을 한국 시간으로 파싱
+                            const [datePart, timePart] = dateStr.split('T');
+                            const [year, month, day] = datePart.split('-');
+                            const [timeOnly] = timePart.split('.');
+                            const [hour, minute, second = '00'] = (timeOnly || '').split(':');
+                            
+                            // UTC로 Date 객체 생성 후 한국 시간(UTC+9)으로 변환
+                            d = new Date(Date.UTC(
+                              parseInt(year, 10),
+                              parseInt(month, 10) - 1,
+                              parseInt(day, 10),
+                              parseInt(hour, 10),
+                              parseInt(minute, 10),
+                              parseInt(second, 10)
+                            ));
+                            // 한국 시간은 UTC+9이므로 9시간을 빼서 UTC로 변환
+                            d = new Date(d.getTime() - (9 * 60 * 60 * 1000));
+                          } else {
+                            d = new Date(dateStr);
+                          }
+                        } else {
+                          d = new Date(dateStr);
+                        }
+                        
+                        // 한국 시간으로 변환하여 포맷팅
+                        const koreaTimeStr = d.toLocaleString('en-US', { timeZone: 'Asia/Seoul' });
+                        const koreaTime = new Date(koreaTimeStr);
+                        const yyyy = koreaTime.getFullYear();
+                        const mm = String(koreaTime.getMonth() + 1).padStart(2, "0");
+                        const dd = String(koreaTime.getDate()).padStart(2, "0");
+                        const HH = String(koreaTime.getHours()).padStart(2, "0");
+                        const mi = String(koreaTime.getMinutes()).padStart(2, "0");
+                        return `${yyyy}-${mm}-${dd} ${HH}:${mi}`;
+                      } catch (error) {
+                        console.error('[MailSentBoxPage] 날짜 포맷팅 에러:', error, mail.sentTime);
+                        return "-";
+                      }
+                    })() : "-"}
                   </TableCell>
                   <TableCell align="right">
                     <Chip

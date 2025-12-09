@@ -207,7 +207,7 @@ function ChatRoomParticipantsDialog({ open, onClose, roomId }) {
                       <Avatar
                         src={profileImageUrl}
                         sx={{
-                          bgcolor: "#10c16d",
+                          bgcolor: "primary.main",
                           width: 48,
                           height: 48,
                           fontSize: 18,

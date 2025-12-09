@@ -15,6 +15,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Builder.Default;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -35,6 +36,7 @@ public class EmailFile {
 	
 	@Column(name = "email_files3object_key", columnDefinition = "TEXT")
 	private String emailFileS3ObjectKey;
+	@Builder.Default
 	private Boolean emailFielDeletedYn = false;
 	
 	@ManyToOne

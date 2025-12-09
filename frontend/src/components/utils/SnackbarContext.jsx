@@ -27,7 +27,7 @@ export function SnackbarProvider({ children }) {
       {/* 전역 Snackbar UI */}
       <Snackbar
         open={snack.open}
-        autoHideDuration={3500}
+        autoHideDuration={2000}
         onClose={closeSnack}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
         sx={{

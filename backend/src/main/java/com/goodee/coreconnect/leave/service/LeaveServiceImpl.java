@@ -229,7 +229,7 @@ public class LeaveServiceImpl implements LeaveService {
     LocalDateTime endDateTime = calculateEndDateTime(leave);
     
     RequestScheduleDTO dto = RequestScheduleDTO.builder()
-        .title(leave.getType().name())
+        .title(leave.getType().getDescription())
         .content(leave.getReason())
         .categoryId(category.getId())
         .visibility(ScheduleVisibility.PUBLIC)

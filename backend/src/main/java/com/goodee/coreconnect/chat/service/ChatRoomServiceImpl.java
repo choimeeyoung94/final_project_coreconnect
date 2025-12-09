@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.socket.WebSocketSession;
@@ -62,6 +63,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	private final MessageFileRepository messageFileRepository;
     private final ChatMessageReadStatusRepository chatMessageReadStatusRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final SimpMessagingTemplate messagingTemplate;
     
 	@Transactional(readOnly = true)
 	@Override
@@ -95,7 +97,15 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 			User user = userRepository.findById(userID).orElseThrow();
 			ChatRoomUser chatRoomUser = ChatRoomUser.createChatRoomUser(user, chatRoom);
 			chatRoomUserRepository.save(chatRoomUser);
+			// JPA 영속성 컨텍스트:
+			/*
+			 * 1차 캐시이다.
+			 * 한 트랜잭션 동안 엔티티를 메모리에 저장하고 같은 엔티티를 다시 조회하면 DB 쿼리 없이 메모리의 객체를 반환한다
+			 * 
+			 * */
+			// 이 채팅방에 누가 참여중인지 확인할 수 있게 하기 위함
 			chatRoom.getChatRoomUsers().add(chatRoomUser);
+			// 현재 로그인된 사용자가 어느 채팅방에 참여중인지 확인할 수 있게 하기 위함
 			user.getChatRoomUsers().add(chatRoomUser);
 		}
 		return chatRoom;		
@@ -595,9 +605,13 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	// ⭐ 각 메시지의 unreadCount를 -1 감소시키는 로직 추가
 	@Transactional
 	public List<Integer> markMessagesAsRead(Integer roomId, Integer userId) {
+	    log.info("[markMessagesAsRead] 읽음 처리 시작 - roomId: {}, userId: {}", roomId, userId);
+	    
 	    // 1. 해당 채팅방에서 내가 안읽은 메시지 상태 전부 조회
 	    List<ChatMessageReadStatus> unreadStatuses =
 	        chatMessageReadStatusRepository.findUnreadMessagesByRoomIdAndUserId(roomId, userId);
+	    
+	    log.info("[markMessagesAsRead] 안읽은 메시지 수: {}", unreadStatuses.size());
 
 	    // ⭐ 읽음 처리된 메시지 ID 리스트 (unreadCount 업데이트용)
 	    List<Integer> readChatIds = new ArrayList<>();
@@ -607,7 +621,13 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	    	// 확실히 안읽음 상태일 때만 markRead() 수행
 	    	if (Boolean.FALSE.equals(status.getReadYn()) && status.getReadAt() == null) {
 	    		status.markRead();// 내부적으로 readYn = true, readAt= now로 세팅
-	    		chatMessageReadStatusRepository.save(status);
+	    		// ⭐ 배포 환경에서 즉시 DB 반영을 위해 saveAndFlush 사용
+	    		ChatMessageReadStatus saved = chatMessageReadStatusRepository.saveAndFlush(status);
+	    		
+	    		log.debug("[markMessagesAsRead] 읽음 처리 완료 - chatId: {}, userId: {}, readYn: {}, readAt: {}", 
+	    		        saved.getChat() != null ? saved.getChat().getId() : null, 
+	    		        saved.getUser() != null ? saved.getUser().getId() : null,
+	    		        saved.getReadYn(), saved.getReadAt());
 	    		
 	    		// ⭐ 읽음 처리된 메시지 ID 추가
 	    		if (status.getChat() != null && status.getChat().getId() != null) {
@@ -618,7 +638,13 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	    	// 불일치 row 강제 동기화 (optional)
 	        if (status.getReadAt() != null && Boolean.FALSE.equals(status.getReadYn())) {
 	            status.markRead();
-	            chatMessageReadStatusRepository.save(status);
+	            // ⭐ 배포 환경에서 즉시 DB 반영을 위해 saveAndFlush 사용
+	            ChatMessageReadStatus saved = chatMessageReadStatusRepository.saveAndFlush(status);
+	            
+	            log.debug("[markMessagesAsRead] 불일치 상태 동기화 완료 - chatId: {}, userId: {}, readYn: {}, readAt: {}", 
+	                    saved.getChat() != null ? saved.getChat().getId() : null, 
+	                    saved.getUser() != null ? saved.getUser().getId() : null,
+	                    saved.getReadYn(), saved.getReadAt());
 	            
 	            // ⭐ 읽음 처리된 메시지 ID 추가
 	            if (status.getChat() != null && status.getChat().getId() != null) {
@@ -627,9 +653,11 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	        }
 	    }
 	    
-	    // ⭐ ChatMessageReadStatus 읽음 처리 후 즉시 DB에 반영 (flush)
-	    // 이렇게 하면 바로 unreadCount를 실시간으로 계산할 수 있음
+	    // ⭐ ChatMessageReadStatus 읽음 처리 후 즉시 DB에 반영 (추가 flush로 확실히 반영)
+	    // 배포 환경에서 트랜잭션 커밋 보장
 	    chatMessageReadStatusRepository.flush();
+	    
+	    log.info("[markMessagesAsRead] 읽음 처리된 메시지 수: {}, chatIds: {}", readChatIds.size(), readChatIds);
 	    
 	    // ⭐ 3. 각 메시지의 unreadCount를 -1 감소시키기 (DB 동기화용, 실제로는 실시간 계산값 사용)
 	    for (Integer chatId : readChatIds) {
@@ -640,10 +668,18 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	            // unreadCount가 0보다 클 때만 -1 감소 - 도메인 메서드 사용
 	            if (currentUnreadCount > 0) {
 	                chat.updateUnreadCount(currentUnreadCount - 1);
-	                chatRepository.save(chat);
+	                // ⭐ 배포 환경에서 즉시 DB 반영을 위해 saveAndFlush 사용
+	                chatRepository.saveAndFlush(chat);
 	            }
 	        }
 	    }
+	    
+	    // ⭐ 최종 flush로 모든 변경사항 확실히 반영
+	    chatMessageReadStatusRepository.flush();
+	    chatRepository.flush();
+	    
+	    log.info("[markMessagesAsRead] 읽음 처리 완료 - roomId: {}, userId: {}, 처리된 메시지 수: {}", 
+	            roomId, userId, readChatIds.size());
 	    
 	    // ⭐ 읽음 처리된 메시지 ID 리스트 반환 (WebSocket 알림용)
 	    return readChatIds;
@@ -814,6 +850,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	        .collect(Collectors.toMap(row -> (Integer)row[0], row -> (Long)row[1]));
 
 	    // 3. 각 채팅방별 마지막 메시지를 쿼리로 batch 조회
+			// batch 조회 : 여러 건의 데이터를 한 번의 쿼리로 한꺼번에 조회하는 방법입니다.
 	    List<Chat> lastMessages = chatRepository.findLatestMessageByChatRoomIds(roomIds);
 	    Map<Integer, Chat> roomIdToLastMessage = lastMessages.stream()
 	    		.collect(Collectors.toMap(chat -> chat.getChatRoom().getId(), chat -> chat));
@@ -846,7 +883,61 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	    // return chatRoomMapper.countByRoomId(roomId) > 0;
 	}
 	
-	
+	@Transactional
+	@Override
+	public void leaveChatRoom(Integer roomId, String userEmail) {
+		log.info("[leaveChatRoom] 채팅방 나가기 시작 - roomId: {}, userEmail: {}", roomId, userEmail);
+		
+		// 1. 사용자 조회
+		User user = findUserByEmail(userEmail);
+		if (user == null) {
+			throw new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userEmail);
+		}
+		
+		// 2. 채팅방 조회
+		ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+				.orElseThrow(() -> new IllegalArgumentException("채팅방 없음: " + roomId));
+		
+		// 3. ChatRoomUser 조회 및 삭제
+		Optional<ChatRoomUser> chatRoomUserOpt = chatRoomUserRepository.findByChatRoomIdAndUserId(roomId, user.getId());
+		if (chatRoomUserOpt.isEmpty()) {
+			log.warn("[leaveChatRoom] 사용자가 채팅방에 참여하지 않았습니다 - roomId: {}, userId: {}", roomId, user.getId());
+			throw new IllegalArgumentException("채팅방에 참여하지 않은 사용자입니다.");
+		}
+		
+		ChatRoomUser chatRoomUser = chatRoomUserOpt.get();
+		
+		// 4. 나가기 메시지 생성
+		String leaveMessage = user.getName() + "님이 채팅방을 나갔습니다";
+		Chat leaveChat = sendChatMessage(roomId, user.getId(), leaveMessage);
+		
+		// 5. ChatRoomUser 삭제
+		chatRoomUserRepository.delete(chatRoomUser);
+		
+		// 6. WebSocket으로 나가기 메시지 브로드캐스트
+		if (leaveChat != null) {
+			ChatResponseDTO responseDto = new ChatResponseDTO();
+			responseDto.setId(leaveChat.getId());
+			responseDto.setMessageContent(leaveChat.getMessageContent());
+			// LocalDateTime을 String으로 변환
+			LocalDateTime sendAt = leaveChat.getSendAt() != null ? leaveChat.getSendAt() : LocalDateTime.now();
+			responseDto.setSendAt(sendAt.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")));
+			responseDto.setRoomId(roomId);
+			responseDto.setSenderId(user.getId());
+			responseDto.setSenderName(user.getName());
+			responseDto.setSenderEmail(user.getEmail());
+			responseDto.setFileYn(leaveChat.getFileYn());
+			responseDto.setUnreadCount(0); // 나가기 메시지는 읽음 처리
+			
+			// 모든 참여자에게 브로드캐스트
+			messagingTemplate.convertAndSend("/topic/chat.room." + roomId, responseDto);
+			log.info("[leaveChatRoom] 나가기 메시지 브로드캐스트 완료 - roomId: {}, userId: {}, chatId: {}", 
+					roomId, user.getId(), leaveChat.getId());
+		}
+		
+		log.info("[leaveChatRoom] 채팅방 나가기 완료 - roomId: {}, userId: {}, userName: {}", 
+				roomId, user.getId(), user.getName());
+	}
 
     
 }

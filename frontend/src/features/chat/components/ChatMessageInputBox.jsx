@@ -81,7 +81,7 @@ function ChatMessageInputBox({ inputRef, onSend, onFileUpload, socketConnected }
             multiple
             style={{ display: "none" }}
             id="chat-file-upload"
-            accept="image/*,application/pdf,application/zip,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.txt,.hwp"
+            // accept 속성 제거: 모든 파일 타입 허용 (PDF, 이미지, 문서, 압축파일 등 모든 파일 업로드 가능)
             onChange={handleFileSelect}
           />
           <IconButton color="primary" component="span" sx={{ bgcolor: "#fff" }}>

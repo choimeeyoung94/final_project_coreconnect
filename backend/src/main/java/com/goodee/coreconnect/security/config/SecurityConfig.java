@@ -46,6 +46,7 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
+            // CORS 설정을 먼저 적용 (필터 체인 순서 중요)
             .cors(cors -> cors.configurationSource(corsConfigurationSource())) 
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(ex -> ex
@@ -74,9 +75,8 @@ public class SecurityConfig {
         } else {
             log.info("프로필: 배포용");
             http.authorizeHttpRequests(auth -> auth
-                // CORS 프리플라이트는 항상 허용
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // 공개 경로: 인증 없이 접근 가능
+                // 주의: OPTIONS 요청은 CORS 필터가 자동으로 처리하므로 permitAll()에서 제외
                 .requestMatchers(
                     "/v3/api-docs/**",                    // Swagger API 문서
                     "/swagger-ui/**",                     // Swagger UI
@@ -86,7 +86,9 @@ public class SecurityConfig {
                     "/ws/chat/**",                        // WebSocket 채팅 (SockJS info 엔드포인트 접근용, 실제 연결은 WebSocketAuthInterceptor에서 검증)
                     "/ws/notification/**",                // WebSocket 알림
                     "/api/v1/auth/**",                    // 인증 관련 API
-                    "/api/v1/password-reset/requests"     // 비밀번호 초기화 요청
+                    "/api/v1/password-reset/requests",    // 비밀번호 초기화 요청
+                    "/api/health",                        // AWS ELB 헬스체크 (기본)
+                    "/api/health/**"                      // AWS ELB 헬스체크 (상세, liveness, readiness)
                 ).permitAll()
                 // 나머지 경로는 로그인 필요
                 .anyRequest().authenticated()
@@ -102,16 +104,59 @@ public class SecurityConfig {
     /**
      * Cors 허용 규칙을 정의하는 Bean.
      * 프론트엔드에서 오는 요청을 허용할 도메인, 메서드, 헤더를 지정한다.
+     * HTTPS 환경에서도 정상 작동하도록 설정.
      */
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        // 환경 변수에서 허용할 Origin 목록을 읽어서 쉼표로 분리
-        List<String> allowedOrigins = List.of(corsAllowedOrigins.split(","));
-        config.setAllowedOrigins(allowedOrigins);
-        config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization","Content-Type"));
+        
+        // 환경 변수에서 직접 읽기 (CORS_ALLOWED_ORIGINS)
+        String envCorsOrigins = System.getenv("CORS_ALLOWED_ORIGINS");
+        String originsToUse = (envCorsOrigins != null && !envCorsOrigins.isEmpty()) 
+            ? envCorsOrigins 
+            : corsAllowedOrigins;
+        
+        // 허용할 Origin 목록을 읽어서 쉼표로 분리하고 공백 제거
+        List<String> allowedOrigins = List.of(originsToUse.split(","))
+            .stream()
+            .map(String::trim)
+            .filter(s -> !s.isEmpty())
+            .toList();
+        
+        log.info("[CORS] 환경 변수 CORS_ALLOWED_ORIGINS: {}", envCorsOrigins);
+        log.info("[CORS] 사용할 Origins: {}", allowedOrigins);
+        
+        // setAllowedOriginPatterns 사용 (Spring Boot 2.4+ 권장, credentials와 함께 사용 가능)
+        // HTTPS와 HTTP 모두 지원하도록 패턴 사용
+        config.setAllowedOriginPatterns(allowedOrigins);
+        
+        // 모든 HTTP 메서드 허용 (OPTIONS preflight 요청 포함)
+        config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS","HEAD"));
+        
+        // CORS 요청에 필요한 모든 헤더 허용
+        config.setAllowedHeaders(List.of(
+            "Authorization",
+            "Content-Type",
+            "Cookie",
+            "X-Requested-With",
+            "Accept",
+            "Origin",
+            "Access-Control-Request-Method",
+            "Access-Control-Request-Headers"
+        ));
+        
+        // credentials 허용 (쿠키 전송을 위해 필수)
         config.setAllowCredentials(true);
+        
+        // 브라우저가 접근할 수 있는 응답 헤더 노출
+        config.setExposedHeaders(List.of(
+            "Set-Cookie",
+            "Authorization",
+            "Content-Type"
+        ));
+        
+        // Preflight 요청 캐시 시간 (24시간)
+        config.setMaxAge(86400L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

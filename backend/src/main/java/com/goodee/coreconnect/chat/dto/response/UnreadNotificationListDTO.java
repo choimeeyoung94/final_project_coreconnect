@@ -21,7 +21,8 @@ public class UnreadNotificationListDTO {
     private String message;
     private String senderName;
     private String receiverName;
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    // ⭐ ISO 8601 형식으로 직렬화 (프론트엔드에서 한국 시간대로 파싱)
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime sentAt;
     private String notificationType;
     private Integer documentId; // APPROVAL 타입 알림의 경우 결재 문서 ID

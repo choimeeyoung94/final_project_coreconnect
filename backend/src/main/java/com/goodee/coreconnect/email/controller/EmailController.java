@@ -47,6 +47,7 @@ import com.goodee.coreconnect.email.dto.response.EmailResponseDTO;
 import com.goodee.coreconnect.email.entity.EmailFile;
 import com.goodee.coreconnect.email.repository.EmailFileRepository;
 import com.goodee.coreconnect.email.repository.EmailRecipientRepository;
+import com.goodee.coreconnect.email.repository.EmailRepository;
 import com.goodee.coreconnect.email.service.EmailFileStorageService;
 import com.goodee.coreconnect.email.service.EmailService;
 import com.goodee.coreconnect.security.userdetails.CustomUserDetails;
@@ -67,6 +68,7 @@ public class EmailController {
     private final UserRepository userRepository;
     private final EmailRecipientRepository emailRecipientRepository;
     private final EmailFileRepository emailFileRepository;
+    private final EmailRepository emailRepository;
     private final EmailFileStorageService emFileStorageService;
     
     // 이메일 발송
@@ -200,12 +202,41 @@ public class EmailController {
         return ResponseEntity.ok(ResponseDTO.success(result, "반송함 조회 성공"));
     }
     
+    // 받은메일함 전체 개수만 반환 (프론트 뱃지 Badge 표시용)
+    @Operation(summary = "받은메일함 전체 개수", description = "받은메일함 전체 메일 개수를 반환합니다.")
+    @GetMapping("/inbox/count")
+    public ResponseEntity<ResponseDTO<Integer>> getInboxCount(@RequestParam("userEmail") String userEmail) {
+        int inboxCount = emailRecipientRepository.countInboxMails(userEmail);
+        return ResponseEntity.ok(ResponseDTO.success(inboxCount, "받은메일함 전체 개수 조회 성공"));
+    }
+
     // 받은메일함 '안읽은 메일' 개수만 반환 (프론트 뱃지 Badge 표시용)
     @Operation(summary = "받은메일함 안읽은 메일 개수", description = "받은메일함 중 안읽은 메일 개수를 반환합니다.")
     @GetMapping("/inbox/unread-count")
     public ResponseEntity<ResponseDTO<Integer>> getUnreadInboxCount(@RequestParam("userEmail") String userEmail) {
         int unreadCount = emailRecipientRepository.countUnreadInboxMails(userEmail);
         return ResponseEntity.ok(ResponseDTO.success(unreadCount, "안읽은 메일 개수 조회 성공"));
+    }
+
+    // 중요 메일 개수만 반환 (프론트 뱃지 Badge 표시용) - 수신한 중요 메일 + 발신한 중요 메일
+    @Operation(summary = "중요 메일 개수", description = "중요 메일 개수를 반환합니다 (수신 + 발신).")
+    @GetMapping("/favorite/count")
+    public ResponseEntity<ResponseDTO<Integer>> getFavoriteCount(@RequestParam("userEmail") String userEmail) {
+        // 수신한 중요 메일 개수
+        int receivedFavoriteCount = emailRecipientRepository.countFavoriteInboxMails(userEmail);
+        
+        // 발신한 중요 메일 개수
+        User user = userRepository.findByEmail(userEmail)
+            .orElse(null);
+        long sentFavoriteCount = 0;
+        if (user != null) {
+            sentFavoriteCount = emailRepository.countFavoriteSentMails(user.getId());
+        }
+        
+        // 중복 제거를 위해 실제로는 수신한 중요 메일과 발신한 중요 메일의 합계를 반환
+        // (실제로는 중복이 있을 수 있지만, 뱃지 표시용이므로 합계로 표시)
+        int totalFavoriteCount = (int) (receivedFavoriteCount + sentFavoriteCount);
+        return ResponseEntity.ok(ResponseDTO.success(totalFavoriteCount, "중요 메일 개수 조회 성공"));
     }
 
     // [NEW] 개별 메일 "읽음" 처리 API (프론트 상세 진입 후 읽음뷰 반영 위한 별도 PATCH)

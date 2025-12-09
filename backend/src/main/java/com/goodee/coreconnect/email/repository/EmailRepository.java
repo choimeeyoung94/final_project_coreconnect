@@ -168,6 +168,15 @@ public interface EmailRepository extends JpaRepository<Email, Integer> {
         @Param("searchType") String searchType,
         @Param("keyword") String keyword
     );
+
+    // 발신한 중요 메일 개수
+    @Query("SELECT COUNT(e) FROM Email e " +
+           "WHERE e.senderId = :senderId " +
+           "AND e.favoriteStatus = true " +
+           "AND e.emailStatus NOT IN ('TRASH', 'DELETED')")
+    long countFavoriteSentMails(
+        @Param("senderId") Integer senderId
+    );
 }
 
 

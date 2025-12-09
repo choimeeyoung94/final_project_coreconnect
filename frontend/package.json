@@ -1,9 +1,10 @@
 {
-  "name": "frontend",
+  "name": "coreconnect",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "prebuild": "node -e \"const fs=require('fs');const path=require('path');try{fs.copyFileSync(path.join('src','assets','coreconnect-logo.png'),path.join('public','coreconnect-logo.png'));console.log('✅ 파비콘 파일 복사 완료');}catch(e){console.warn('⚠️ 파비콘 복사 실패 (이미 존재할 수 있음):',e.message);}\"",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",

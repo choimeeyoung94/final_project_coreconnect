@@ -91,4 +91,7 @@ public interface ChatRoomService {
 
 	boolean existsByRoomId(Integer roomId);
 
+	// 채팅방 나가기
+	void leaveChatRoom(Integer roomId, String userEmail);
+
 }

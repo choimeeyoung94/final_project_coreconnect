@@ -11,6 +11,6 @@ public interface PasswordResetService {
   
   public void createRequest(PasswordResetRequestDTO dto);
   public List<PasswordResetResponseDTO> getRequests(String status);
-  public void approve(Long requestId, User admin);
+  public String approve(Long requestId, User admin);
   public void reject(Long requestId, User admin, RejectLeaveRequestDTO rejectReason);
 }

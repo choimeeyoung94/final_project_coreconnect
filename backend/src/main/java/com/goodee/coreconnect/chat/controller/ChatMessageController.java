@@ -34,6 +34,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.goodee.coreconnect.chat.dto.request.CreateRoomRequestDTO;
 import com.goodee.coreconnect.chat.dto.request.InviteUsersRequestDTO;
@@ -117,8 +118,8 @@ public class ChatMessageController {
 	@MessageMapping("/chat.sendMessage") // 프론트에서 /app/chat.sendMessage로 메시지 전송 (STOMP)
 	@org.springframework.transaction.annotation.Transactional // ⭐ LazyInitializationException 방지: 트랜잭션 유지
 	public void sendMessage(
-	        @Payload SendMessageRequestDTO req,
-	        SimpMessageHeaderAccessor headerAccessor
+	        @Payload SendMessageRequestDTO req,// STOMP 메시지 본문을 자동으로 Java객체로 매핑
+	        SimpMessageHeaderAccessor headerAccessor // 웹소켓 세션 정보와 메시지 헤더에 접근
 	) {
 	    // ⭐ 함수 진입 로그 (최우선 확인)
 	    log.info("🔥 [sendMessage] ========== 함수 진입 ========== - req: {}, headerAccessor: {}", 
@@ -128,7 +129,8 @@ public class ChatMessageController {
 	        log.info("[sendMessage] 메시지 수신 시작 - req: {}", req);
 	        
 	        // WebSocket 세션에서 사용자 이메일 가져오기 (WebSocketAuthInterceptor에서 설정)
-	        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
+	        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes(); // wsUserEmail, access_token이 들어있다
+	        
 	        if (sessionAttributes == null) {
 	            log.warn("[ChatMessageController] sendMessage - 세션 attributes가 null입니다.");
 	            return;
@@ -220,6 +222,15 @@ public class ChatMessageController {
 	    // ⭐ unreadCount 실시간 재계산: 브로드캐스트 직전에 항상 DB에서 최신 값 조회
 	    // sendChatMessage에서 이미 flush 후 최신 값을 가져왔지만, 브로드캐스트 직전에 다시 한 번 확인
 	    // 이렇게 해야 race condition 없이 정확한 unreadCount를 브로드캐스트할 수 있음
+	    
+	    // ⭐ 현재 접속 중인 사용자 수 조회 (실시간 WebSocket 세션 기반)
+	    List<Integer> connectedUserIds = chatRoomService.getConnectedUserIdsInRoom(req.getRoomId());
+	    int connectedUsersCount = connectedUserIds.size();
+	    
+	    // ⭐ 참여자 수 확인 (디버깅용)
+	    int participantCount = chatRoomUserRepository.findByChatRoomId(req.getRoomId()).size();
+	    
+	    // ⭐ 실시간 unreadCount 계산: DB에서 최신 값 조회 (접속 중인 사용자는 이미 읽음 처리됨)
 	    int realUnreadCount = chatMessageReadStatusRepository.countUnreadByChatId(saved.getId());
 	    
 	    // ⭐ Chat 엔티티의 unreadCount도 최신 값으로 업데이트 (일관성 유지)
@@ -229,15 +240,8 @@ public class ChatMessageController {
 	        chatRepository.flush(); // 브로드캐스트 직전에 flush하여 최신 값 확보
 	    }
 	    
-	    // ⭐ 참여자 수 확인 (디버깅용)
-	    int participantCount = chatRoomUserRepository.findByChatRoomId(req.getRoomId()).size();
-	    
-	    // ⭐ 현재 접속 중인 사용자 수 확인 (디버깅용)
-	    List<Integer> connectedUserIds = chatRoomService.getConnectedUserIdsInRoom(req.getRoomId());
-	    int connectedUsersCount = connectedUserIds.size();
-	    
-	    log.info("[sendMessage] ⭐ unreadCount 실시간 재계산 - chatId: {}, 참여자수: {}, 접속중인사용자수: {}, 실시간unreadCount: {}", 
-	            saved.getId(), participantCount, connectedUsersCount, realUnreadCount);
+	    log.info("[sendMessage] ⭐⭐⭐ 실시간 unreadCount 재계산 ⭐⭐⭐ - chatId: {}, 참여자수: {}, 접속중인사용자수: {}, 실시간unreadCount: {}, 접속중인사용자Ids: {}", 
+	            saved.getId(), participantCount, connectedUsersCount, realUnreadCount, connectedUserIds);
 	    
 	    // ⭐ 실시간 계산된 값을 DTO에 설정
 	    responseDto.setUnreadCount(realUnreadCount);
@@ -304,19 +308,38 @@ public class ChatMessageController {
 	        // ⭐ 이렇게 하면 같은 채팅방에 계속 머물러 있어도 실시간으로 unreadCount가 업데이트됨
 	        // ⭐ 접속 중인 사용자들이 읽음 처리되었으므로, 모든 참여자가 실시간으로 unreadCount 업데이트를 받아야 함
 	        if (saved != null && saved.getId() != null) {
+	            // ⭐ 실시간 접속자 수 재조회 및 unreadCount 재계산 (메시지 전송 직후 최신 상태 반영)
+	            List<Integer> latestConnectedUserIds = chatRoomService.getConnectedUserIdsInRoom(req.getRoomId());
+	            
 	            // ⭐ 브로드캐스트 직전에 다시 한 번 최신 값 확인 (race condition 방지)
+	            // sendChatMessage에서 이미 접속 중인 사용자를 읽음 처리했지만, 
+	            // 메시지 전송 직후 접속 상태가 변경되었을 수 있으므로 재조회
 	            int confirmedUnreadCount = chatMessageReadStatusRepository.countUnreadByChatId(saved.getId());
+	            
+	            // ⭐ 실시간 접속자 수 기반 unreadCount 검증
+	            // unreadCount = 전체 참여자 수 - 발신자 - 접속 중인 사용자 수
+	            int expectedUnreadCount = participantCount - 1 - latestConnectedUserIds.size();
+	            if (expectedUnreadCount < 0) expectedUnreadCount = 0;
+	            
+	            // ⭐ 계산된 값과 DB 값의 차이가 크면 (1 이상) 경고 로그
+	            if (Math.abs(confirmedUnreadCount - expectedUnreadCount) > 1) {
+	                log.warn("[sendMessage] ⚠️ unreadCount 불일치 가능성 - DB값: {}, 예상값: {}, 참여자수: {}, 접속중인사용자수: {}", 
+	                        confirmedUnreadCount, expectedUnreadCount, participantCount, latestConnectedUserIds.size());
+	            }
+	            
+	            log.info("[sendMessage] ⭐⭐⭐ 실시간 unreadCount 최종 확인 ⭐⭐⭐ - chatId: {}, 참여자수: {}, 접속중인사용자수: {}, DB unreadCount: {}, 예상 unreadCount: {}", 
+	                    saved.getId(), participantCount, latestConnectedUserIds.size(), confirmedUnreadCount, expectedUnreadCount);
 	            
 	            Map<String, Object> unreadCountUpdate = new HashMap<>();
 	            unreadCountUpdate.put("type", "UNREAD_COUNT_UPDATE");
 	            unreadCountUpdate.put("chatId", saved.getId());
-	            unreadCountUpdate.put("unreadCount", confirmedUnreadCount);
+	            unreadCountUpdate.put("unreadCount", confirmedUnreadCount); // ⭐ DB에서 조회한 최신 값 사용
 	            unreadCountUpdate.put("roomId", req.getRoomId());
 	            unreadCountUpdate.put("senderId", authUser.getId());
 	            unreadCountUpdate.put("senderEmail", authUser.getEmail());
 	            
-	            log.info("[sendMessage] ⭐⭐⭐ UNREAD_COUNT_UPDATE 메시지 생성 및 브로드캐스트 시작 ⭐⭐⭐ - chatId: {}, unreadCount: {}, topic: {}, 메시지내용: {}", 
-	                    saved.getId(), confirmedUnreadCount, topic, unreadCountUpdate);
+	            log.info("[sendMessage] ⭐⭐⭐ UNREAD_COUNT_UPDATE 메시지 생성 및 브로드캐스트 시작 ⭐⭐⭐ - chatId: {}, unreadCount: {}, topic: {}", 
+	                    saved.getId(), confirmedUnreadCount, topic);
 	            
 	            messagingTemplate.convertAndSend(topic, unreadCountUpdate);
 	            
@@ -343,6 +366,71 @@ public class ChatMessageController {
 	        } else {
 	            log.warn("[sendMessage] ⚠️ saved 또는 saved.getId()가 null이어서 UNREAD_COUNT_UPDATE 브로드캐스트 불가 - saved: {}, saved.getId(): {}", 
 	                    saved, saved != null ? saved.getId() : null);
+	        }
+	        
+	        // ⭐ 4. 채팅방 참여자들에게 알림 전송 (발신자 및 접속 중인 사용자 제외)
+	        try {
+	            log.info("[sendMessage] 알림 전송 시작 - roomId: {}, senderId: {}", req.getRoomId(), authUser.getId());
+	            
+	            // 채팅방 참여자 목록 가져오기
+	            List<ChatRoomUser> chatRoomUsers = chatRoomUserRepository.findByChatRoomId(req.getRoomId());
+	            
+	            if (chatRoomUsers == null || chatRoomUsers.isEmpty()) {
+	                log.warn("[sendMessage] 채팅방 참여자가 없습니다 - roomId: {}", req.getRoomId());
+	            } else {
+	                // ⭐ 현재 채팅방에 접속 중인 사용자 목록 조회 (실시간 WebSocket 세션 기반)
+	                // 이미 위에서 선언된 connectedUserIds 변수를 재사용 (재조회하지 않아도 됨)
+	                log.info("[sendMessage] 알림 전송 - 접속 중인 사용자 수: {}, 접속자 IDs: {}", 
+	                        connectedUserIds.size(), connectedUserIds);
+	                
+	                // ⭐ 발신자 및 접속 중인 사용자를 제외한 참여자 ID 목록 생성
+	                // 접속 중인 사용자는 실시간으로 메시지를 볼 수 있으므로 알림 불필요
+	                List<Integer> recipientIds = chatRoomUsers.stream()
+	                    .filter(cru -> cru.getUser() != null && !cru.getUser().getId().equals(authUser.getId()))
+	                    .map(cru -> cru.getUser().getId())
+	                    .filter(userId -> !connectedUserIds.contains(userId)) // ⭐ 접속 중인 사용자 제외
+	                    .collect(Collectors.toList());
+	                
+	                if (recipientIds.isEmpty()) {
+	                    log.info("[sendMessage] 알림을 받을 참여자가 없습니다 (발신자 및 접속 중인 사용자만 있음) - roomId: {}, 접속중인사용자수: {}", 
+	                            req.getRoomId(), connectedUserIds.size());
+	                } else {
+	                    // 채팅방 이름 가져오기
+	                    String roomName = saved.getChatRoom() != null ? saved.getChatRoom().getRoomName() : "채팅방";
+	                    
+	                    // 알림 메시지 생성 (메시지 내용이 너무 길면 잘라서 표시)
+	                    String messageContent = saved.getMessageContent();
+	                    if (messageContent != null && messageContent.length() > 50) {
+	                        messageContent = messageContent.substring(0, 50) + "...";
+	                    }
+	                    String notificationMessage = roomName + " 채팅방: " + authUser.getName() + "님의 메시지";
+	                    if (messageContent != null && !messageContent.trim().isEmpty()) {
+	                        notificationMessage += " - " + messageContent;
+	                    }
+	                    
+	                    log.info("[sendMessage] 알림 전송 시작 - recipientCount: {} (접속 중 제외), 접속중인사용자수: {}, message: {}", 
+	                            recipientIds.size(), connectedUserIds.size(), notificationMessage);
+	                    
+	                    // 여러 참여자에게 알림 전송 (접속 중인 사용자 제외)
+	                    notificationService.sendNotificationToUsers(
+	                        recipientIds,
+	                        NotificationType.CHAT,
+	                        notificationMessage,
+	                        saved.getId(),  // chatId
+	                        req.getRoomId(),  // roomId
+	                        authUser.getId(),  // senderId
+	                        authUser.getName(),  // senderName
+	                        null,  // boardId
+	                        null   // scheduleId
+	                    );
+	                    
+	                    log.info("[sendMessage] 알림 전송 완료 - recipientCount: {} (접속 중인 사용자 제외)", recipientIds.size());
+	                }
+	            }
+	        } catch (Exception notificationException) {
+	            // 알림 전송 실패해도 메시지 전송은 성공했으므로 로그만 남기고 계속 진행
+	            log.error("[sendMessage] 알림 전송 중 오류 발생 - roomId: {}, error: {}", 
+	                    req.getRoomId(), notificationException.getMessage(), notificationException);
 	        }
 	    } catch (Exception e) {
 	        log.error("[sendMessage] 메시지 브로드캐스트 실패 - topic: {}, error: {}", topic, e.getMessage(), e);
@@ -669,13 +757,23 @@ public class ChatMessageController {
 		String fileUrl;
 		
 		try {
-			// s3에 업로드
-			s3Key = s3Service.uploadProfileImage(uploadFile, sender.getName());
+			// s3에 업로드 (모든 파일 타입 허용)
+			s3Key = s3Service.uploadChatFile(uploadFile, sender.getId());
 			fileUrl = s3Service.getFileUrl(s3Key);
 			
+			log.info("[uploadFileMessage] 파일 업로드 성공 - fileName: {}, fileSize: {}, contentType: {}, s3Key: {}", 
+			        uploadFile.getOriginalFilename(), uploadFile.getSize(), uploadFile.getContentType(), s3Key);
+			
 		} catch (IOException e) {
+			log.error("[uploadFileMessage] 파일 s3 업로드 실패 - fileName: {}, error: {}", 
+			        uploadFile.getOriginalFilename(), e.getMessage(), e);
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
 					.body(ResponseDTO.internalError("파일 s3 업로드 실패: "+ e.getMessage()));
+		} catch (IllegalArgumentException e) {
+			log.error("[uploadFileMessage] 파일 업로드 검증 실패 - fileName: {}, error: {}", 
+			        uploadFile.getOriginalFilename(), e.getMessage());
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+					.body(ResponseDTO.error(400, "파일 업로드 검증 실패: " + e.getMessage()));
 		}		
 		
 		// ⭐ MessageFile에는 S3 키를 저장 (URL이 아닌 키)
@@ -730,6 +828,68 @@ public class ChatMessageController {
 		        dto.setSenderDeptName("");
 		    }
 		}
+		
+		// ⭐ 채팅방 참여자들에게 알림 전송 (발신자 및 접속 중인 사용자 제외)
+		try {
+			log.info("[uploadFileMessage] 알림 전송 시작 - roomId: {}, senderId: {}", roomId, sender.getId());
+			
+			// 채팅방 참여자 목록 가져오기
+			List<ChatRoomUser> chatRoomUsers = chatRoomUserRepository.findByChatRoomId(roomId);
+			
+			if (chatRoomUsers == null || chatRoomUsers.isEmpty()) {
+				log.warn("[uploadFileMessage] 채팅방 참여자가 없습니다 - roomId: {}", roomId);
+			} else {
+				// ⭐ 현재 채팅방에 접속 중인 사용자 목록 조회 (실시간 WebSocket 세션 기반)
+				List<Integer> connectedUserIds = chatRoomService.getConnectedUserIdsInRoom(roomId);
+				log.info("[uploadFileMessage] 알림 전송 - 접속 중인 사용자 수: {}, 접속자 IDs: {}", 
+						connectedUserIds.size(), connectedUserIds);
+				
+				// ⭐ 발신자 및 접속 중인 사용자를 제외한 참여자 ID 목록 생성
+				// 접속 중인 사용자는 실시간으로 메시지를 볼 수 있으므로 알림 불필요
+				List<Integer> recipientIds = chatRoomUsers.stream()
+					.filter(cru -> cru.getUser() != null && !cru.getUser().getId().equals(sender.getId()))
+					.map(cru -> cru.getUser().getId())
+					.filter(userId -> !connectedUserIds.contains(userId)) // ⭐ 접속 중인 사용자 제외
+					.collect(Collectors.toList());
+				
+				if (recipientIds.isEmpty()) {
+					log.info("[uploadFileMessage] 알림을 받을 참여자가 없습니다 (발신자 및 접속 중인 사용자만 있음) - roomId: {}, 접속중인사용자수: {}", 
+							roomId, connectedUserIds.size());
+				} else {
+					// 채팅방 이름 가져오기
+					String roomName = chat.getChatRoom() != null ? chat.getChatRoom().getRoomName() : "채팅방";
+					
+					// 알림 메시지 생성
+					String notificationMessage = roomName + " 채팅방: " + sender.getName() + "님이 파일을 전송했습니다";
+					if (uploadFile.getOriginalFilename() != null) {
+						notificationMessage += " (" + uploadFile.getOriginalFilename() + ")";
+					}
+					
+					log.info("[uploadFileMessage] 알림 전송 시작 - recipientCount: {} (접속 중 제외), 접속중인사용자수: {}, message: {}", 
+							recipientIds.size(), connectedUserIds.size(), notificationMessage);
+					
+					// 여러 참여자에게 알림 전송 (접속 중인 사용자 제외)
+					notificationService.sendNotificationToUsers(
+						recipientIds,
+						NotificationType.CHAT,
+						notificationMessage,
+						chat.getId(),  // chatId
+						roomId,  // roomId
+						sender.getId(),  // senderId
+						sender.getName(),  // senderName
+						null,  // boardId
+						null   // scheduleId
+					);
+					
+					log.info("[uploadFileMessage] 알림 전송 완료 - recipientCount: {} (접속 중인 사용자 제외)", recipientIds.size());
+				}
+			}
+		} catch (Exception notificationException) {
+			// 알림 전송 실패해도 파일 업로드는 성공했으므로 로그만 남기고 계속 진행
+			log.error("[uploadFileMessage] 알림 전송 중 오류 발생 - roomId: {}, error: {}", 
+					roomId, notificationException.getMessage(), notificationException);
+		}
+		
 		return ResponseEntity.status(HttpStatus.CREATED).body(ResponseDTO.success(dto, "파일/이미지 업로드 성공"));
 	}
 	
@@ -775,13 +935,17 @@ public class ChatMessageController {
 			String s3Key;
 			String fileUrl;
 			try {
-				// s3에 업로드
-				s3Key = s3Service.uploadProfileImage(uploadFile, sender.getName());
+				// s3에 업로드 (모든 파일 타입 허용)
+				s3Key = s3Service.uploadChatFile(uploadFile, sender.getId());
 				fileUrl = s3Service.getFileUrl(s3Key);
-				log.info("[uploadMultipleFileMessage] 파일 {} S3 업로드 성공: {} -> {}", fileIndex, uploadFile.getOriginalFilename(), s3Key);
+				log.info("[uploadMultipleFileMessage] 파일 {} S3 업로드 성공: {} -> {}, contentType: {}, size: {} bytes", 
+				        fileIndex, uploadFile.getOriginalFilename(), s3Key, uploadFile.getContentType(), uploadFile.getSize());
 			} catch (IOException e) {
 				log.error("[uploadMultipleFileMessage] 파일 {} S3 업로드 실패: {}", fileIndex, e.getMessage(), e);
 				continue; // 개별 파일 업로드 실패 시 건너뛰기
+			} catch (IllegalArgumentException e) {
+				log.error("[uploadMultipleFileMessage] 파일 {} 업로드 검증 실패: {}", fileIndex, e.getMessage());
+				continue; // 개별 파일 업로드 검증 실패 시 건너뛰기
 			}
 			
 			// ⭐ MessageFile에는 S3 키를 저장 (URL이 아닌 키)
@@ -908,6 +1072,69 @@ public class ChatMessageController {
 		messagingTemplate.convertAndSend(topic, dto);
 		log.info("[uploadMultipleFileMessage] ⭐ WebSocket 브로드캐스트 완료");
 		
+		// ⭐ 채팅방 참여자들에게 알림 전송 (발신자 및 접속 중인 사용자 제외)
+		try {
+			log.info("[uploadMultipleFileMessage] 알림 전송 시작 - roomId: {}, senderId: {}", roomId, sender.getId());
+			
+			// 채팅방 참여자 목록 가져오기
+			List<ChatRoomUser> chatRoomUsers = chatRoomUserRepository.findByChatRoomId(roomId);
+			
+			if (chatRoomUsers == null || chatRoomUsers.isEmpty()) {
+				log.warn("[uploadMultipleFileMessage] 채팅방 참여자가 없습니다 - roomId: {}", roomId);
+			} else {
+				// ⭐ 현재 채팅방에 접속 중인 사용자 목록 조회 (실시간 WebSocket 세션 기반)
+				List<Integer> connectedUserIds = chatRoomService.getConnectedUserIdsInRoom(roomId);
+				log.info("[uploadMultipleFileMessage] 알림 전송 - 접속 중인 사용자 수: {}, 접속자 IDs: {}", 
+						connectedUserIds.size(), connectedUserIds);
+				
+				// ⭐ 발신자 및 접속 중인 사용자를 제외한 참여자 ID 목록 생성
+				// 접속 중인 사용자는 실시간으로 메시지를 볼 수 있으므로 알림 불필요
+				List<Integer> recipientIds = chatRoomUsers.stream()
+					.filter(cru -> cru.getUser() != null && !cru.getUser().getId().equals(sender.getId()))
+					.map(cru -> cru.getUser().getId())
+					.filter(userId -> !connectedUserIds.contains(userId)) // ⭐ 접속 중인 사용자 제외
+					.collect(Collectors.toList());
+				
+				if (recipientIds.isEmpty()) {
+					log.info("[uploadMultipleFileMessage] 알림을 받을 참여자가 없습니다 (발신자 및 접속 중인 사용자만 있음) - roomId: {}, 접속중인사용자수: {}", 
+							roomId, connectedUserIds.size());
+				} else {
+					// 채팅방 이름 가져오기
+					String roomName = chat.getChatRoom() != null ? chat.getChatRoom().getRoomName() : "채팅방";
+					
+					// 알림 메시지 생성
+					String notificationMessage = roomName + " 채팅방: " + sender.getName() + "님이 파일을 전송했습니다";
+					if (fileEntities.size() > 1) {
+						notificationMessage += " (" + fileEntities.size() + "개 파일)";
+					} else if (!fileEntities.isEmpty()) {
+						notificationMessage += " (" + fileEntities.get(0).getFileName() + ")";
+					}
+					
+					log.info("[uploadMultipleFileMessage] 알림 전송 시작 - recipientCount: {} (접속 중 제외), 접속중인사용자수: {}, message: {}", 
+							recipientIds.size(), connectedUserIds.size(), notificationMessage);
+					
+					// 여러 참여자에게 알림 전송 (접속 중인 사용자 제외)
+					notificationService.sendNotificationToUsers(
+						recipientIds,
+						NotificationType.CHAT,
+						notificationMessage,
+						chat.getId(),  // chatId
+						roomId,  // roomId
+						sender.getId(),  // senderId
+						sender.getName(),  // senderName
+						null,  // boardId
+						null   // scheduleId
+					);
+					
+					log.info("[uploadMultipleFileMessage] 알림 전송 완료 - recipientCount: {} (접속 중인 사용자 제외)", recipientIds.size());
+				}
+			}
+		} catch (Exception notificationException) {
+			// 알림 전송 실패해도 파일 업로드는 성공했으므로 로그만 남기고 계속 진행
+			log.error("[uploadMultipleFileMessage] 알림 전송 중 오류 발생 - roomId: {}, error: {}", 
+					roomId, notificationException.getMessage(), notificationException);
+		}
+		
 		return ResponseEntity.ok(ResponseDTO.success(dto, "다중 파일 업로드 성공"));
 	}
 	
@@ -1003,52 +1230,202 @@ public class ChatMessageController {
 	  // 10. 채팅방 초대/참여
     @Operation(summary = "채팅방에 사용자 초대", description = "채팅방에 사용자를 초대하고 참여 메시지를 전송합니다.")
     @PostMapping("/{roomId}/invite")
+    @Transactional
     public ResponseEntity<ResponseDTO<List<ChatUserResponseDTO>>> inviteUsersToChatRoom(
             @PathVariable("roomId") Integer roomId,
             @RequestBody InviteUsersRequestDTO req,
             @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
-        String email = customUserDetails.getEmail();
-        User inviter = userRepository.findByEmail(email).orElseThrow();
-        
-        ChatRoom chatRoom = chatRoomService.findById(roomId);
-        List<Integer> participantIds = chatRoomService.getParticipantIds(roomId);
-        List<User> nonParticipants = userRepository.findAll()
-                .stream().filter(u -> !participantIds.contains(u.getId())).collect(Collectors.toList());
-        List<User> invitedUsers = nonParticipants.stream()
-                .filter(u -> req.getUserIds().contains(u.getId()))
-                .collect(Collectors.toList());
-
-        for (User invited : invitedUsers) {
-            ChatRoomUser cru = ChatRoomUser.createChatRoomUser(invited, chatRoom);
-            chatRoomUserRepository.save(cru);
+        try {
+            log.info("[inviteUsersToChatRoom] 초대 요청 시작 - roomId: {}, userIds: {}", roomId, req.getUserIds());
             
-            // ⭐ 초대 메시지 생성 (초대받은 사용자에게만 표시, 입장 전까지 유지)
-            String inviteMsg = invited.getName() + "님이 초대되었습니다";
-            Chat inviteChat = chatRoomService.sendChatMessage(roomId, inviter.getId(), inviteMsg);
+            // 1. 요청 검증
+            if (req == null || req.getUserIds() == null || req.getUserIds().isEmpty()) {
+                log.warn("[inviteUsersToChatRoom] 잘못된 요청 - userIds가 null이거나 비어있음");
+                return ResponseEntity.badRequest()
+                        .body(ResponseDTO.error("초대할 사용자를 선택해주세요."));
+            }
             
-            // ⭐ 초대 알림 전송 (초대받은 사용자에게만)
-            String notificationMsg = chatRoom.getRoomName() + " 채팅방에 " + invited.getName() + "님이 초대되었습니다";
-            notificationService.sendNotification(
-                invited.getId(),
-                NotificationType.CHAT,
-                notificationMsg,
-                inviteChat != null ? inviteChat.getId() : null,
-                roomId,
-                inviter.getId(),
-                inviter.getName(),
-                null
-            );
+            String email = customUserDetails.getEmail();
+            // 초대자 조회 (Department와 함께 로드)
+            User inviter = userRepository.findByEmailWithDepartment(email)
+                    .orElseThrow(() -> new IllegalArgumentException("초대자를 찾을 수 없습니다: " + email));
             
-            log.info("[inviteUsersToChatRoom] 초대 완료 - roomId: {}, invitedUserId: {}, invitedUserName: {}, inviterId: {}, inviterName: {}", 
-                    roomId, invited.getId(), invited.getName(), inviter.getId(), inviter.getName());
+            // 2. 채팅방 존재 확인
+            ChatRoom chatRoom = chatRoomService.findById(roomId);
+            if (chatRoom == null) {
+                log.warn("[inviteUsersToChatRoom] 채팅방을 찾을 수 없음 - roomId: {}", roomId);
+                return ResponseEntity.badRequest()
+                        .body(ResponseDTO.error("채팅방을 찾을 수 없습니다."));
+            }
+            
+            // 3. 참여자 목록 조회
+            List<Integer> participantIds = chatRoomService.getParticipantIds(roomId);
+            log.info("[inviteUsersToChatRoom] 현재 참여자 수: {}, 참여자 IDs: {}", participantIds.size(), participantIds);
+            
+            // 4. 초대할 사용자 조회 및 중복 체크
+            List<User> invitedUsers = new ArrayList<>();
+            for (Integer userId : req.getUserIds()) {
+                // 사용자 존재 확인 (Department와 함께 로드하여 LazyInitializationException 방지)
+                User user = userRepository.findByIdWithDepartment(userId)
+                        .orElse(null);
+                
+                if (user == null) {
+                    log.warn("[inviteUsersToChatRoom] 사용자를 찾을 수 없음 - userId: {}", userId);
+                    continue;
+                }
+                
+                // 이미 참여 중인지 확인
+                if (participantIds.contains(userId)) {
+                    log.info("[inviteUsersToChatRoom] 이미 참여 중인 사용자 - userId: {}, userName: {}", userId, user.getName());
+                    continue;
+                }
+                
+                // DB에서도 중복 체크 (동시 요청 방지)
+                Optional<ChatRoomUser> existing = chatRoomUserRepository.findByChatRoomIdAndUserId(roomId, userId);
+                if (existing.isPresent()) {
+                    log.info("[inviteUsersToChatRoom] 이미 참여 중인 사용자 (DB 확인) - userId: {}, userName: {}", userId, user.getName());
+                    continue;
+                }
+                
+                invitedUsers.add(user);
+            }
+            
+            if (invitedUsers.isEmpty()) {
+                log.warn("[inviteUsersToChatRoom] 초대할 사용자가 없음 - 요청된 userIds: {}", req.getUserIds());
+                return ResponseEntity.badRequest()
+                        .body(ResponseDTO.error("초대할 수 있는 사용자가 없습니다. 이미 참여 중이거나 존재하지 않는 사용자입니다."));
+            }
+            
+            log.info("[inviteUsersToChatRoom] 초대할 사용자 수: {}", invitedUsers.size());
+            
+            // 5. 사용자 초대 처리
+            List<ChatUserResponseDTO> dtoList = new ArrayList<>();
+            for (User invited : invitedUsers) {
+                try {
+                    // ChatRoomUser 생성 및 저장
+                    ChatRoomUser cru = ChatRoomUser.createChatRoomUser(invited, chatRoom);
+                    chatRoomUserRepository.save(cru);
+                    chatRoomUserRepository.flush(); // 즉시 DB 반영
+                    
+                    log.info("[inviteUsersToChatRoom] ChatRoomUser 저장 완료 - userId: {}, userName: {}", 
+                            invited.getId(), invited.getName());
+                    
+                    // flush 후 참여자 목록 확인 (디버깅용)
+                    List<Integer> updatedParticipantIds = chatRoomService.getParticipantIds(roomId);
+                    log.info("[inviteUsersToChatRoom] flush 후 참여자 목록 - roomId: {}, 참여자 수: {}, 참여자 IDs: {}", 
+                            roomId, updatedParticipantIds.size(), updatedParticipantIds);
+                    
+                    // 초대 메시지 생성
+                    Chat inviteChat = null;
+                    try {
+                        String inviteMsg = invited.getName() + "님이 초대되었습니다";
+                        log.info("[inviteUsersToChatRoom] 초대 메시지 생성 시작 - roomId: {}, inviterId: {}, message: {}", 
+                                roomId, inviter.getId(), inviteMsg);
+                        inviteChat = chatRoomService.sendChatMessage(roomId, inviter.getId(), inviteMsg);
+                        
+                        if (inviteChat == null) {
+                            log.warn("[inviteUsersToChatRoom] 초대 메시지 생성 실패 - userId: {}", invited.getId());
+                        } else {
+                            log.info("[inviteUsersToChatRoom] 초대 메시지 생성 성공 - chatId: {}, userId: {}", 
+                                    inviteChat.getId(), invited.getId());
+                        }
+                    } catch (Exception msgException) {
+                        log.error("[inviteUsersToChatRoom] 초대 메시지 생성 중 오류 - userId: {}, error: {}", 
+                                invited.getId(), msgException.getMessage(), msgException);
+                        // 메시지 생성 실패해도 초대는 성공했으므로 계속 진행
+                    }
+                    
+                    // 초대 알림 전송
+                    try {
+                        String notificationMsg = chatRoom.getRoomName() + " 채팅방에 " + invited.getName() + "님이 초대되었습니다";
+                        notificationService.sendNotification(
+                            invited.getId(),
+                            NotificationType.CHAT,
+                            notificationMsg,
+                            inviteChat != null ? inviteChat.getId() : null,
+                            roomId,
+                            inviter.getId(),
+                            inviter.getName(),
+                            null
+                        );
+                        log.info("[inviteUsersToChatRoom] 초대 알림 전송 성공 - userId: {}", invited.getId());
+                    } catch (Exception notifException) {
+                        log.error("[inviteUsersToChatRoom] 초대 알림 전송 중 오류 - userId: {}, error: {}", 
+                                invited.getId(), notifException.getMessage(), notifException);
+                        // 알림 전송 실패해도 초대는 성공했으므로 계속 진행
+                    }
+                    
+                    // DTO 생성 (Department가 이미 로드되어 있으므로 안전)
+                    ChatUserResponseDTO dto = null;
+                    try {
+                        dto = ChatUserResponseDTO.fromEntity(invited, s3Service);
+                        if (dto != null) {
+                            dtoList.add(dto);
+                        } else {
+                            log.warn("[inviteUsersToChatRoom] DTO 생성 실패 - userId: {}, userName: {}", 
+                                    invited.getId(), invited.getName());
+                        }
+                    } catch (Exception dtoException) {
+                        log.error("[inviteUsersToChatRoom] DTO 생성 중 오류 - userId: {}, userName: {}, error: {}", 
+                                invited.getId(), invited.getName(), dtoException.getMessage(), dtoException);
+                        // DTO 생성 실패해도 초대는 성공했으므로 계속 진행
+                    }
+                    
+                    log.info("[inviteUsersToChatRoom] 초대 완료 - roomId: {}, invitedUserId: {}, invitedUserName: {}, inviterId: {}, inviterName: {}", 
+                            roomId, invited.getId(), invited.getName(), inviter.getId(), inviter.getName());
+                } catch (Exception e) {
+                    log.error("[inviteUsersToChatRoom] 사용자 초대 중 오류 - userId: {}, userName: {}, error: {}", 
+                            invited.getId(), invited != null ? invited.getName() : "unknown", e.getMessage(), e);
+                    // 개별 사용자 초대 실패는 로그만 남기고 계속 진행
+                }
+            }
+            
+            if (dtoList.isEmpty()) {
+                log.error("[inviteUsersToChatRoom] 모든 사용자 초대 실패");
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(ResponseDTO.error("사용자 초대에 실패했습니다."));
+            }
+            
+            log.info("[inviteUsersToChatRoom] 초대 성공 - roomId: {}, 초대된 사용자 수: {}", roomId, dtoList.size());
+            return ResponseEntity.ok(ResponseDTO.success(dtoList, "초대 및 참여 메시지 저장 성공"));
+        } catch (IllegalArgumentException e) {
+            log.error("[inviteUsersToChatRoom] 잘못된 요청 - roomId: {}", roomId, e);
+            return ResponseEntity.badRequest()
+                    .body(ResponseDTO.error(e.getMessage()));
+        } catch (Exception e) {
+            log.error("[inviteUsersToChatRoom] 초대 처리 중 오류 - roomId: {}", roomId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseDTO.error("사용자 초대 중 오류가 발생했습니다: " + e.getMessage()));
         }
-        List<ChatUserResponseDTO> dtoList = invitedUsers.stream()
-                .map(user -> ChatUserResponseDTO.fromEntity(user, s3Service))
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(ResponseDTO.success(dtoList, "초대 및 참여 메시지 저장 성공"));
     }
     
+    // 11. 채팅방 나가기
+    @Operation(summary = "채팅방 나가기", description = "채팅방에서 나가고 나가기 메시지를 전송합니다.")
+    @org.springframework.web.bind.annotation.DeleteMapping("/{roomId}/leave")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<ResponseDTO<String>> leaveChatRoom(
+            @PathVariable("roomId") Integer roomId,
+            Principal principal
+    ) {
+        try {
+            String userEmail = principal.getName();
+            log.info("[leaveChatRoom] 채팅방 나가기 요청 - roomId: {}, userEmail: {}", roomId, userEmail);
+            
+            chatRoomService.leaveChatRoom(roomId, userEmail);
+            
+            log.info("[leaveChatRoom] 채팅방 나가기 성공 - roomId: {}, userEmail: {}", roomId, userEmail);
+            return ResponseEntity.ok(ResponseDTO.success("채팅방을 나갔습니다.", "채팅방 나가기 성공"));
+        } catch (IllegalArgumentException e) {
+            log.error("[leaveChatRoom] 채팅방 나가기 실패 - roomId: {}, error: {}", roomId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseDTO.error("채팅방 나가기 실패: " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("[leaveChatRoom] 채팅방 나가기 중 예외 발생 - roomId: {}", roomId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseDTO.error("채팅방 나가기 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
 
     // 10. 알림 읽음 처리 (채팅/업무)
     @Operation(summary = "알림 읽음 처리", description = "알림을 읽음 처리합니다.")
@@ -1557,12 +1934,17 @@ public class ChatMessageController {
     // ⭐ 각 메시지의 unreadCount를 -1 감소시키고 WebSocket으로 실시간 업데이트 알림
     @Operation(summary = "나에게 온 안읽은 메시지를 채팅방을 접속해서 다 읽으면 채팅방목록에서 안읽은 메시지 개수가 없어지게 만들기", description = "나에게 온 안읽은 메시지를 채팅방을 접속해서 다 읽으면 채팅방목록에서 안읽은 메시지 개수가 없어지게 만들기")
     @PatchMapping("/rooms/{roomId}/messages/read")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> markRoomMessagesAsRead(@PathVariable Integer roomId, @AuthenticationPrincipal CustomUserDetails customUserDetails) {
       String email = customUserDetails.getEmail();
     	User user = userRepository.findByEmail(email).orElseThrow();
     	
+    	log.info("[markRoomMessagesAsRead] 읽음 처리 요청 - roomId: {}, userId: {}, email: {}", roomId, user.getId(), email);
+    	
     	// ⭐ 메시지 읽음 처리 및 읽음 처리된 메시지 ID 리스트 반환
     	List<Integer> readChatIds = chatRoomService.markMessagesAsRead(roomId, user.getId());
+    	
+    	log.info("[markRoomMessagesAsRead] 읽음 처리 완료 - roomId: {}, userId: {}, 처리된 메시지 수: {}", roomId, user.getId(), readChatIds.size());
     	
     	// ⭐ WebSocket을 통해 실시간으로 unreadCount 업데이트 알림
     	// 각 메시지의 업데이트된 unreadCount를 전송 (발신자에게만 알림)

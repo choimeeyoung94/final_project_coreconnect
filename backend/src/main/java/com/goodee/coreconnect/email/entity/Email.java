@@ -20,6 +20,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Builder.Default;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -43,8 +44,11 @@ public class Email {
 	@Column(nullable = false, columnDefinition = "TEXT")
 	private String emailContent;
 	
+	@Builder.Default
 	private Boolean emailDeleteYn = false; // 삭제여부 (휴지통 분리)
+	@Builder.Default
 	private Boolean emailSaveStatusYn = false; // 임시저장
+	@Builder.Default
 	private Boolean favoriteStatus = false; // 중요표시
 	
 	private String emailType;

@@ -197,7 +197,6 @@ const DraftBoxPage = () => {
           <TableHead>
             <TableRow>
               <TableCell sx={{ fontWeight: 700 }}>제목</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>작성일</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>받는사람</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>파일 수</TableCell>
               <TableCell align="center" sx={{ fontWeight: 700 }}>삭제</TableCell>
@@ -206,7 +205,7 @@ const DraftBoxPage = () => {
           <TableBody>
             {drafts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} align="center">
+                <TableCell colSpan={4} align="center">
                   임시저장 메일이 없습니다.
                 </TableCell>
               </TableRow>
@@ -219,13 +218,6 @@ const DraftBoxPage = () => {
                   onClick={() => handleRowClick(draft)}
                 >
                   <TableCell>{draft.emailTitle}</TableCell>
-                  <TableCell>
-                    {draft.sentTime
-                      ? (typeof draft.sentTime === "string"
-                        ? new Date(draft.sentTime).toLocaleString()
-                        : draft.sentTime)
-                      : "-"}
-                  </TableCell>
                   <TableCell>
                     {Array.isArray(draft.recipientAddresses) && draft.recipientAddresses.length > 0
                       ? draft.recipientAddresses.join(", ")

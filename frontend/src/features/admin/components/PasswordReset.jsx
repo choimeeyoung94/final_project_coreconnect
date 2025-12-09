@@ -17,6 +17,7 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  Button,
 } from "@mui/material";
 import LockResetIcon from "@mui/icons-material/LockReset";
 import StyledButton from "../../../components/ui/StyledButton";
@@ -82,13 +83,19 @@ export default function PasswordReset() {
     
     try {
       setActioningId(id);
-      await approvePasswordResetRequest(id);
+      const response = await approvePasswordResetRequest(id);
       setApproveDialogOpen(false);
-      showSnack("승인되었습니다. 임시 비밀번호가 사용자 이메일로 발송되었습니다.", "success");
+      const externalEmail = response?.externalEmail || response?.data?.externalEmail;
+      showSnack(`승인되었습니다. 임시 비밀번호가 외부 이메일(${externalEmail})로 발송되었습니다.`, "success");
       loadRequests(statusFilter); // 현재 필터 기준으로 목록 새로 불러오기
     } catch (e) {
       console.error("승인 실패:", e);
-      showSnack("승인 처리 중 오류가 발생했습니다.", "error");
+      // 백엔드에서 보낸 에러 메시지 표시
+      const errorMessage = e.response?.data?.message || 
+                          e.response?.data || 
+                          e.message || 
+                          "승인 처리 중 오류가 발생했습니다.";
+      showSnack(errorMessage, "error");
     } finally {
       setApproveProcessing(false);
       setActioningId(null);
@@ -380,23 +387,21 @@ export default function PasswordReset() {
           )}
         </DialogContent>
         <DialogActions>
-          <StyledButton 
+          <Button 
             onClick={() => setApproveDialogOpen(false)} 
             disabled={approveProcessing}
-            fullWidth={false}
           >
             취소
-          </StyledButton>
-          <StyledButton 
+          </Button>
+          <Button 
             onClick={handleApprove} 
             variant="contained" 
             color="success"
             disabled={approveProcessing}
             startIcon={approveProcessing ? <CircularProgress size={16} /> : null}
-            fullWidth={false}
           >
             승인
-          </StyledButton>
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -423,10 +428,10 @@ export default function PasswordReset() {
           />
         </DialogContent>
         <DialogActions>
-          <StyledButton onClick={() => setRejectReasonDialogOpen(false)} fullWidth={false}>취소</StyledButton>
-          <StyledButton onClick={handleRejectReasonSubmit} variant="contained" color="error" fullWidth={false}>
+          <Button onClick={() => setRejectReasonDialogOpen(false)}>취소</Button>
+          <Button onClick={handleRejectReasonSubmit} variant="contained" color="error">
             다음
-          </StyledButton>
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -465,23 +470,21 @@ export default function PasswordReset() {
           )}
         </DialogContent>
         <DialogActions>
-          <StyledButton 
+          <Button 
             onClick={() => setRejectConfirmDialogOpen(false)} 
             disabled={rejectProcessing}
-            fullWidth={false}
           >
             취소
-          </StyledButton>
-          <StyledButton 
+          </Button>
+          <Button 
             onClick={handleReject} 
             variant="contained" 
             color="error"
             disabled={rejectProcessing}
             startIcon={rejectProcessing ? <CircularProgress size={16} /> : null}
-            fullWidth={false}
           >
             거절
-          </StyledButton>
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

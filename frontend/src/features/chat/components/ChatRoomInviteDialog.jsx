@@ -432,7 +432,7 @@ function ChatRoomInviteDialog({ open, onClose, roomId, onInviteSuccess }) {
                     <Avatar
                       src={user.profileImageUrl || user.profileImageKey}
                       sx={{
-                        bgcolor: "#10c16d",
+                        bgcolor: "primary.main",
                         width: 40,
                         height: 40,
                       }}

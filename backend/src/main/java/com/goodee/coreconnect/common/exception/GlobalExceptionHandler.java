@@ -16,13 +16,18 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 
 import com.goodee.coreconnect.common.dto.response.ResponseDTO;
+import com.goodee.coreconnect.common.service.ErrorNotificationService;
 
 import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@RequiredArgsConstructor
 @RestControllerAdvice // ⭐️ 모든 @RestController의 예외를 처리
 public class GlobalExceptionHandler {
+
+    private final ErrorNotificationService errorNotificationService;
 
     /**
      * 1. 접근 권한 예외 처리 (HTTP 403 Forbidden)
@@ -211,5 +216,79 @@ public class GlobalExceptionHandler {
     public ResponseEntity<?> handleChatNotFound(ChatNotFoundException ex) {
         // 빈 배열+200으로 강제 처리
         return ResponseEntity.ok(ResponseDTO.success(Collections.emptyList(), "채팅 메시지 없음"));
+    }
+
+    /**
+     * 11. 파일 업로드 예외 처리 (HTTP 500 Internal Server Error)
+     */
+    @ExceptionHandler(FileUploadException.class)
+    public ResponseEntity<ResponseDTO<Void>> handleFileUploadException(FileUploadException ex, HttpServletRequest request) {
+        String requestURI = request != null ? request.getRequestURI() : "unknown";
+        log.error("[FileUploadException] URI: {}, Error: {}", requestURI, ex.getMessage(), ex);
+
+        // 운영 환경에서 500 에러 알림 전송
+        String stackTrace = getStackTraceAsString(ex);
+        errorNotificationService.sendErrorNotification(
+            ex.getClass().getSimpleName(),
+            ex.getMessage(),
+            requestURI,
+            stackTrace
+        );
+
+        ResponseDTO<Void> res = ResponseDTO.<Void>builder()
+            .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+            .message("파일 업로드 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
+            .build();
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(res);
+    }
+
+    /**
+     * 12. 비즈니스 예외 처리 (HTTP 400 Bad Request)
+     */
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ResponseDTO<Void>> handleBusinessException(BusinessException ex) {
+        log.warn("[BusinessException] {}", ex.getMessage());
+
+        ResponseDTO<Void> res = ResponseDTO.<Void>builder()
+            .status(HttpStatus.BAD_REQUEST.value())
+            .message(ex.getMessage())
+            .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(res);
+    }
+
+    /**
+     * 13. 외부 서비스 연동 예외 처리 (HTTP 503 Service Unavailable)
+     */
+    @ExceptionHandler(ExternalServiceException.class)
+    public ResponseEntity<ResponseDTO<Void>> handleExternalServiceException(ExternalServiceException ex, HttpServletRequest request) {
+        String requestURI = request != null ? request.getRequestURI() : "unknown";
+        log.error("[ExternalServiceException] URI: {}, Error: {}", requestURI, ex.getMessage(), ex);
+
+        // 외부 서비스 오류 알림 전송
+        errorNotificationService.sendExternalServiceErrorNotification(
+            "External Service",
+            ex.getMessage()
+        );
+
+        ResponseDTO<Void> res = ResponseDTO.<Void>builder()
+            .status(HttpStatus.SERVICE_UNAVAILABLE.value())
+            .message("외부 서비스 연동 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
+            .build();
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(res);
+    }
+
+    /**
+     * 스택 트레이스를 문자열로 변환
+     */
+    private String getStackTraceAsString(Throwable throwable) {
+        if (throwable == null) return null;
+
+        java.io.StringWriter sw = new java.io.StringWriter();
+        java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+        throwable.printStackTrace(pw);
+        return sw.toString();
     }
 }

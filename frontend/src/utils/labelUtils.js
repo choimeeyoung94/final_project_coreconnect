@@ -49,11 +49,24 @@ export const ATTENDANCE_STATUS_LABELS = {
   COMPLETED: "완료",
 };
 
+export const USER_STATUS_LABELS = {
+  ACTIVE: "활성",
+  INACTIVE: "비활성",
+};
+
+export const ROLE_LABELS = {
+  ADMIN: "관리자",
+  MANAGER: "부서장",
+  USER: "일반",
+};
+
 export const getJobGradeLabel = key => JOB_GRADE_LABELS[key] || key;
 export const getLeaveRequestLabel = key => LEAVE_REQUEST_LABELS[key] || key;
 export const getLeaveTypeLabel = value => LEAVE_TYPE_LABELS[value] || value;
 export const getNotificationTypeLabel = type => NOTIFICATION_TYPE_LABELS[type] || type;
 export const getLogActionTypeLabel = type => LOG_ACTION_TYPE_LABELS[type] || type;
 export const getAttendanceStatusLabel = status => ATTENDANCE_STATUS_LABELS[status] || status;
+export const getStatusLabel = status => USER_STATUS_LABELS[status] || status;
+export const getRoleLabel = role => ROLE_LABELS[role] || role;
 
 

@@ -40,7 +40,7 @@ public class Notification {
   private Boolean notificationReadYn = false;
    
    @Enumerated(EnumType.STRING)
-   @Column(name = "notification_type", nullable = false)
+   @Column(name = "notification_type", nullable = false, length = 20)
    private NotificationType notificationType;
    
    @Column(name = "notification_read_at")

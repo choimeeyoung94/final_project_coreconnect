@@ -13,9 +13,47 @@ const isImageFile = (url = "") => {
 // 시간 포맷 변환 (예: "오후 02:26")
 const formatTime = (time) => {
   if (!time) return "";
-  const date = new Date(time);
-  if (Number.isNaN(date.getTime())) return time;
-  return date.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+  
+  try {
+    let date;
+    const dateStr = String(time);
+    
+    // ISO 8601 형식인 경우 (서버에서 "2025-11-25T00:42:00" 형식으로 보냄)
+    if (dateStr.includes('T')) {
+      // 타임존 정보가 없으면 한국 시간(UTC+9)으로 간주하여 파싱
+      if (!dateStr.includes('Z') && !dateStr.includes('+') && !dateStr.match(/-\d{2}:\d{2}$/)) {
+        // "2025-11-25T00:42:00" 형식을 한국 시간으로 파싱
+        const [datePart, timePart] = dateStr.split('T');
+        const [year, month, day] = datePart.split('-');
+        const [timeOnly] = (timePart || '').split('.');
+        const [hour, minute, second = '00'] = (timeOnly || '').split(':');
+        
+        // UTC로 Date 객체 생성 후 한국 시간(UTC+9)으로 변환
+        date = new Date(Date.UTC(
+          parseInt(year, 10),
+          parseInt(month, 10) - 1,
+          parseInt(day, 10),
+          parseInt(hour, 10),
+          parseInt(minute, 10),
+          parseInt(second, 10)
+        ));
+        // 한국 시간은 UTC+9이므로 9시간을 빼서 UTC로 변환
+        date = new Date(date.getTime() - (9 * 60 * 60 * 1000));
+      } else {
+        date = new Date(dateStr);
+      }
+    } else {
+      date = new Date(time);
+    }
+    
+    if (Number.isNaN(date.getTime())) return time;
+    
+    // 한국 시간으로 변환하여 포맷팅
+    return date.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", timeZone: 'Asia/Seoul' });
+  } catch (error) {
+    console.error('[ChatMessageList] formatTime 에러:', error, time);
+    return "";
+  }
 };
 
 function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbove, loadingAbove, onMessagesLoaded, scrollToUnread = false, onScrollToUnreadComplete }) {
@@ -464,7 +502,12 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
           }
 
           // ========== 시스템 메시지 (가운데 정렬, 회색) ==========
-          const isSystemMessage = msg.messageContent && msg.messageContent.includes("님이 입장했습니다");
+          // 초대, 입장, 나가기 메시지를 시스템 메시지로 처리
+          const isSystemMessage = msg.messageContent && (
+            msg.messageContent.includes("님이 초대되었습니다") ||
+            msg.messageContent.includes("님이 입장했습니다") ||
+            msg.messageContent.includes("님이 채팅방을 나갔습니다")
+          );
           
           if (isSystemMessage) {
             return (

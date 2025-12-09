@@ -17,7 +17,7 @@ public class BoardCategory {
     @Column(name = "board_category_id")
     private Integer id;
 
-    @Column(name = "board_category_name", length = 100, nullable = false)
+    @Column(name = "board_category_name", length = 20, nullable = false)
     private String name;
 
     @Column(name = "board_category_order_no", unique = true)

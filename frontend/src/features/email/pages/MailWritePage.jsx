@@ -95,14 +95,46 @@ function MailWritePage() {
     const formatDate = (date) => {
       if (!date) return '-';
       try {
-        const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
-        return d.toLocaleString('ko-KR', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
+        let d;
+        const dateStr = String(date);
+        
+        // ISO 8601 형식인 경우 (서버에서 "2025-11-25T00:42:00" 형식으로 보냄)
+        if (dateStr.includes('T')) {
+          // 타임존 정보가 없으면 한국 시간(UTC+9)으로 간주하여 파싱
+          if (!dateStr.includes('Z') && !dateStr.includes('+') && !dateStr.match(/-\d{2}:\d{2}$/)) {
+            // "2025-11-25T00:42:00" 형식을 한국 시간으로 파싱
+            const [datePart, timePart] = dateStr.split('T');
+            const [year, month, day] = datePart.split('-');
+            const [timeOnly] = (timePart || '').split('.');
+            const [hour, minute, second = '00'] = (timeOnly || '').split(':');
+            
+            // UTC로 Date 객체 생성 후 한국 시간(UTC+9)으로 변환
+            d = new Date(Date.UTC(
+              parseInt(year, 10),
+              parseInt(month, 10) - 1,
+              parseInt(day, 10),
+              parseInt(hour, 10),
+              parseInt(minute, 10),
+              parseInt(second, 10)
+            ));
+            // 한국 시간은 UTC+9이므로 9시간을 빼서 UTC로 변환
+            d = new Date(d.getTime() - (9 * 60 * 60 * 1000));
+          } else {
+            d = new Date(dateStr);
+          }
+        } else {
+          d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
+        }
+        
+        // 한국 시간으로 변환하여 포맷팅
+        const koreaTimeStr = d.toLocaleString('en-US', { timeZone: 'Asia/Seoul' });
+        const koreaTime = new Date(koreaTimeStr);
+        const yyyy = koreaTime.getFullYear();
+        const mm = String(koreaTime.getMonth() + 1).padStart(2, "0");
+        const dd = String(koreaTime.getDate()).padStart(2, "0");
+        const HH = String(koreaTime.getHours()).padStart(2, "0");
+        const mi = String(koreaTime.getMinutes()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd} ${HH}:${mi}`;
       } catch {
         return '-';
       }
@@ -115,7 +147,17 @@ function MailWritePage() {
     info += `일자: ${formatDate(originalEmail.sentTime)}\n`;
     
     if (originalEmail.recipientAddresses && originalEmail.recipientAddresses.length > 0) {
-      info += `받는사람: ${originalEmail.recipientAddresses.join(', ')}\n`;
+      // 받는사람 중복 제거 (대소문자 구분 없이)
+      const seen = new Set();
+      const uniqueRecipients = originalEmail.recipientAddresses.filter(addr => {
+        const normalized = addr?.toLowerCase();
+        if (seen.has(normalized)) {
+          return false;
+        }
+        seen.add(normalized);
+        return true;
+      });
+      info += `받는사람: ${uniqueRecipients.join(', ')}\n`;
     }
     
     if (originalEmail.ccAddresses && originalEmail.ccAddresses.length > 0) {
@@ -129,7 +171,14 @@ function MailWritePage() {
     info += `────────────────────────────────────────\n`;
     
     if (originalEmail.emailContent) {
-      info += `\n${originalEmail.emailContent}\n`;
+      // 원본 메일 내용의 각 줄 앞에 밑줄 문자 추가
+      const contentLines = originalEmail.emailContent.split('\n');
+      const underlinedContent = contentLines.map(line => `─ ${line}`).join('\n');
+      info += `\n${underlinedContent}\n`;
+    }
+
+    if (mode === 'reply') {
+      info += `\n--------------------------------------------------\n`;
     }
     
     if (mode === 'forward') {
@@ -165,15 +214,20 @@ function MailWritePage() {
         addr && addr.trim() && addr.toLowerCase() !== userEmail.toLowerCase()
       );
       
-      // 원본 메일의 받는 사람 중 본인을 제외한 나머지를 참조에 추가
-      const otherRecipients = (original.recipientAddresses || []).filter(addr => 
-        addr && addr.trim() && 
-        addr.toLowerCase() !== userEmail.toLowerCase() &&
-        addr.toLowerCase() !== original.senderEmail?.toLowerCase()
-      );
+      // 원본 메일의 받는 사람 중 본인을 제외한 나머지를 참조에 추가 (중복 제거)
+      const seenCc = new Set(ccAddresses.map(a => a?.toLowerCase()));
+      const otherRecipients = (original.recipientAddresses || []).filter(addr => {
+        if (!addr || !addr.trim()) return false;
+        const normalized = addr.toLowerCase();
+        return normalized !== userEmail.toLowerCase() &&
+               normalized !== original.senderEmail?.toLowerCase() &&
+               !seenCc.has(normalized);
+      });
       otherRecipients.forEach(addr => {
-        if (!ccAddresses.includes(addr)) {
+        const normalized = addr.toLowerCase();
+        if (!seenCc.has(normalized)) {
           ccAddresses.push(addr);
+          seenCc.add(normalized);
         }
       });
       
@@ -593,68 +647,54 @@ function MailWritePage() {
 
         <Box sx={{ display: "flex", alignItems: "center", mb: 0.7 }}>
           <Typography sx={{ width: 85, fontWeight: 700 }}>받는사람</Typography>
-          <Box 
-            sx={{ 
-              flex: 1, 
-              display: 'flex', 
-              alignItems: 'center',
-              cursor: 'pointer',
-              '&:hover': { bgcolor: 'action.hover', borderRadius: 1 }
+          <Autocomplete
+            multiple
+            freeSolo
+            options={emailSuggestions}
+            value={form.recipientAddress}
+            inputValue={recipientInputValue}
+            onInputChange={(e, newInputValue) => {
+              setRecipientInputValue(newInputValue);
             }}
-            onClick={() => {
-              setAddressBookType("recipient");
-              setAddressBookOpen(true);
-            }}
-          >
-            <Autocomplete
-              multiple
-              freeSolo
-              options={emailSuggestions}
-              value={form.recipientAddress}
-              inputValue={recipientInputValue}
-              onInputChange={(e, newInputValue) => {
-                setRecipientInputValue(newInputValue);
-              }}
-              onChange={(e, value) => {
-                // 빈 문자열이나 공백만 있는 항목을 필터링하고 trim 처리
-                const filteredValue = value
-                  .map(addr => typeof addr === 'string' ? addr.trim() : addr)
-                  .filter(addr => addr && addr.length > 0);
-                const prevLength = form.recipientAddress?.length || 0;
-                setForm(f => ({ ...f, recipientAddress: filteredValue }));
-                // 값이 추가되면 입력값 초기화 (칩이 생성되면 입력 필드 비우기)
-                if (filteredValue.length > prevLength) {
-                  setRecipientInputValue("");
-                }
-              }}
-              renderTags={(value, getTagProps) =>
-                value.map((option, index) => (
-                  <Chip variant="outlined" label={option} {...getTagProps({ index })} key={option + index} />
-                ))
+            onChange={(e, value) => {
+              // 빈 문자열이나 공백만 있는 항목을 필터링하고 trim 처리
+              const filteredValue = value
+                .map(addr => typeof addr === 'string' ? addr.trim() : addr)
+                .filter(addr => addr && addr.length > 0);
+              const prevLength = form.recipientAddress?.length || 0;
+              setForm(f => ({ ...f, recipientAddress: filteredValue }));
+              // 값이 추가되면 입력값 초기화 (칩이 생성되면 입력 필드 비우기)
+              if (filteredValue.length > prevLength) {
+                setRecipientInputValue("");
               }
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  placeholder="이메일 주소 입력 (클릭하여 주소록에서 선택)"
-                  variant="standard"
-                  sx={{ minWidth: 240 }}
-                  onBlur={(e) => {
-                    // 포커스를 잃을 때 입력 중인 값이 있으면 처리
-                    const inputValue = e.target.value?.trim();
-                    if (inputValue && inputValue.length > 0) {
-                      const currentAddresses = form.recipientAddress || [];
-                      if (!currentAddresses.includes(inputValue)) {
-                        setForm(f => ({ ...f, recipientAddress: [...currentAddresses, inputValue] }));
-                      }
+            }}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip variant="outlined" label={option} {...getTagProps({ index })} key={option + index} />
+              ))
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="이메일 주소 직접 입력 (예: user@gmail.com)"
+                variant="standard"
+                sx={{ minWidth: 240 }}
+                onBlur={(e) => {
+                  // 포커스를 잃을 때 입력 중인 값이 있으면 처리
+                  const inputValue = e.target.value?.trim();
+                  if (inputValue && inputValue.length > 0) {
+                    const currentAddresses = form.recipientAddress || [];
+                    if (!currentAddresses.includes(inputValue)) {
+                      setForm(f => ({ ...f, recipientAddress: [...currentAddresses, inputValue] }));
                     }
-                    // 포커스를 잃으면 항상 입력 필드 비우기 (칩으로 변환된 후에도 남아있는 텍스트 제거)
-                    setRecipientInputValue("");
-                  }}
-                />
-              )}
-              sx={{ flex: 1, pointerEvents: 'none' }}
-            />
-          </Box>
+                  }
+                  // 포커스를 잃으면 항상 입력 필드 비우기 (칩으로 변환된 후에도 남아있는 텍스트 제거)
+                  setRecipientInputValue("");
+                }}
+              />
+            )}
+            sx={{ flex: 1 }}
+          />
           <Button 
             size="small" 
             sx={{ ml: 1, minWidth: 50, fontSize: 13 }}
@@ -663,90 +703,73 @@ function MailWritePage() {
               setAddressBookOpen(true);
             }}
           >
-            주소록
+            📖 주소록
           </Button>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", mb: 0.7 }}>
           <Typography sx={{ width: 85, fontWeight: 700 }}>참조</Typography>
-          <Box 
-            sx={{ 
-              flex: 1, 
-              display: 'flex', 
-              alignItems: 'center',
-              cursor: 'pointer',
-              '&:hover': { bgcolor: 'action.hover', borderRadius: 1 }
+          <Autocomplete
+            multiple
+            freeSolo
+            options={emailSuggestions}
+            value={form.ccAddresses}
+            inputValue={ccInputValue}
+            onInputChange={(e, newInputValue) => {
+              setCcInputValue(newInputValue);
             }}
+            onChange={(e, value) => {
+              // 빈 문자열이나 공백만 있는 항목을 필터링하고 trim 처리
+              const filteredValue = value
+                .map(addr => typeof addr === 'string' ? addr.trim() : addr)
+                .filter(addr => addr && addr.length > 0);
+              const prevLength = form.ccAddresses?.length || 0;
+              setForm(f => ({ ...f, ccAddresses: filteredValue }));
+              // 값이 추가되면 입력값 초기화 (칩이 생성되면 입력 필드 비우기)
+              if (filteredValue.length > prevLength) {
+                setCcInputValue("");
+              }
+            }}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip variant="outlined" label={option} {...getTagProps({ index })} key={option + index} />
+              ))
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="이메일 주소 직접 입력 (예: user@gmail.com)"
+                variant="standard"
+                sx={{ minWidth: 240 }}
+                onBlur={(e) => {
+                  // 포커스를 잃을 때 입력 중인 값이 있으면 처리
+                  const inputValue = e.target.value?.trim();
+                  if (inputValue && inputValue.length > 0) {
+                    const currentAddresses = form.ccAddresses || [];
+                    if (!currentAddresses.includes(inputValue)) {
+                      setForm(f => ({ ...f, ccAddresses: [...currentAddresses, inputValue] }));
+                    }
+                  }
+                  // 포커스를 잃으면 항상 입력 필드 비우기 (칩으로 변환된 후에도 남아있는 텍스트 제거)
+                  setCcInputValue("");
+                }}
+              />
+            )}
+            sx={{ flex: 1 }}
+          />
+          <Button 
+            size="small" 
+            sx={{ ml: 1, minWidth: 50, fontSize: 13 }}
             onClick={() => {
               setAddressBookType("cc");
               setAddressBookOpen(true);
             }}
           >
-            <Autocomplete
-              multiple
-              freeSolo
-              options={emailSuggestions}
-              value={form.ccAddresses}
-              inputValue={ccInputValue}
-              onInputChange={(e, newInputValue) => {
-                setCcInputValue(newInputValue);
-              }}
-              onChange={(e, value) => {
-                // 빈 문자열이나 공백만 있는 항목을 필터링하고 trim 처리
-                const filteredValue = value
-                  .map(addr => typeof addr === 'string' ? addr.trim() : addr)
-                  .filter(addr => addr && addr.length > 0);
-                const prevLength = form.ccAddresses?.length || 0;
-                setForm(f => ({ ...f, ccAddresses: filteredValue }));
-                // 값이 추가되면 입력값 초기화 (칩이 생성되면 입력 필드 비우기)
-                if (filteredValue.length > prevLength) {
-                  setCcInputValue("");
-                }
-              }}
-              renderTags={(value, getTagProps) =>
-                value.map((option, index) => (
-                  <Chip variant="outlined" label={option} {...getTagProps({ index })} key={option + index} />
-                ))
-              }
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  placeholder="이메일 주소 입력 (클릭하여 주소록에서 선택)"
-                  variant="standard"
-                  sx={{ minWidth: 240 }}
-                  onBlur={(e) => {
-                    // 포커스를 잃을 때 입력 중인 값이 있으면 처리
-                    const inputValue = e.target.value?.trim();
-                    if (inputValue && inputValue.length > 0) {
-                      const currentAddresses = form.ccAddresses || [];
-                      if (!currentAddresses.includes(inputValue)) {
-                        setForm(f => ({ ...f, ccAddresses: [...currentAddresses, inputValue] }));
-                      }
-                    }
-                    // 포커스를 잃으면 항상 입력 필드 비우기 (칩으로 변환된 후에도 남아있는 텍스트 제거)
-                    setCcInputValue("");
-                  }}
-                />
-              )}
-              sx={{ flex: 1, pointerEvents: 'none' }}
-            />
-          </Box>
+            📖 주소록
+          </Button>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", mb: 0.7 }}>
           <Typography sx={{ width: 85, fontWeight: 700 }}>숨은참조</Typography>
-          <Box 
-            sx={{ 
-              flex: 1, 
-              display: 'flex', 
-              alignItems: 'center',
-              cursor: 'pointer',
-              '&:hover': { bgcolor: 'action.hover', borderRadius: 1 }
-            }}
-            onClick={() => {
-              setAddressBookType("bcc");
-              setAddressBookOpen(true);
-            }}
-          >
-            <Autocomplete
+          <Autocomplete
             multiple
             freeSolo
             options={emailSuggestions}
@@ -772,29 +795,38 @@ function MailWritePage() {
                 <Chip variant="outlined" label={option} {...getTagProps({ index })} key={option + index} />
               ))
             }
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  placeholder="이메일 주소 입력 (클릭하여 주소록에서 선택)"
-                  variant="standard"
-                  sx={{ minWidth: 240 }}
-                  onBlur={(e) => {
-                    // 포커스를 잃을 때 입력 중인 값이 있으면 처리
-                    const inputValue = e.target.value?.trim();
-                    if (inputValue && inputValue.length > 0) {
-                      const currentAddresses = form.bccAddresses || [];
-                      if (!currentAddresses.includes(inputValue)) {
-                        setForm(f => ({ ...f, bccAddresses: [...currentAddresses, inputValue] }));
-                      }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="이메일 주소 직접 입력 (예: user@gmail.com)"
+                variant="standard"
+                sx={{ minWidth: 240 }}
+                onBlur={(e) => {
+                  // 포커스를 잃을 때 입력 중인 값이 있으면 처리
+                  const inputValue = e.target.value?.trim();
+                  if (inputValue && inputValue.length > 0) {
+                    const currentAddresses = form.bccAddresses || [];
+                    if (!currentAddresses.includes(inputValue)) {
+                      setForm(f => ({ ...f, bccAddresses: [...currentAddresses, inputValue] }));
                     }
-                    // 포커스를 잃으면 항상 입력 필드 비우기 (칩으로 변환된 후에도 남아있는 텍스트 제거)
-                    setBccInputValue("");
-                  }}
-                />
-              )}
-              sx={{ flex: 1, pointerEvents: 'none' }}
-            />
-          </Box>
+                  }
+                  // 포커스를 잃으면 항상 입력 필드 비우기 (칩으로 변환된 후에도 남아있는 텍스트 제거)
+                  setBccInputValue("");
+                }}
+              />
+            )}
+            sx={{ flex: 1 }}
+          />
+          <Button 
+            size="small" 
+            sx={{ ml: 1, minWidth: 50, fontSize: 13 }}
+            onClick={() => {
+              setAddressBookType("bcc");
+              setAddressBookOpen(true);
+            }}
+          >
+            📖 주소록
+          </Button>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", mb: 0.7 }}>
           <Typography sx={{ width: 85, fontWeight: 700 }}>제목</Typography>

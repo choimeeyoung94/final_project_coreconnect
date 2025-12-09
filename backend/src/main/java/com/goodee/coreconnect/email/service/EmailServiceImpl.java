@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -243,6 +244,21 @@ public class EmailServiceImpl implements EmailService {
 	    Boolean favoriteStatus = email.getFavoriteStatus();
 	    response.setFavoriteStatus(favoriteStatus != null && favoriteStatus);
 
+	    // 읽음 여부 설정 (viewerEmail에 해당하는 수신자의 읽음 상태)
+	    // 읽음 처리를 한 후 업데이트된 recipient의 상태를 반영
+	    if (myRecipientOpt.isPresent()) {
+	        EmailRecipient myRecipient = myRecipientOpt.get();
+	        // 읽음 처리를 했으므로 엔티티가 이미 업데이트되어 있음 (flush 했으므로 최신 상태)
+	        // 읽음 처리 후 업데이트된 상태를 반영
+	        Boolean readYn = myRecipient.getEmailReadYn();
+	        response.setEmailReadYn(readYn);
+	        log.info("getEmailDetail: 응답 DTO에 emailReadYn 설정 - emailId={}, viewerEmail={}, emailReadYn={}", 
+	                emailId, viewerEmail, readYn);
+	    } else {
+	        // 수신자가 아닌 경우 (발신자 등)
+	        response.setEmailReadYn(null);
+	    }
+
 	    // 첨부파일 조회 및 세팅
 	    files = emailFileRepository.findByEmail(email);
 	    List<EmailResponseDTO.AttachmentDTO> attachments = files.stream()
@@ -307,8 +323,24 @@ public class EmailServiceImpl implements EmailService {
 	    log.info("[getInbox] 조회 결과 - totalElements: {}, content size: {}", recipientPage.getTotalElements(), recipientPage.getContent().size());
 
 	    // EmailRecipient를 직접 DTO로 변환 (각 사용자별 읽음 상태 포함)
-	    List<EmailResponseDTO> dtoList = recipientPage.stream().map(recipient -> {
+	    // emailId 기준으로 중복 제거 (같은 메일이 TO, CC, BCC로 여러 번 들어올 수 있음)
+	    Map<Integer, EmailResponseDTO> dtoMap = new LinkedHashMap<>();
+	    
+	    recipientPage.getContent().forEach(recipient -> {
 	        com.goodee.coreconnect.email.entity.Email email = recipient.getEmail();
+	        Integer emailId = email.getEmailId();
+	        
+	        // 이미 같은 emailId의 DTO가 있으면 읽음 상태만 업데이트 (안읽은 상태 우선)
+	        if (dtoMap.containsKey(emailId)) {
+	            EmailResponseDTO existingDto = dtoMap.get(emailId);
+	            // 안읽은 상태가 하나라도 있으면 안읽은 것으로 표시
+	            if (recipient.getEmailReadYn() == null || !recipient.getEmailReadYn()) {
+	                existingDto.setEmailReadYn(false);
+	            }
+	            return;
+	        }
+	        
+	        // 새로운 DTO 생성
 	        EmailResponseDTO dto = new EmailResponseDTO();
 	        
 	        // Email 엔티티의 기본 필드
@@ -333,13 +365,16 @@ public class EmailServiceImpl implements EmailService {
 	            });
 	        }
 	        
-	        return dto;
-	    }).collect(Collectors.toList());
-
-	    log.info("[getInbox] DTO 변환 완료 - dtoList size: {}", dtoList.size());
+	        dtoMap.put(emailId, dto);
+	    });
 	    
-	    // Page 반환(dto)
-	    return new PageImpl<>(dtoList, pageable, recipientPage.getTotalElements());
+	    List<EmailResponseDTO> dtoList = new ArrayList<>(dtoMap.values());
+
+	    log.info("[getInbox] DTO 변환 완료 - dtoList size: {} (중복 제거 후)", dtoList.size());
+	    
+	    // Page 반환(dto) - totalElements는 중복 제거 전 개수이므로 dtoList.size()로 조정
+	    long adjustedTotal = dtoMap.size();
+	    return new PageImpl<>(dtoList, pageable, adjustedTotal);
 	}
 	@Override
 	public Page<EmailResponseDTO> getSentbox(String userEmail, int page, int size, String searchType, String keyword) {
@@ -375,24 +410,27 @@ public class EmailServiceImpl implements EmailService {
 	        // 수신자 정보
 	        List<EmailRecipient> recipients = emailRecipientRepository.findByEmail(email);
 
-	        // 수신자 정보 추가
+	        // 수신자 정보 추가 (중복 제거)
 	        List<String> toAddresses = recipients.stream()
 	            .filter(r -> "TO".equalsIgnoreCase(r.getEmailRecipientType()))
 	            .map(EmailRecipient::getEmailRecipientAddress)
+	            .distinct()
 	            .collect(Collectors.toList());
 	        dto.setRecipientAddresses(toAddresses);
 
-	        // 참조 정보 추가
+	        // 참조 정보 추가 (중복 제거)
 	        List<String> ccAddresses = recipients.stream()
 	            .filter(r -> "CC".equalsIgnoreCase(r.getEmailRecipientType()))
 	            .map(EmailRecipient::getEmailRecipientAddress)
+	            .distinct()
 	            .collect(Collectors.toList());
 	        dto.setCcAddresses(ccAddresses);
 
-	        // 숨은 참조 정보 추가
+	        // 숨은 참조 정보 추가 (중복 제거)
 	        List<String> bccAddresses = recipients.stream()
 	            .filter(r -> "BCC".equalsIgnoreCase(r.getEmailRecipientType()))
 	            .map(EmailRecipient::getEmailRecipientAddress)
+	            .distinct()
 	            .collect(Collectors.toList());
 	        dto.setBccAddresses(bccAddresses);
 
@@ -669,20 +707,30 @@ public class EmailServiceImpl implements EmailService {
     @Override
     @Transactional
     public EmailResponseDTO sendEmailViaSendGrid(EmailSendRequestDTO requestDTO, List<MultipartFile> attachments) throws IOException {
-        // 1) DB에 저장(reuse)
+        // 1) DB에 저장
         EmailResponseDTO savedDto = sendEmail(requestDTO, attachments);
 
-        // 2) SendGrid 외부 전송 (동기 호출)
+        // 2) 수신자가 모두 사내 도메인인지 확인
+        boolean allInternalRecipients = requestDTO.getRecipientAddress() != null &&
+                requestDTO.getRecipientAddress().stream()
+                        .allMatch(email -> email.endsWith("@coreconnect.io.kr"));
+
+        if (allInternalRecipients) {
+            log.info("[sendEmailViaSendGrid] All recipients are internal (@coreconnect.io.kr) - skipping SendGrid external send");
+            return savedDto;  // ⭐ 사내 이메일은 SendGrid 발송 안 함 (DB 저장만)
+        }
+
+        // 3) 외부 이메일이 있는 경우만 SendGrid로 발송
         try {
             if (senGridApiKey == null || senGridApiKey.isBlank()) {
                 log.warn("[sendEmailViaSendGrid] SendGrid API key not configured - skipping external send");
             } else {
                 com.sendgrid.Response sgResp = sendGridEmailSender.send(requestDTO, attachments);
-                log.info("[sendEmailViaSendGrid] sendgrid status={}, body={}", sgResp.getStatusCode(), sgResp.getBody());
+                log.info("[sendEmailViaSendGrid] SendGrid status={}, body={}", sgResp.getStatusCode(), sgResp.getBody());
             }
         } catch (Exception e) {
             log.error("[sendEmailViaSendGrid] SendGrid send failed", e);
-            // 실패는 로깅 후 흘려보내기(요구사항에 따라 예외 처리/재시도 구현)
+            // 실패는 로깅 후 흘려보내기 (DB에는 저장 완료)
         }
 
         return savedDto;
@@ -719,14 +767,30 @@ public class EmailServiceImpl implements EmailService {
 	@Override
     @Transactional
     public boolean markMailAsRead(Integer emailId, String userEmail) {
+        log.info("markMailAsRead: 시작 - emailId={}, userEmail={}", emailId, userEmail);
+        
         // 특정 이메일의 수신자(본인)에 대해 읽음처리 (이미 읽었으면 false)
         com.goodee.coreconnect.email.entity.Email email = emailRepository.findById(emailId)
-                .orElseThrow(() -> new IllegalArgumentException("메일이 존재하지 않습니다." + emailId));
+                .orElseThrow(() -> {
+                    log.error("markMailAsRead: 메일을 찾을 수 없습니다 - emailId={}, userEmail={}", emailId, userEmail);
+                    return new IllegalArgumentException("메일이 존재하지 않습니다." + emailId);
+                });
+
+        log.info("markMailAsRead: Email 엔티티 조회 완료 - emailId={}, senderId={}", emailId, email.getSenderId());
 
         List<EmailRecipient> recipients = emailRecipientRepository.findByEmail(email);
+        log.info("markMailAsRead: EmailRecipient 목록 조회 완료 - emailId={}, recipientsCount={}", 
+                emailId, recipients.size());
 
         Optional<EmailRecipient> myRecipientOpt = recipients.stream()
-            .filter(r -> userEmail.equals(r.getEmailRecipientAddress()))
+            .filter(r -> {
+                boolean matches = userEmail.equals(r.getEmailRecipientAddress());
+                if (matches) {
+                    log.info("markMailAsRead: 수신자 매칭 발견 - recipientId={}, address={}, emailReadYn={}", 
+                            r.getEmailRecipientId(), r.getEmailRecipientAddress(), r.getEmailReadYn());
+                }
+                return matches;
+            })
             .findFirst();
 
         // emailReadYn이 false이거나 null인 경우 모두 처리
@@ -734,25 +798,38 @@ public class EmailServiceImpl implements EmailService {
             EmailRecipient recipient = myRecipientOpt.get();
             Integer recipientId = recipient.getEmailRecipientId();
             Boolean currentReadYn = recipient.getEmailReadYn();
+            log.info("markMailAsRead: 수신자 정보 - recipientId={}, currentReadYn={}", recipientId, currentReadYn);
+            
             // 안읽은 메일인 경우 (false 또는 null)
             if (currentReadYn == null || Boolean.FALSE.equals(currentReadYn)) {
                 LocalDateTime now = LocalDateTime.now();
+                log.info("markMailAsRead: 읽음 처리 시작 - recipientId={}, emailId={}, userEmail={}", 
+                        recipientId, emailId, userEmail);
+                
                 // 엔티티를 직접 수정하여 DB에 확실히 반영
                 recipient.setEmailReadYn(true);
                 recipient.setEmailReadAt(now);
+                
+                log.info("markMailAsRead: EmailRecipient 엔티티 수정 완료 - recipientId={}, emailReadYn=true, emailReadAt={}", 
+                        recipientId, now);
+                
                 emailRecipientRepository.save(recipient);
+                log.info("markMailAsRead: EmailRecipient save() 호출 완료 - recipientId={}", recipientId);
+                
                 // 즉시 DB에 반영되도록 flush
                 emailRecipientRepository.flush();
-                log.info("markMailAsRead: EmailRecipient updated - emailId={}, userEmail={}, recipientId={}, emailReadYn={} -> true, emailReadAt={}", 
-                        emailId, userEmail, recipientId, currentReadYn, now);
+                log.info("markMailAsRead: EmailRecipient flush() 호출 완료 - recipientId={}", recipientId);
                 
                 // DB에 실제로 반영되었는지 확인 (디버그 로그)
                 emailRecipientRepository.findById(recipientId).ifPresent(savedRecipient -> {
                     Boolean savedReadYn = savedRecipient.getEmailReadYn();
-                    log.info("markMailAsRead: DB 확인 - recipientId={}, 실제 DB의 emailReadYn={}", 
-                            recipientId, savedReadYn);
+                    log.info("markMailAsRead: DB 확인 - recipientId={}, 실제 DB의 emailReadYn={}, emailReadAt={}", 
+                            recipientId, savedReadYn, savedRecipient.getEmailReadAt());
                     if (!Boolean.TRUE.equals(savedReadYn)) {
                         log.error("markMailAsRead: ⚠️ 경고 - DB에 emailReadYn이 true로 저장되지 않았습니다! recipientId={}, emailId={}, userEmail={}", 
+                                recipientId, emailId, userEmail);
+                    } else {
+                        log.info("markMailAsRead: ✅ DB에 emailReadYn=true로 정상 저장됨 - recipientId={}, emailId={}, userEmail={}", 
                                 recipientId, emailId, userEmail);
                     }
                 });
@@ -761,12 +838,23 @@ public class EmailServiceImpl implements EmailService {
                 email.setEmailReadAt(now);
                 emailRepository.save(email);
                 emailRepository.flush();
-                log.info("markMailAsRead: Email updated - emailId={}, emailReadAt={}", emailId, now);
+                log.info("markMailAsRead: Email 엔티티 업데이트 완료 - emailId={}, emailReadAt={}", emailId, now);
                 
+                log.info("markMailAsRead: ✅ 읽음 처리 성공 - emailId={}, userEmail={}, recipientId={}", 
+                        emailId, userEmail, recipientId);
                 return true;
             } else {
-                log.info("markMailAsRead: Email already read - emailId={}, userEmail={}, emailReadYn={}", 
+                log.info("markMailAsRead: 이미 읽은 메일 - emailId={}, userEmail={}, emailReadYn={}", 
                         emailId, userEmail, currentReadYn);
+                return false;
+            }
+        } else {
+            log.warn("markMailAsRead: ⚠️ 수신자를 찾을 수 없습니다 - emailId={}, userEmail={}, recipientsCount={}", 
+                    emailId, userEmail, recipients.size());
+            if (recipients.size() > 0) {
+                log.warn("markMailAsRead: 수신자 목록:");
+                recipients.forEach(r -> log.warn("  - recipientId={}, address={}, type={}", 
+                        r.getEmailRecipientId(), r.getEmailRecipientAddress(), r.getEmailRecipientType()));
             }
         }
         // 이미 읽은 경우나 못찾은 경우

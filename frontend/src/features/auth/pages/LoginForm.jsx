@@ -102,15 +102,13 @@ export default function LoginForm({ onLoginSuccess }) {
             sx: { borderRadius: 2 },
             endAdornment: (
               <InputAdornment position="end">
-                {!!pw && (
-                  <IconButton
-                    onClick={() => setShowPw((v) => !v)}
-                    edge="end"
-                    aria-label={showPw ? "비밀번호 숨기기" : "비밀번호 보기"}
-                  >
-                    {showPw ? <VisibilityOff /> : <Visibility />}
-                  </IconButton>
-                )}
+                <IconButton
+                  onClick={() => setShowPw((v) => !v)}
+                  edge="end"
+                  aria-label={showPw ? "비밀번호 숨기기" : "비밀번호 보기"}
+                >
+                  {showPw ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
               </InputAdornment>
             ),
           }}
