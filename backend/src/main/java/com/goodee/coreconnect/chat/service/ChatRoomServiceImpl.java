@@ -635,6 +635,31 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	    		}
 	    	}
 	    	
+	    	// ===== 질문 1: 왜 두 번 saveAndFlush()를 하나요? =====
+
+	    	// 답변:
+	    	// - 첫 번째: 정상적인 안읽음 상태 처리 (readYn=false, readAt=null)
+	    	// - 두 번째: 비정상적인 불일치 상태 수정 (readYn=false, readAt≠null)
+	    	// → 서로 다른 조건에서 실행됨! (동시에 실행 안 됨)
+
+	    	// ===== 질문 2: 불일치 row 강제 동기화란? =====
+
+	    	// 답변:
+	    	// - readAt(읽은 시간)은 있는데 readYn(읽음 여부)가 false인 비정상 상태
+	    	// - 논리적 모순: "안 읽었는데 읽은 시간이 있다?"
+	    	// - 원인: 동시성 문제, 트랜잭션 롤백, DB 수정 실수, 버그 등
+	    	// - 해결: 자동으로 readYn을 true로 수정하여 정합성 복구
+
+	    	// ===== 왜 이렇게 하나요? =====
+
+	    	// 1️⃣ 방어적 프로그래밍
+//	    	    - 예상치 못한 상황에도 시스템이 자동으로 복구
+
+	    	// 2️⃣ 데이터 정합성 보장
+//	    	    - 불일치 상태를 방치하지 않고 즉시 수정
+
+	    	// 3️⃣ 시스템 신뢰성 향상
+//	    	    - 버그나 동시성 문제로 인한 영향 최소화
 	    	// 불일치 row 강제 동기화 (optional)
 	        if (status.getReadAt() != null && Boolean.FALSE.equals(status.getReadYn())) {
 	            status.markRead();
