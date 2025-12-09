@@ -215,7 +215,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler{
                     
                     // ⭐ 모든 참여자에게 전송 (각 참여자가 자신의 unreadCount만 적용)
                     messagingTemplate.convertAndSend("/topic/chat.room." + roomId, roomUpdateMessage);
-                    log.info("🔥 [afterConnectionEstablished] ROOM_UNREAD_COUNT_UPDATE 전송 - roomId: {}, participantId: {}, participantEmail: {}, totalUnreadCount: {}", 
+                    log.info("🔥 [afterConnectionEstablished] ⭐⭐⭐ ROOM_UNREAD_COUNT_UPDATE 전송 ⭐⭐⭐ - roomId: {}, participantId: {}, participantEmail: {}, totalUnreadCount: {}", 
                             roomId, participantId, participantEmail, totalUnreadCount);
                 }
                 
@@ -370,8 +370,8 @@ public class ChatWebSocketHandler extends TextWebSocketHandler{
             
             // ⭐ 모든 참여자에게 전송 (각 참여자가 자신의 unreadCount만 적용)
             messagingTemplate.convertAndSend(topic, roomUpdateMessage);
-            log.info("[handleTextMessage] ⭐ ROOM_UNREAD_COUNT_UPDATE 전송 - roomId: {}, participantId: {}, participantEmail: {}, totalUnreadCount: {}", 
-                    roomId, participantId, participantEmail, totalUnreadCount);
+            log.info("[handleTextMessage] ⭐⭐⭐ ROOM_UNREAD_COUNT_UPDATE 전송 ⭐⭐⭐ - roomId: {}, participantId: {}, participantEmail: {}, totalUnreadCount: {}, topic: {}", 
+                    roomId, participantId, participantEmail, totalUnreadCount, topic);
         }
     }
 

@@ -501,19 +501,20 @@ export default function ChatLayout() {
         return;
       }
       
-      console.log("📊 [ChatLayout] ⭐ ROOM_UNREAD_COUNT_UPDATE 처리 시작 (자신의 unreadCount):", {
+      console.log("📊 [ChatLayout] ⭐⭐⭐ ROOM_UNREAD_COUNT_UPDATE 처리 시작 (자신의 unreadCount) ⭐⭐⭐", {
         roomId,
         unreadCount,
         participantEmail,
         myEmail: userProfile?.email,
-        participantId
+        participantId,
+        현재roomList: roomList.map(r => ({ roomId: r.roomId, roomName: r.roomName, unreadCount: r.unreadCount }))
       });
       
       const roomIdNum = Number(roomId);
       
-      // ⭐ 채팅방 목록의 unreadCount 업데이트
+      // ⭐ 채팅방 목록의 unreadCount 업데이트 및 정렬
       setRoomList((prevRoomList) => {
-        return prevRoomList.map((room) => {
+        const updated = prevRoomList.map((room) => {
           if (Number(room.roomId) === roomIdNum) {
             console.log("📊 [ChatLayout] ROOM_UNREAD_COUNT_UPDATE - 채팅방 목록 unreadCount 업데이트:", {
               roomId: room.roomId,
@@ -528,6 +529,14 @@ export default function ChatLayout() {
           }
           return room;
         });
+        
+        // ⭐ 정렬하여 반환 (화면 리렌더링 트리거)
+        const sorted = sortRoomList(updated);
+        console.log("📊 [ChatLayout] ⭐⭐⭐ ROOM_UNREAD_COUNT_UPDATE 완료 - roomList 업데이트 후 ⭐⭐⭐", {
+          roomId: roomIdNum,
+          업데이트된roomList: sorted.map(r => ({ roomId: r.roomId, roomName: r.roomName, unreadCount: r.unreadCount }))
+        });
+        return sorted;
       });
 
       return;
