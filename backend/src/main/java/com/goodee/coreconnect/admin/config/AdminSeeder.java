@@ -47,33 +47,38 @@ public class AdminSeeder {
     /** 관리자 계정이 존재하지 않는 경우만 실행 */
     @Transactional
     protected void seedAdminIfNeeded() {
-        if (userRepository.existsByEmail(ADMIN_EMAIL)) {
-            return; 
+        try {
+            if (userRepository.existsByEmail(ADMIN_EMAIL)) {
+                return; 
+            }
+
+            Department dept = null;
+            if (ADMIN_DEPT_NAME != null) {
+                dept = departmentRepository.findByDeptName(ADMIN_DEPT_NAME)
+                        .orElse(null);
+            }
+            
+            // 비밀번호 암호화
+            String encoded = passwordEncoder.encode(ADMIN_RAW_PASSWORD);
+
+            // 사번 자동 생성 (연도 4자리 + 자동 증가 3자리)
+            String employeeNumber = employeeNumberService.generateEmployeeNumber();
+
+            User admin = User.createUser(
+                    encoded,               
+                    ADMIN_NAME,             
+                    Role.ADMIN,             
+                    ADMIN_EMAIL,           
+                    ADMIN_PHONE,           
+                    dept,                   
+                    JobGrade.PRESIDENT,
+                    employeeNumber
+            );
+
+            userRepository.save(admin);
+            log.info("✅ Admin user created successfully: {}", ADMIN_EMAIL);
+        } catch (Exception e) {
+            log.warn("⚠️ Failed to seed admin user (tables may not be created yet): {}", e.getMessage());
         }
-
-        Department dept = null;
-        if (ADMIN_DEPT_NAME != null) {
-            dept = departmentRepository.findByDeptName(ADMIN_DEPT_NAME)
-                    .orElse(null);
-        }
-        
-        // 비밀번호 암호화
-        String encoded = passwordEncoder.encode(ADMIN_RAW_PASSWORD);
-
-        // 사번 자동 생성 (연도 4자리 + 자동 증가 3자리)
-        String employeeNumber = employeeNumberService.generateEmployeeNumber();
-
-        User admin = User.createUser(
-                encoded,               
-                ADMIN_NAME,             
-                Role.ADMIN,             
-                ADMIN_EMAIL,           
-                ADMIN_PHONE,           
-                dept,                   
-                JobGrade.PRESIDENT,
-                employeeNumber
-        );
-
-        userRepository.save(admin);
     }
 }
