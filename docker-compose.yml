@@ -49,12 +49,13 @@ services:
         condition: service_healthy
     # 7) Healthcheck: Spring Boot Actuator를 사용한 헬스 체크
     # Rolling Update 시 새 컨테이너가 완전히 준비될 때까지 대기
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
-      start_period: 90s
+    # ⚠️ 임시로 주석 처리 (curl 없는 경우)
+    # healthcheck:
+    #   test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 30
+    #   start_period: 90s
     # 8) docker-compose를 사용하면 Dockerfile를 통하지 않아도 환경 변수를 직접 컨테이너(boot-container)로 전달 가능
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8

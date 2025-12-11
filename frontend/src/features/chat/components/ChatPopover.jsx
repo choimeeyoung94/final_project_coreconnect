@@ -345,7 +345,7 @@ export default function ChatPopover({
                   width: "100%",
                 }}
               >
-                채팅방 목록으로 가기
+                채팅 목록으로 가기
               </Button>
             </Box>
           </>
@@ -411,7 +411,7 @@ export default function ChatPopover({
                   fontSize: "0.875rem",
                 }}
               >
-                채팅방 목록으로 가기
+                채팅 목록으로 가기
               </Button>
             </Box>
           </>
