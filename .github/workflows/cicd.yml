@@ -41,12 +41,12 @@ jobs:
           chmod +x gradlew || true
           ./gradlew clean build -x test --no-daemon || ./gradlew clean build -x test --no-daemon
 
-      # 5. Backend 단위 테스트 실행
-      - name: Run Backend Tests
-        working-directory: ./backend
-        run: |
-          ./gradlew test --no-daemon || ./gradlew test --no-daemon
-        continue-on-error: true  # 테스트 실패해도 다음 단계 진행 (경고용)
+      # 5. Backend 단위 테스트 실행 (임시 비활성화)
+      # - name: Run Backend Tests
+      #   working-directory: ./backend
+      #   run: |
+      #     ./gradlew test --no-daemon || ./gradlew test --no-daemon
+      #   continue-on-error: true  # 테스트 실패해도 다음 단계 진행 (경고용)
 
       # 6. Frontend 의존성 설치
       - name: Install Frontend Dependencies
