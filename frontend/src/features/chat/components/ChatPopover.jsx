@@ -411,7 +411,7 @@ export default function ChatPopover({
                   fontSize: "0.875rem",
                 }}
               >
-                채팅 목록으로 이동
+                채팅 목록 가기
               </Button>
             </Box>
           </>
