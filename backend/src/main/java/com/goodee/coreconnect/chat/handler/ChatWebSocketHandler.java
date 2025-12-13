@@ -193,6 +193,32 @@ public class ChatWebSocketHandler extends TextWebSocketHandler{
                     }
                 }
                 
+                // ⭐ 각 참여자별로 채팅방 전체 unreadCount 계산 및 전송
+                // 읽음 처리 후 각 참여자가 해당 채팅방에서 읽지 않은 메시지 수를 업데이트
+                List<Integer> participantIds = chatRoomService.getParticipantIds(roomId);
+                for (Integer participantId : participantIds) {
+                    // ⭐ 각 참여자별로 채팅방의 안 읽은 메시지 수 계산
+                    int totalUnreadCount = chatMessageReadStatusRepository
+                        .countByUserIdAndChatRoomIdAndReadYnFalse(participantId, roomId);
+                    
+                    // ⭐ 참여자 정보 조회
+                    Optional<User> participantOpt = userRepository.findById(participantId);
+                    String participantEmail = participantOpt.map(User::getEmail).orElse(null);
+                    
+                    // ⭐ ROOM_UNREAD_COUNT_UPDATE 메시지 전송 (채팅방 전체 unreadCount)
+                    Map<String, Object> roomUpdateMessage = new HashMap<>();
+                    roomUpdateMessage.put("type", "ROOM_UNREAD_COUNT_UPDATE");
+                    roomUpdateMessage.put("roomId", roomId);
+                    roomUpdateMessage.put("unreadCount", totalUnreadCount); // ⭐ 채팅방 전체 unreadCount
+                    roomUpdateMessage.put("participantId", participantId); // ⭐ 대상 참여자 ID
+                    roomUpdateMessage.put("participantEmail", participantEmail); // ⭐ 대상 참여자 이메일
+                    
+                    // ⭐ 모든 참여자에게 전송 (각 참여자가 자신의 unreadCount만 적용)
+                    messagingTemplate.convertAndSend("/topic/chat.room." + roomId, roomUpdateMessage);
+                    log.info("🔥 [afterConnectionEstablished] ⭐⭐⭐ ROOM_UNREAD_COUNT_UPDATE 전송 ⭐⭐⭐ - roomId: {}, participantId: {}, participantEmail: {}, totalUnreadCount: {}", 
+                            roomId, participantId, participantEmail, totalUnreadCount);
+                }
+                
                 log.info("🔥 [afterConnectionEstablished] 채팅방 접속 시 메시지 읽음 처리 완료 - roomId: {}, userId: {}", roomId, userId);
             }
         } else {
@@ -320,11 +346,36 @@ public class ChatWebSocketHandler extends TextWebSocketHandler{
 	        String topic = "/topic/chat.room." + roomId;
 	        messagingTemplate.convertAndSend(topic, unreadCountUpdate);
 	        
-	        log.info("[handleTextMessage] ⭐ UNREAD_COUNT_UPDATE 브로드캐스트 완료 - chatId: {}, unreadCount: {}, topic: {}", 
-	                dto.getId(), latestUnreadCount, topic);
-	    }
+        log.info("[handleTextMessage] ⭐ UNREAD_COUNT_UPDATE 브로드캐스트 완료 - chatId: {}, unreadCount: {}, topic: {}", 
+                dto.getId(), latestUnreadCount, topic);
+        
+        // ⭐ 메시지 전송 후 각 참여자별로 채팅방 전체 unreadCount 계산 및 전송
+        // 발신자를 포함한 모든 참여자에게 최신 unreadCount 전송
+        for (Integer participantId : participantIds) {
+            // ⭐ 각 참여자별로 채팅방의 안 읽은 메시지 수 계산
+            int totalUnreadCount = chatMessageReadStatusRepository
+                .countByUserIdAndChatRoomIdAndReadYnFalse(participantId, roomId);
+            
+            // ⭐ 참여자 정보 조회
+            Optional<User> participantOpt = userRepository.findById(participantId);
+            String participantEmail = participantOpt.map(User::getEmail).orElse(null);
+            
+            // ⭐ ROOM_UNREAD_COUNT_UPDATE 메시지 전송 (채팅방 전체 unreadCount)
+            Map<String, Object> roomUpdateMessage = new HashMap<>();
+            roomUpdateMessage.put("type", "ROOM_UNREAD_COUNT_UPDATE");
+            roomUpdateMessage.put("roomId", roomId);
+            roomUpdateMessage.put("unreadCount", totalUnreadCount); // ⭐ 채팅방 전체 unreadCount
+            roomUpdateMessage.put("participantId", participantId); // ⭐ 대상 참여자 ID
+            roomUpdateMessage.put("participantEmail", participantEmail); // ⭐ 대상 참여자 이메일
+            
+            // ⭐ 모든 참여자에게 전송 (각 참여자가 자신의 unreadCount만 적용)
+            messagingTemplate.convertAndSend(topic, roomUpdateMessage);
+            log.info("[handleTextMessage] ⭐⭐⭐ ROOM_UNREAD_COUNT_UPDATE 전송 ⭐⭐⭐ - roomId: {}, participantId: {}, participantEmail: {}, totalUnreadCount: {}, topic: {}", 
+                    roomId, participantId, participantEmail, totalUnreadCount, topic);
+        }
+    }
 
-	    String payload = objectMapper.writeValueAsString(dto);
+    String payload = objectMapper.writeValueAsString(dto);
 
 	    // ⭐ 전체 참가자에게 메시지 push (여러 브라우저/탭 지원)
 	    for (Integer pid : participantIds) {

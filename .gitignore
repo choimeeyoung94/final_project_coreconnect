@@ -6,5 +6,8 @@
 !.env.template
 .txt
 
+# Let's Encrypt 챌린지 파일 (서버에서 생성됨)
+frontend/letsencrypt-challenge/
+
 # 배포 로그
 deploy-*.log
