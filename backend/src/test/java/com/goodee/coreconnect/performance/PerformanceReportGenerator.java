@@ -30,7 +30,7 @@ public class PerformanceReportGenerator {
 
         try (FileWriter writer = new FileWriter(outputPath)) {
             writeHeader(writer);
-            writeTestEnvironment(writer);
+            writeTestEnvironment(writer, afterJMeterMetrics);
             writeLogMetrics(writer, beforeLogMetrics, afterLogMetrics);
             writeJMeterMetrics(writer, beforeJMeterMetrics, afterJMeterMetrics);
             writeSummary(writer, beforeLogMetrics, afterLogMetrics, beforeJMeterMetrics, afterJMeterMetrics);
@@ -43,7 +43,7 @@ public class PerformanceReportGenerator {
         writer.write("---\n\n");
     }
 
-    private void writeTestEnvironment(FileWriter writer) throws IOException {
+    private void writeTestEnvironment(FileWriter writer, JMeterResultAnalyzer.JMeterMetrics afterJMeterMetrics) throws IOException {
         writer.write("## 측정 환경\n\n");
         writer.write("- 테스트 도구: JMeter 5.5\n");
         writer.write("- 동시 사용자: 10명\n");
@@ -176,6 +176,10 @@ public class PerformanceReportGenerator {
         return ((before - after) / before) * 100;
     }
 }
+
+
+
+
 
 
 

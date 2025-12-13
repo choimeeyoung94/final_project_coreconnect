@@ -42,6 +42,8 @@ dependencies {
 	// 스웨거 세팅
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
     runtimeOnly 'com.mysql:mysql-connector-j:8.0.33'
+	// H2 Database (로컬 개발용 - application-local.properties에서 사용)
+	runtimeOnly 'com.h2database:h2'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'

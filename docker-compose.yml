@@ -97,7 +97,7 @@ services:
     # 6) Let's Encrypt 인증서 볼륨 마운트 (HTTPS 사용 시에만 주석 해제)
     # ⚠️ 주의: HTTPS를 사용하지 않는다면 아래 볼륨을 주석 처리해야 합니다.
     volumes:
-      # - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
       - ./frontend/letsencrypt-challenge:/usr/share/nginx/html/.well-known/acme-challenge
     # 7) backend 서비스가 시작될 때까지 대기 (healthcheck 조건 완화)
     depends_on:
