@@ -421,7 +421,7 @@ coreconnect/
 
 ### 프로젝트 관련 링크
 - GitHub Repository: https://github.com/choimeeyoung94/final_project_coreconnect
-- 배포 링크: http://54.180.98.131/home
+- 배포 링크: http://coreconnect.io.kr/login
 - 데모 영상: https://youtu.be/qk5ntPlkdxY?si=bBmCznKjtsi8-Exu
 
 ---
@@ -445,8 +445,6 @@ coreconnect/
 
 ## 🎯 향후 계획
 
-- [ ] 테스트 코드 추가 (단위 테스트, 통합 테스트)
-- [ ] CI/CD 파이프라인 구축
 - [ ] 성능 최적화 (캐싱, 쿼리 최적화)
 - [ ] 모바일 반응형 UI 개선
 - [ ] 실시간 화상 회의 기능 추가
