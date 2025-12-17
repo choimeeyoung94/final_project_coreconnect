@@ -25,22 +25,24 @@ public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, 
     // 안읽은 메일 개수 (수신자 이메일, 읽음여부, 삭제되지 않은 것만)
     // emailReadYn이 false이거나 null인 경우를 안읽은 메일로 간주
     // DRAFT, RESERVED 상태 제외 (실제 목록 조회와 동일한 조건)
+    // ⭐ 성능 최적화: NOT IN → =, IS NULL 제거
     @Query("SELECT COUNT(r) FROM EmailRecipient r " +
            "WHERE r.emailRecipientAddress = :emailRecipientAddress " +
            "AND r.emailRecipientType IN ('TO', 'CC', 'BCC') " +
            "AND (r.emailReadYn = false OR r.emailReadYn IS NULL) " +
-           "AND r.email.emailStatus NOT IN ('TRASH', 'DELETED', 'DRAFT', 'RESERVED') " +
-           "AND (r.deleted IS NULL OR r.deleted = false)")
+           "AND r.email.emailStatus = 'SENT' " +  // ⭐ NOT IN → = 로 변경
+           "AND r.deleted = false")  // ⭐ IS NULL 제거
     int countUnreadInboxMails(
         @Param("emailRecipientAddress") String emailRecipientAddress
     );
 
     // 받은 메일함 전체 개수 (수신자 이메일, 삭제되지 않은 것만, DRAFT/RESERVED 제외)
+    // ⭐ 성능 최적화: NOT IN → =, IS NULL 제거
     @Query("SELECT COUNT(r) FROM EmailRecipient r " +
            "WHERE r.emailRecipientAddress = :emailRecipientAddress " +
            "AND r.emailRecipientType IN ('TO', 'CC', 'BCC') " +
-           "AND r.email.emailStatus NOT IN ('TRASH', 'DELETED', 'DRAFT', 'RESERVED') " +
-           "AND (r.deleted IS NULL OR r.deleted = false)")
+           "AND r.email.emailStatus = 'SENT' " +  // ⭐ NOT IN → = 로 변경
+           "AND r.deleted = false")  // ⭐ IS NULL 제거
     int countInboxMails(
         @Param("emailRecipientAddress") String emailRecipientAddress
     );
@@ -91,22 +93,24 @@ public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, 
     boolean existsByEmailIdAndEmailRecipientAddress(@Param("emailId") Integer emailId, @Param("address") String address);
 
     // 받은메일함(전체)에서 'TRASH', 'DELETED', 'DRAFT', 'RESERVED' 상태 제외 및 삭제된 메일 제외
+    // ⭐ 성능 최적화: NOT IN → =, IS NULL 제거, Fetch Join 추가
     @Query("SELECT r FROM EmailRecipient r " +
+           "LEFT JOIN FETCH r.email e " +  // ⭐ Fetch Join으로 N+1 방지
            "WHERE r.emailRecipientAddress = :emailRecipientAddress " +
            "AND r.emailRecipientType IN :emailRecipientType " +
-           "AND r.email.emailStatus NOT IN ('TRASH', 'DELETED', 'DRAFT', 'RESERVED') " +
-           "AND (r.deleted IS NULL OR r.deleted = false) " +
+           "AND e.emailStatus = 'SENT' " +  // ⭐ NOT IN → = 로 변경 (인덱스 최적화)
+           "AND r.deleted = false " +  // ⭐ IS NULL 제거 (인덱스 최적화)
            "AND (" +
            "    :keyword IS NULL OR :keyword = '' OR (" +
-           "        (:searchType = 'TITLE' AND LOWER(r.email.emailTitle) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR " +
-           "        (:searchType = 'CONTENT' AND LOWER(r.email.emailContent) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR " +
+           "        (:searchType = 'TITLE' AND LOWER(e.emailTitle) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR " +
+           "        (:searchType = 'CONTENT' AND LOWER(e.emailContent) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR " +
            "        (:searchType = 'TITLE_CONTENT' AND (" +
-           "            LOWER(r.email.emailTitle) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "            LOWER(r.email.emailContent) LIKE LOWER(CONCAT('%', :keyword, '%'))" +
+           "            LOWER(e.emailTitle) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "            LOWER(e.emailContent) LIKE LOWER(CONCAT('%', :keyword, '%'))" +
            "        ))" +
            "    )" +
            ") " +
-           "ORDER BY r.email.emailSentTime DESC, r.email.reservedAt DESC")
+           "ORDER BY e.emailSentTime DESC, e.reservedAt DESC")
     Page<EmailRecipient> findInboxExcludingTrash(
         @Param("emailRecipientAddress") String emailRecipientAddress,
         @Param("emailRecipientType") List<String> emailRecipientType,
@@ -116,24 +120,26 @@ public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, 
     );
 
     // 오늘의 메일(휴지통/삭제 제외)
+    // ⭐ 성능 최적화: NOT IN → =, IS NULL 제거, Fetch Join 추가
     @Query("SELECT r FROM EmailRecipient r " +
+           "LEFT JOIN FETCH r.email e " +  // ⭐ Fetch Join으로 N+1 방지
            "WHERE r.emailRecipientAddress = :emailRecipientAddress " +
            "AND r.emailRecipientType IN :emailRecipientType " +
-           "AND r.email.emailSentTime IS NOT NULL " +
-           "AND r.email.emailSentTime BETWEEN :start AND :end " +
-           "AND r.email.emailStatus NOT IN ('TRASH', 'DELETED') " +
-           "AND (r.deleted IS NULL OR r.deleted = false) " +
+           "AND e.emailSentTime IS NOT NULL " +
+           "AND e.emailSentTime BETWEEN :start AND :end " +
+           "AND e.emailStatus = 'SENT' " +  // ⭐ NOT IN → = 로 변경
+           "AND r.deleted = false " +  // ⭐ IS NULL 제거
            "AND (" +
            "    :keyword IS NULL OR :keyword = '' OR (" +
-           "        (:searchType = 'TITLE' AND LOWER(r.email.emailTitle) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR " +
-           "        (:searchType = 'CONTENT' AND LOWER(r.email.emailContent) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR " +
+           "        (:searchType = 'TITLE' AND LOWER(e.emailTitle) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR " +
+           "        (:searchType = 'CONTENT' AND LOWER(e.emailContent) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR " +
            "        (:searchType = 'TITLE_CONTENT' AND (" +
-           "            LOWER(r.email.emailTitle) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "            LOWER(r.email.emailContent) LIKE LOWER(CONCAT('%', :keyword, '%'))" +
+           "            LOWER(e.emailTitle) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "            LOWER(e.emailContent) LIKE LOWER(CONCAT('%', :keyword, '%'))" +
            "        ))" +
            "    )" +
            ") " +
-           "ORDER BY r.email.emailSentTime DESC")
+           "ORDER BY e.emailSentTime DESC")
     Page<EmailRecipient> findTodayInboxExcludingTrash(
         @Param("emailRecipientAddress") String emailRecipientAddress,
         @Param("emailRecipientType") List<String> emailRecipientType,
@@ -145,23 +151,25 @@ public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, 
     );
 
     // 안읽은만(휴지통/삭제 제외) - emailReadYn이 false이거나 null인 경우
+    // ⭐ 성능 최적화: NOT IN → =, IS NULL 제거, Fetch Join 추가
     @Query("SELECT r FROM EmailRecipient r " +
+           "LEFT JOIN FETCH r.email e " +  // ⭐ Fetch Join으로 N+1 방지
            "WHERE r.emailRecipientAddress = :emailRecipientAddress " +
            "AND r.emailRecipientType IN :emailRecipientType " +
            "AND (r.emailReadYn = false OR r.emailReadYn IS NULL) " +
-           "AND r.email.emailStatus NOT IN ('TRASH', 'DELETED', 'DRAFT', 'RESERVED') " +
-           "AND (r.deleted IS NULL OR r.deleted = false) " +
+           "AND e.emailStatus = 'SENT' " +  // ⭐ NOT IN → = 로 변경
+           "AND r.deleted = false " +  // ⭐ IS NULL 제거
            "AND (" +
            "    :keyword IS NULL OR :keyword = '' OR (" +
-           "        (:searchType = 'TITLE' AND LOWER(r.email.emailTitle) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR " +
-           "        (:searchType = 'CONTENT' AND LOWER(r.email.emailContent) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR " +
+           "        (:searchType = 'TITLE' AND LOWER(e.emailTitle) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR " +
+           "        (:searchType = 'CONTENT' AND LOWER(e.emailContent) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR " +
            "        (:searchType = 'TITLE_CONTENT' AND (" +
-           "            LOWER(r.email.emailTitle) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "            LOWER(r.email.emailContent) LIKE LOWER(CONCAT('%', :keyword, '%'))" +
+           "            LOWER(e.emailTitle) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "            LOWER(e.emailContent) LIKE LOWER(CONCAT('%', :keyword, '%'))" +
            "        ))" +
            "    )" +
            ") " +
-           "ORDER BY r.email.emailSentTime DESC, r.email.reservedAt DESC")
+           "ORDER BY e.emailSentTime DESC, e.reservedAt DESC")
     Page<EmailRecipient> findUnreadInboxExcludingTrash(
         @Param("emailRecipientAddress") String emailRecipientAddress,
         @Param("emailRecipientType") List<String> emailRecipientType,
