@@ -87,9 +87,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // 부하 테스트용 순수 WebSocket 엔드포인트 (SockJS 없음)
         registry.addEndpoint("/ws/chat-raw")
                 .setAllowedOrigins("*") // 부하 테스트용이므로 모든 origin 허용
-                // 인터셉터 없음 - 부하 테스트에서는 인증 생략
+                .addInterceptors(webSocketAuthInterceptor) // ✅ JWT 인증 추가
                 ; // SockJS 없음
-        log.info("🔥 [WebSocketConfig] /ws/chat-raw 엔드포인트 등록 완료 (부하 테스트용)");
+        log.info("🔥 [WebSocketConfig] /ws/chat-raw 엔드포인트 등록 완료 (부하 테스트용, JWT 인증 포함)");
         
         // 알림 WebSocket은 NotificationWebSocketConfig에서 별도로 등록됨 (일반 WebSocket 핸들러)
         log.info("🔥 [WebSocketConfig] /ws/notification은 NotificationWebSocketConfig에서 등록됨");
