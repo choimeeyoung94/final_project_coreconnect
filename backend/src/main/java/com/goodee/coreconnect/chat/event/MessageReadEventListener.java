@@ -24,8 +24,8 @@ public class MessageReadEventListener {
     @EventListener
     public void handle(MessageReadEvent event) {
         try {
-            // 읽음 상태 업데이트
-            readStatusRepo.updateReadStatus(event.getUserId(), event.getMessageId());
+            // TODO: 읽음 상태 업데이트 메서드가 준비되면 아래 로직을 구현하세요.
+            // readStatusRepo.updateReadStatus(event.getUserId(), event.getMessageId());
 
             // TODO: 알림/미읽음 카운트 감소가 필요하면 NotificationService를 주입해 호출하세요.
         } catch (Exception e) {
