@@ -98,6 +98,6 @@ public interface ChatRoomService {
 	/**
 	 * Top-N 페이징: 최신 메시지 기준으로 채팅방을 페이징 조회 (슬림 DTO)
 	 */
-    org.springframework.data.domain.Page<ChatRoomLatestMessageDto> getLatestMessagesPaged(Integer userId, org.springframework.data.domain.Pageable pageable);
+    org.springframework.data.domain.Page<ChatRoomLatestMessageDTO> getLatestMessagesPaged(Integer userId, org.springframework.data.domain.Pageable pageable);
 
 }
