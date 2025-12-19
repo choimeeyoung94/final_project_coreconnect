@@ -1,7 +1,38 @@
 spring:
+  # ==========================================
+  # 데이터베이스 Connection Pool 설정
+  # ==========================================
+  datasource:
+    hikari:
+      # Connection Pool 크기 (성능 최적화)
+      maximum-pool-size: 50          # 변경: 10 → 50 (동시 접속자 45명 대응)
+      minimum-idle: 20               # 변경: 5 → 20 (항상 20개 유지)
+      
+      # 타임아웃 설정
+      connection-timeout: 20000      # 20초 (Connection 대기 시간)
+      idle-timeout: 300000           # 5분 (유휴 Connection 유지)
+      max-lifetime: 1200000          # 20분 (Connection 최대 수명)
+      
+      # 모니터링 및 검증
+      leak-detection-threshold: 60000 # 1분 (Connection 누수 감지)
+      connection-test-query: SELECT 1 # Connection 검증 쿼리
+      validation-timeout: 5000       # 5초 (검증 타임아웃)
+  
+  # Redis 설정
   data:
     redis:
       host: 127.0.0.1
       port: 6379
       password: "1111"
       timeout: 2000ms
+
+# ==========================================
+# Tomcat Thread Pool 설정
+# ==========================================
+server:
+  tomcat:
+    threads:
+      max: 200                      # 최대 스레드 수
+      min-spare: 50                 # 최소 유휴 스레드 (변경: 10 → 50)
+    accept-count: 100               # 요청 대기 큐 크기
+    max-connections: 10000          # 최대 동시 연결 수
