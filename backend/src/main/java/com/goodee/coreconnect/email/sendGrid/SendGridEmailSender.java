@@ -19,6 +19,9 @@ import com.sendgrid.helpers.mail.objects.Attachments;
 import com.sendgrid.helpers.mail.objects.Content;
 import com.sendgrid.helpers.mail.objects.Email;
 import com.sendgrid.helpers.mail.objects.Personalization;
+import com.sendgrid.helpers.mail.objects.TrackingSettings;
+import com.sendgrid.helpers.mail.objects.ClickTrackingSetting;
+import com.sendgrid.helpers.mail.objects.OpenTrackingSetting;
 
 /**
  * SendGridEmailSender
@@ -62,19 +65,34 @@ public class SendGridEmailSender {
         // Content (HTML + Plain Text for better deliverability)
         String htmlContent = requestDTO.getEmailContent() == null ? "" : requestDTO.getEmailContent();
         
-        // 회사 정보 푸터 추가 (스팸 필터 우회 + 신뢰도 향상)
+        // ⭐ 스팸 방지를 위한 HTML 래핑 (DOCTYPE + 적절한 구조)
+        String htmlWrapped = "<!DOCTYPE html>" +
+                "<html lang='ko'>" +
+                "<head>" +
+                "<meta charset='UTF-8'>" +
+                "<meta name='viewport' content='width=device-width, initial-scale=1.0'>" +
+                "<title>" + (requestDTO.getEmailTitle() != null ? requestDTO.getEmailTitle() : "CoreConnect") + "</title>" +
+                "</head>" +
+                "<body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;'>" +
+                htmlContent +
+                "</body>" +
+                "</html>";
+        
+        // 회사 정보 푸터 추가 (스팸 필터 우회 + 신뢰도 향상 + CAN-SPAM 준수)
         String footer = "<hr style='border:none; border-top:1px solid #e0e0e0; margin:30px 0;'>" +
                 "<div style='color:#666; font-size:12px; line-height:1.6;'>" +
                 "<p><strong>CoreConnect</strong><br>" +
                 "Enterprise Collaboration Platform<br>" +
-                "Email: admin@coreconnect.io.kr<br>" +
-                "Website: <a href='http://coreconnect.io.kr' style='color:#0066cc;'>coreconnect.io.kr</a></p>" +
-                "<p style='font-size:11px; color:#999;'>" +
-                "본 메일은 CoreConnect 시스템에서 자동 발송되었습니다.<br>" +
-                "수신을 원하지 않으시면 시스템 설정에서 알림을 변경하실 수 있습니다.</p>" +
+                "📧 Email: admin@coreconnect.io.kr<br>" +
+                "🌐 Website: <a href='http://coreconnect.io.kr' style='color:#0066cc; text-decoration:none;'>coreconnect.io.kr</a><br>" +
+                "📍 Address: 서울특별시 구로구 디지털로34길 27, 대륭포스트타워 7차 401호</p>" +  // ⭐ 실제 주소로 변경 필요
+                "<p style='font-size:11px; color:#999; margin-top:15px;'>" +
+                "본 메일은 CoreConnect 시스템에서 발송되었습니다.<br>" +
+                "수신을 원하지 않으시면 <a href='http://coreconnect.io.kr/unsubscribe' style='color:#0066cc;'>여기</a>를 클릭하거나 " +
+                "시스템 설정에서 알림을 변경하실 수 있습니다.</p>" +
                 "</div>";
         
-        String htmlWithFooter = htmlContent + footer;
+        String htmlWithFooter = htmlWrapped.replace("</body>", footer + "</body>");
         
         // 1) Plain text version (스팸 필터 우회용)
         String plainText = htmlWithFooter
@@ -111,6 +129,27 @@ public class SendGridEmailSender {
             }
         }
         mail.addPersonalization(personalization);
+
+        // ⭐ 스팸 방지: 추적 및 카테고리 설정
+        // Categories: SendGrid 통계 및 평판 관리용
+        mail.addCategory("coreconnect-email");
+        if (requestDTO.getReplyToEmailId() != null) {
+            mail.addCategory("reply");
+        } else {
+            mail.addCategory("new-email");
+        }
+        
+        // ⭐ 추적 설정 (열람/클릭 추적 - 스팸 필터에 긍정적)
+        TrackingSettings trackingSettings = new TrackingSettings();
+        ClickTrackingSetting clickTrackingSetting = new ClickTrackingSetting();
+        clickTrackingSetting.setEnable(true);
+        clickTrackingSetting.setEnableText(false);
+        trackingSettings.setClickTrackingSetting(clickTrackingSetting);
+        
+        OpenTrackingSetting openTrackingSetting = new OpenTrackingSetting();
+        openTrackingSetting.setEnable(true);
+        trackingSettings.setOpenTrackingSetting(openTrackingSetting);
+        mail.setTrackingSettings(trackingSettings);
 
         // Attachments
         if (attachments != null && !attachments.isEmpty()) {
