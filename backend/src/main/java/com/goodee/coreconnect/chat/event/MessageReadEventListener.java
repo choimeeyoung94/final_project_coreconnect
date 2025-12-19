@@ -5,7 +5,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import com.goodee.coreconnect.chat.repository.ChatMessageReadStatusRepository;
-import com.goodee.coreconnect.notification.service.NotificationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 public class MessageReadEventListener {
 
     private final ChatMessageReadStatusRepository readStatusRepo;
-    private final NotificationService notificationService; // 알림/미읽음 카운트 감소용
 
     @Async("asyncTaskExecutor")
     @EventListener
@@ -29,10 +27,7 @@ public class MessageReadEventListener {
             // 읽음 상태 업데이트
             readStatusRepo.updateReadStatus(event.getUserId(), event.getMessageId());
 
-            // 알림/미읽음 카운트 감소 (빈이 없으면 예외 방지)
-            if (notificationService != null) {
-                notificationService.decreaseUnreadCount(event.getUserId(), event.getRoomId());
-            }
+            // TODO: 알림/미읽음 카운트 감소가 필요하면 NotificationService를 주입해 호출하세요.
         } catch (Exception e) {
             log.warn("MessageReadEvent handling failed: {}", e.getMessage(), e);
         }

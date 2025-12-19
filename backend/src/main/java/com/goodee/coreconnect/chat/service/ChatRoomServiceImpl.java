@@ -310,7 +310,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	 */
 	@Transactional(readOnly = true)
 	@Override
-	public org.springframework.data.domain.Page<ChatRoomLatestMessageDto> getLatestMessagesPaged(Integer userId, org.springframework.data.domain.Pageable pageable) {
+	public org.springframework.data.domain.Page<ChatRoomLatestMessageDTO> getLatestMessagesPaged(Integer userId, org.springframework.data.domain.Pageable pageable) {
 	    // 사용자가 참여 중인 채팅방 id 목록 조회
 	    List<ChatRoomUser> chatRoomUsers = chatRoomUserRepository.findByUserId(userId);
 	    List<Integer> roomIds = chatRoomUsers.stream()
@@ -328,7 +328,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	    return page.map(chat -> {
 	        ChatRoom room = chat.getChatRoom();
 	        User sender = chat.getSender();
-	        return ChatRoomLatestMessageDto.builder()
+	        return ChatRoomLatestMessageDTO.builder()
 	                .roomId(room != null ? room.getId() : null)
 	                .roomName(room != null ? room.getRoomName() : null)
 	                .lastMessageId(chat.getId())
