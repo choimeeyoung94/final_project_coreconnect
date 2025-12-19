@@ -24,6 +24,7 @@ import com.goodee.coreconnect.account.repository.AccountLogRepository;
 import com.goodee.coreconnect.approval.entity.Document;
 import com.goodee.coreconnect.approval.repository.DocumentRepository;
 import com.goodee.coreconnect.chat.dto.response.ChatResponseDTO;
+import com.goodee.coreconnect.chat.dto.response.ChatRoomLatestMessageDTO;
 import com.goodee.coreconnect.chat.dto.response.ChatRoomLatestMessageResponseDTO;
 import com.goodee.coreconnect.chat.dto.response.ChatRoomListDTO;
 import com.goodee.coreconnect.chat.dto.response.ChatRoomSummaryResponseDTO;
@@ -300,6 +301,42 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	public List<ChatRoomUser> getChatRoomUsers(Integer roomId) {
 		// ⭐ User와 Department를 함께 조회하여 Lazy Loading 문제 해결
 		return chatRoomUserRepository.findByChatRoomIdWithUser(roomId);
+	}
+
+	/**
+	 * Top-N 페이징: 최신 메시지 기준 채팅방 목록을 슬림 DTO로 반환
+	 * - roomId, roomName, lastMessage, senderName, sendAt 등만 노출
+	 * - 페이로드와 쿼리 부하를 줄이기 위한 목적
+	 */
+	@Transactional(readOnly = true)
+	@Override
+	public org.springframework.data.domain.Page<ChatRoomLatestMessageDto> getLatestMessagesPaged(Integer userId, org.springframework.data.domain.Pageable pageable) {
+	    // 사용자가 참여 중인 채팅방 id 목록 조회
+	    List<ChatRoomUser> chatRoomUsers = chatRoomUserRepository.findByUserId(userId);
+	    List<Integer> roomIds = chatRoomUsers.stream()
+	            .map(cru -> cru.getChatRoom().getId())
+	            .distinct()
+	            .collect(Collectors.toList());
+
+	    if (roomIds.isEmpty()) {
+	        return org.springframework.data.domain.Page.empty(pageable);
+	    }
+
+	    // 최신 메시지 페이징 조회 (fetch join → service에서 DTO 변환)
+	    Page<Chat> page = chatRepository.findLatestMessagesByRoomIdsPaged(roomIds, pageable);
+
+	    return page.map(chat -> {
+	        ChatRoom room = chat.getChatRoom();
+	        User sender = chat.getSender();
+	        return ChatRoomLatestMessageDto.builder()
+	                .roomId(room != null ? room.getId() : null)
+	                .roomName(room != null ? room.getRoomName() : null)
+	                .lastMessageId(chat.getId())
+	                .lastMessageContent(chat.getMessageContent())
+	                .lastSenderName(sender != null ? sender.getName() : null)
+	                .lastMessageTime(chat.getSendAt())
+	                .build();
+	    });
 	}
 
 	@Override

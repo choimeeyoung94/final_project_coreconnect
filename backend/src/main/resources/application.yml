@@ -4,12 +4,12 @@ spring:
   # ==========================================
   datasource:
     hikari:
-      # Connection Pool 크기 (성능 최적화)
-      maximum-pool-size: 50          # 변경: 10 → 50 (동시 접속자 45명 대응)
-      minimum-idle: 20               # 변경: 5 → 20 (항상 20개 유지)
+      # Connection Pool 크기 (부하 테스트용 튜닝)
+      maximum-pool-size: 40          # 테스트 대상: 40 (DB 커넥션 한도에 맞춰 조정)
+      minimum-idle: 10               # 테스트 대상: 10 (유휴 커넥션 유지 최소값)
       
       # 타임아웃 설정
-      connection-timeout: 20000      # 20초 (Connection 대기 시간)
+      connection-timeout: 15000      # 15초 (대기 시간 상한을 다소 낮춤)
       idle-timeout: 300000           # 5분 (유휴 Connection 유지)
       max-lifetime: 1200000          # 20분 (Connection 최대 수명)
       
@@ -30,9 +30,17 @@ spring:
 # Tomcat Thread Pool 설정
 # ==========================================
 server:
+  # 서버 커넥션 타임아웃 (LB/프록시와 Idle Timeout 맞춰 확인)
+  connection-timeout: 30s
   tomcat:
     threads:
-      max: 200                      # 최대 스레드 수
-      min-spare: 50                 # 최소 유휴 스레드 (변경: 10 → 50)
-    accept-count: 100               # 요청 대기 큐 크기
-    max-connections: 10000          # 최대 동시 연결 수
+      max: 200                      # 최대 스레드 수 (동일 유지)
+      min-spare: 30                 # 최소 유휴 스레드 (부하 테스트용 약간 축소)
+    accept-count: 150               # 요청 대기 큐 크기 (버스트 대응 약간 확대)
+    max-connections: 10000          # 최대 동시 연결 수 (동일 유지)
+
+  # HTTP 응답 압축 (전송 최적화)
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+    min-response-size: 1024  # 1KB 이상부터 압축

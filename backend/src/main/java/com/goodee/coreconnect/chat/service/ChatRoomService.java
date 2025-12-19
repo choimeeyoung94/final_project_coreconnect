@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.goodee.coreconnect.approval.entity.Document;
 import com.goodee.coreconnect.chat.dto.response.ChatResponseDTO;
+import com.goodee.coreconnect.chat.dto.response.ChatRoomLatestMessageDTO;
 import com.goodee.coreconnect.chat.dto.response.ChatRoomLatestMessageResponseDTO;
 import com.goodee.coreconnect.chat.dto.response.ChatRoomListDTO;
 import com.goodee.coreconnect.chat.dto.response.ChatRoomSummaryResponseDTO;
@@ -93,5 +94,10 @@ public interface ChatRoomService {
 
 	// 채팅방 나가기
 	void leaveChatRoom(Integer roomId, String userEmail);
+
+	/**
+	 * Top-N 페이징: 최신 메시지 기준으로 채팅방을 페이징 조회 (슬림 DTO)
+	 */
+    org.springframework.data.domain.Page<ChatRoomLatestMessageDto> getLatestMessagesPaged(Integer userId, org.springframework.data.domain.Pageable pageable);
 
 }
