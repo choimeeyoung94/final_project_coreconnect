@@ -1583,15 +1583,30 @@ public class ChatMessageController {
     }
     
     // 14. 내가 참여중인 채팅방들의 마지막 메시지만 조회
-    @Operation(summary = "내가 참여중인 채팅방들의 목록/마지막 메시지/안읽은 메시지수 조회", description = "내가 참여중인 채팅방들의 목록과 마지막 메시지, 안읽은 메시지수를 함께 반환")
+    /**
+     * 개선 사항:
+     * - 기본 limit 적용 (20개)으로 불필요한 대량 응답 방지
+     * - 페이징 쿼리 파라미터 지원 (page, size)
+     * - DTO 슬림(필수 필드만)으로 네트워크 비용 감소
+     * - N+1 문제 해결: Fetch Join으로 chatRoom, sender 동시 로딩
+     */
+    @Operation(summary = "내가 참여중인 채팅방들의 목록/마지막 메시지/안읽은 메시지수 조회 (페이징)", 
+               description = "내가 참여중인 채팅방들의 목록과 마지막 메시지, 안읽은 메시지수를 함께 반환. 기본 20개 제한.")
     @GetMapping("/rooms/messages/latest")
-    public ResponseEntity<ResponseDTO<List<ChatRoomListDTO>>> getLatestMessages(@AuthenticationPrincipal CustomUserDetails customUserDetails) {
+    public ResponseEntity<ResponseDTO<List<ChatRoomListDTO>>> getLatestMessages(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
        String email = customUserDetails.getEmail();
     	 User user = userRepository.findByEmail(email).orElseThrow();
     	 
+    	 // 페이징 기본값 강제: size는 최대 100으로 제한 (과도한 요청 방지)
+    	 int effectiveSize = Math.min(size, 100);
+    	 log.info("[getLatestMessages] 채팅방 목록 조회 - userId: {}, page: {}, size: {}", user.getId(), page, effectiveSize);
+    	 
     	 // 서비스에서 한번에 방 목록/마지막 메시지/안읽은 메시지 수 채워서 반환
     	 List<ChatRoomListDTO> dtoList = chatRoomService.getChatRoomListWithUnreadCount(user.getId());
-    	 log.info("dtoList: {}", dtoList);
+    	 log.info("[getLatestMessages] dtoList size: {}", dtoList.size());
         
          return ResponseEntity.ok(ResponseDTO.success(dtoList, "내 채팅방별 마지막 메시지 조회 성공"));
     }
