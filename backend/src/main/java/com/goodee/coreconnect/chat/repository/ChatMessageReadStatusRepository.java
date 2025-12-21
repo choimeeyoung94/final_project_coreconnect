@@ -96,4 +96,13 @@ public interface ChatMessageReadStatusRepository extends JpaRepository<ChatMessa
     @Query("SELECT c FROM ChatMessageReadStatus c WHERE c.chat.id = :chatId AND c.user.id = :userId")
     Optional<ChatMessageReadStatus> findReadStatusByChatIdAndUserId(@Param("chatId") Integer chatId, @Param("userId") Integer userId);
     
+    // 단일 메시지 읽음 상태 업데이트 (특정 사용자가 특정 메시지를 읽음)
+    @Modifying
+    @Transactional
+    @Query("UPDATE ChatMessageReadStatus r SET r.readYn = true, r.readAt = :now " +
+           "WHERE r.chat.id = :messageId AND r.user.id = :userId AND r.readYn = false")
+    int updateReadStatus(@Param("userId") Integer userId, 
+                         @Param("messageId") Integer messageId, 
+                         @Param("now") java.time.LocalDateTime now);
+    
 }
