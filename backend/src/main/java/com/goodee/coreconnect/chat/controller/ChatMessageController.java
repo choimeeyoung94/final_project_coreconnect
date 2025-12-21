@@ -63,6 +63,7 @@ import com.goodee.coreconnect.chat.repository.ChatRoomUserRepository;
 import com.goodee.coreconnect.chat.repository.MessageFileRepository;
 import com.goodee.coreconnect.chat.repository.NotificationRepository;
 import com.goodee.coreconnect.chat.service.ChatRoomService;
+import com.goodee.coreconnect.chat.service.ChatService;
 import com.goodee.coreconnect.common.dto.response.ResponseDTO;
 import com.goodee.coreconnect.common.entity.Notification;
 import com.goodee.coreconnect.common.exception.ChatNotFoundException;
@@ -86,6 +87,7 @@ import lombok.extern.slf4j.Slf4j;
 @SecurityRequirement(name = "bearerAuth") // 이게 핵심!
 public class ChatMessageController {
 	private final ChatRoomService chatRoomService;
+    private final ChatService chatService;
     private final UserRepository userRepository;
     private final ChatRepository chatRepository;
     private final ChatRoomUserRepository chatRoomUserRepository;
@@ -1995,6 +1997,85 @@ public class ChatMessageController {
     	return ResponseEntity.ok().build();    	
     }
     
+    /**
+     * 21. 단일 메시지 읽음 처리 (비동기)
+     * - 특정 메시지를 읽음 처리하고 비동기로 unreadCount를 업데이트합니다.
+     * - MessageReadEvent를 발행하여 백그라운드에서 처리합니다.
+     * - 응답은 즉시 반환되어 사용자 경험이 개선됩니다.
+     */
+    @Operation(summary = "단일 메시지 읽음 처리 (비동기)", 
+               description = "특정 메시지를 읽음 처리하고 비동기로 unreadCount를 업데이트합니다. 즉시 응답이 반환되므로 빠른 사용자 경험을 제공합니다.")
+    @PostMapping("/rooms/{roomId}/messages/{messageId}/read")
+    public ResponseEntity<ResponseDTO<String>> markSingleMessageAsRead(
+            @PathVariable Integer roomId,
+            @PathVariable Integer messageId,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+        
+        try {
+            String email = customUserDetails.getEmail();
+            User user = userRepository.findByEmail(email).orElseThrow(
+                () -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + email)
+            );
+            
+            log.info("[markSingleMessageAsRead] 단일 메시지 읽음 처리 요청 - roomId: {}, messageId: {}, userId: {}", 
+                    roomId, messageId, user.getId());
+            
+            // 비동기 이벤트 발행 (즉시 반환)
+            chatService.markAsRead(user.getId(), roomId, messageId);
+            
+            log.info("[markSingleMessageAsRead] 읽음 이벤트 발행 완료 (비동기 처리 시작) - roomId: {}, messageId: {}, userId: {}", 
+                    roomId, messageId, user.getId());
+            
+            return ResponseEntity.ok(ResponseDTO.success("읽음 처리가 비동기로 진행됩니다", "메시지 읽음 처리 요청 성공"));
+            
+        } catch (Exception e) {
+            log.error("[markSingleMessageAsRead] 읽음 처리 실패 - roomId: {}, messageId: {}, error: {}", 
+                    roomId, messageId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseDTO.error("읽음 처리 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
     
+    /**
+     * 22. 채팅방의 여러 메시지 읽음 처리 (비동기)
+     * - 채팅방의 여러 메시지를 한번에 읽음 처리합니다.
+     * - 각 메시지마다 비동기 이벤트를 발행합니다.
+     */
+    @Operation(summary = "여러 메시지 읽음 처리 (비동기)", 
+               description = "채팅방의 여러 메시지를 한번에 읽음 처리합니다. 각 메시지는 비동기로 처리됩니다.")
+    @PostMapping("/rooms/{roomId}/messages/read-multiple")
+    public ResponseEntity<ResponseDTO<String>> markMultipleMessagesAsRead(
+            @PathVariable Integer roomId,
+            @RequestBody List<Integer> messageIds,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+        
+        try {
+            String email = customUserDetails.getEmail();
+            User user = userRepository.findByEmail(email).orElseThrow(
+                () -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + email)
+            );
+            
+            log.info("[markMultipleMessagesAsRead] 여러 메시지 읽음 처리 요청 - roomId: {}, userId: {}, messageCount: {}", 
+                    roomId, user.getId(), messageIds.size());
+            
+            // 각 메시지마다 비동기 이벤트 발행
+            for (Integer messageId : messageIds) {
+                chatService.markAsRead(user.getId(), roomId, messageId);
+            }
+            
+            log.info("[markMultipleMessagesAsRead] 모든 읽음 이벤트 발행 완료 (비동기 처리 시작) - roomId: {}, userId: {}, messageCount: {}", 
+                    roomId, user.getId(), messageIds.size());
+            
+            return ResponseEntity.ok(ResponseDTO.success(
+                String.format("%d개 메시지 읽음 처리가 비동기로 진행됩니다", messageIds.size()), 
+                "메시지 읽음 처리 요청 성공"));
+            
+        } catch (Exception e) {
+            log.error("[markMultipleMessagesAsRead] 읽음 처리 실패 - roomId: {}, error: {}", 
+                    roomId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseDTO.error("읽음 처리 중 오류가 발생했습니다: " + e.getMessage()));
+        }
+    }
     
 }

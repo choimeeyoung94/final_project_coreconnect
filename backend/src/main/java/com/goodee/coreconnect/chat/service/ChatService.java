@@ -17,7 +17,13 @@ public class ChatService {
 
     private final ApplicationEventPublisher publisher;
 
-    public void markAsRead(Long userId, Long roomId, Long messageId) {
+    /**
+     * 메시지 읽음 처리 (비동기 이벤트 발행)
+     * @param userId 사용자 ID
+     * @param roomId 채팅방 ID
+     * @param messageId 메시지 ID
+     */
+    public void markAsRead(Integer userId, Integer roomId, Integer messageId) {
         // 최소 로직만 수행하고 이벤트 발행
         publisher.publishEvent(new MessageReadEvent(userId, roomId, messageId));
     }
