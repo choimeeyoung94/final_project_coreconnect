@@ -98,8 +98,23 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
     // 다음 업데이트를 위해 현재 스크롤 위치 저장
     isNearBottomBeforeUpdateRef.current = isNearBottom;
     
-    // 이전 메시지 로드 (무한 스크롤)
-    if (onLoadMore && hasMoreAbove && !loadingAbove && el.scrollTop <= 24) {
+    // ⭐ 이전 메시지 로드 (무한 스크롤) - 조건 완화: 150px로 증가
+    // 스크롤이 상단 150px 이내에 있으면 이전 메시지 로드
+    const isNearTop = scrollTop <= 150;
+    
+    console.log("📏 [ChatMessageList] 스크롤 위치:", {
+      scrollTop: scrollTop,
+      scrollHeight: scrollHeight,
+      clientHeight: clientHeight,
+      isNearTop: isNearTop,
+      hasMoreAbove: hasMoreAbove,
+      loadingAbove: loadingAbove,
+      onLoadMore: !!onLoadMore
+    });
+    
+    if (onLoadMore && hasMoreAbove && !loadingAbove && isNearTop) {
+      console.log("🔄 [ChatMessageList] 이전 메시지 로드 시작");
+      
       // 현재 스크롤 위치와 높이 저장
       scrollPositionRef.current = {
         scrollHeight: el.scrollHeight,
@@ -135,26 +150,49 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
     }
   };
   
-  // 메시지가 추가되었을 때 스크롤 위치 복원
+  // ⭐ 이전 메시지 로드 시 스크롤 위치 복원
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el || loadingAbove) return;
+    if (!el) return;
     
     // 이전 메시지가 추가된 경우 (메시지 수가 증가하고 스크롤이 위쪽에 있을 때)
     const messagesIncreased = messages.length > previousMessagesLengthRef.current;
-    const isScrolledToTop = el.scrollTop < 100;
+    const isScrolledToTop = el.scrollTop < 300; // 300px 이하면 상단으로 간주
+    
+    console.log("📐 [ChatMessageList] 스크롤 위치 복원 체크:", {
+      messagesLength: messages.length,
+      previousLength: previousMessagesLengthRef.current,
+      messagesIncreased: messagesIncreased,
+      isScrolledToTop: isScrolledToTop,
+      scrollTop: el.scrollTop,
+      savedScrollHeight: scrollPositionRef.current.scrollHeight,
+      loadingAbove: loadingAbove
+    });
     
     if (messagesIncreased && isScrolledToTop && scrollPositionRef.current.scrollHeight > 0) {
       const newScrollHeight = el.scrollHeight;
       const heightDiff = newScrollHeight - scrollPositionRef.current.scrollHeight;
       
-      // 스크롤 위치 복원
-      setTimeout(() => {
+      console.log("✅ [ChatMessageList] 스크롤 위치 복원 실행:", {
+        이전scrollHeight: scrollPositionRef.current.scrollHeight,
+        새로운scrollHeight: newScrollHeight,
+        heightDiff: heightDiff,
+        이전scrollTop: scrollPositionRef.current.scrollTop,
+        새로운scrollTop: scrollPositionRef.current.scrollTop + heightDiff
+      });
+      
+      // 스크롤 위치 복원 (즉시 실행)
+      requestAnimationFrame(() => {
         if (el) {
-          el.scrollTop = scrollPositionRef.current.scrollTop + heightDiff;
+          const newScrollTop = scrollPositionRef.current.scrollTop + heightDiff;
+          el.scrollTop = newScrollTop;
+          console.log("📍 [ChatMessageList] 스크롤 위치 설정 완료:", {
+            설정한위치: newScrollTop,
+            실제위치: el.scrollTop
+          });
           scrollPositionRef.current = { scrollHeight: 0, scrollTop: 0 }; // 초기화
         }
-      }, 0);
+      });
     }
     
     previousMessagesLengthRef.current = messages.length;

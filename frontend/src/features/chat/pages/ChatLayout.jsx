@@ -1503,8 +1503,27 @@ export default function ChatLayout() {
 
   // ---------- 이전 메시지 로딩 (무한 스크롤) ----------
   const handleLoadMoreMessages = async () => {
-    if (!selectedRoomId || isLoadingMore || !hasMore) return;
+    console.log("🔄 [ChatLayout] handleLoadMoreMessages 호출:", {
+      selectedRoomId: selectedRoomId,
+      isLoadingMore: isLoadingMore,
+      hasMore: hasMore,
+      currentPage: currentPage
+    });
+    
+    if (!selectedRoomId || isLoadingMore || !hasMore) {
+      console.log("🚫 [ChatLayout] 이전 메시지 로드 중단:", {
+        selectedRoomId: !!selectedRoomId,
+        isLoadingMore: isLoadingMore,
+        hasMore: hasMore
+      });
+      return;
+    }
 
+    console.log("✅ [ChatLayout] 이전 메시지 로드 시작:", {
+      currentPage: currentPage,
+      nextPage: currentPage + 1
+    });
+    
     setIsLoadingMore(true);
 
     // 스크롤 위치 저장을 위한 ref (ChatMessageList에서 접근 가능하도록)
@@ -1519,7 +1538,18 @@ export default function ChatLayout() {
 
     try {
       const nextPage = currentPage + 1;
+      console.log("📡 [ChatLayout] API 호출:", {
+        roomId: selectedRoomId,
+        page: nextPage,
+        size: 20
+      });
+      
       const res = await fetchChatRoomMessages(selectedRoomId, nextPage, 20);
+      
+      console.log("📥 [ChatLayout] API 응답 받음:", {
+        hasData: !!res?.data,
+        dataStructure: res?.data ? Object.keys(res.data) : []
+      });
 
       if (res && res.data) {
         // ResponseDTO 구조: { status, message, data: Page<ChatMessageResponseDTO> }
@@ -1703,16 +1733,35 @@ export default function ChatLayout() {
               });
             }
 
+            console.log("✅ [ChatLayout] 이전 메시지 병합 완료:", {
+              추가된메시지수: trulyNewMessages.length,
+              기존메시지수: prev.length,
+              전체메시지수: trulyNewMessages.length + merged.length
+            });
+            
             return [...trulyNewMessages, ...merged];
           });
+          
           setTotalPages(pageData.totalPages || 0);
           setHasMore(!pageData.last);
           setCurrentPage(nextPage);
+          
+          console.log("✅ [ChatLayout] 페이지 상태 업데이트 완료:", {
+            totalPages: pageData.totalPages,
+            currentPage: nextPage,
+            hasMore: !pageData.last,
+            isLast: pageData.last
+          });
+        } else {
+          console.warn("⚠️ [ChatLayout] pageData.content가 배열이 아님:", pageData);
         }
+      } else {
+        console.warn("⚠️ [ChatLayout] res.data가 없음:", res);
       }
     } catch (error) {
-      console.error("이전 메시지 로딩 실패:", error);
+      console.error("❌ [ChatLayout] 이전 메시지 로딩 실패:", error);
     } finally {
+      console.log("🏁 [ChatLayout] 로딩 상태 false로 변경");
       setIsLoadingMore(false);
     }
   };
