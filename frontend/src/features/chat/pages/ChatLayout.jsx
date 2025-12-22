@@ -1459,16 +1459,6 @@ export default function ChatLayout() {
 
             setMessages(messagesWithPendingUpdates);
             
-            // ⭐ setMessages 호출 직후 상태 확인 (비동기이므로 실제 상태는 다음 렌더링에서 확인)
-            setTimeout(() => {
-              console.log("📊 [ChatLayout] setMessages 호출 후 상태 확인 (비동기):", {
-                timestamp: new Date().toISOString(),
-                messagesLength: messages.length,
-                messagesIds: messages.map(m => m?.id).slice(0, 5),
-                targetChatId: messagesWithPendingUpdates[0]?.id
-              });
-            }, 100);
-
             console.log("📨 [ChatLayout] 채팅방 진입 시 메시지 로드 완료:", {
               timestamp: fetchTimestamp,
               메시지수: messagesWithPendingUpdates.length,
@@ -1482,7 +1472,7 @@ export default function ChatLayout() {
             setCurrentPage(0);
 
             // ⭐ 채팅방 선택 시 메시지 로드 후 스크롤 처리
-            // ✅ 수정: 초기 로드일 때만 스크롤 (무한 스크롤 시에는 절대 스크롤 안 함)
+            // ✅ 핵심: 초기 로드일 때만 스크롤 (무한 스크롤 트리거 방지)
             console.log("🔍 [ChatLayout] 스크롤 처리 체크:", {
               isInitialLoad: isInitialLoadRef.current,
               scrollToUnread: scrollToUnread,
@@ -1492,21 +1482,25 @@ export default function ChatLayout() {
             if (isInitialLoadRef.current && !scrollToUnread) {
               // ⭐ 초기 로드일 때만 스크롤
               console.log("✅ [ChatLayout] 초기 로드 확인 - 스크롤 예정");
-              setTimeout(() => {
-                const scrollContainer = document.querySelector('.chat-message-list-container');
-                if (scrollContainer) {
-                  scrollContainer.scrollTop = scrollContainer.scrollHeight;
-                  console.log("📜 [ChatLayout] ✅ 초기 로드 - 최신 메시지로 스크롤:", {
-                    scrollTop: scrollContainer.scrollTop,
-                    scrollHeight: scrollContainer.scrollHeight,
-                    messagesLength: messagesWithPendingUpdates.length,
-                    isInitialLoad: isInitialLoadRef.current
-                  });
-                }
-                // ✅ 초기 로드 플래그 해제
-                isInitialLoadRef.current = false;
-                console.log("🏁 [ChatLayout] isInitialLoadRef를 false로 설정");
-              }, 300);
+              
+              // ✅ 초기 로드 플래그 즉시 해제 (무한 스크롤 방지)
+              isInitialLoadRef.current = false;
+              console.log("🏁 [ChatLayout] isInitialLoadRef를 false로 설정 (무한 스크롤 방지)");
+              
+              // ✅ DOM 업데이트 직후 스크롤 (requestAnimationFrame 사용)
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  const scrollContainer = document.querySelector('.chat-message-list-container');
+                  if (scrollContainer) {
+                    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                    console.log("📜 [ChatLayout] ✅ 초기 로드 - 최신 메시지로 스크롤:", {
+                      scrollTop: scrollContainer.scrollTop,
+                      scrollHeight: scrollContainer.scrollHeight,
+                      messagesLength: messagesWithPendingUpdates.length
+                    });
+                  }
+                });
+              });
             } else {
               console.log("🚫 [ChatLayout] 초기 로드 아님 - 스크롤 안 함:", {
                 isInitialLoad: isInitialLoadRef.current,

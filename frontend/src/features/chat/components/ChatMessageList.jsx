@@ -102,15 +102,17 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
     // 다음 업데이트를 위해 현재 스크롤 위치 저장
     isNearBottomBeforeUpdateRef.current = isNearBottom;
     
-    // ⭐ 이전 메시지 로드 (무한 스크롤) - 조건 완화: 150px로 증가
-    // 스크롤이 상단 150px 이내에 있으면 이전 메시지 로드
+    // ⭐ 이전 메시지 로드 (무한 스크롤)
+    // ✅ 핵심: 스크롤이 실제로 존재하고 + 상단 150px 이내에 있을 때만 로드
+    const hasScroll = scrollHeight > clientHeight; // ⭐ 스크롤이 존재하는지 확인
     const isNearTop = scrollTop <= 150;
     
-    if (onLoadMore && hasMoreAbove && !loadingAbove && isNearTop) {
+    if (onLoadMore && hasMoreAbove && !loadingAbove && isNearTop && hasScroll) {
       console.log("🔄 [ChatMessageList] 이전 메시지 로드 시작:", {
         scrollTop: scrollTop,
         scrollHeight: scrollHeight,
         clientHeight: clientHeight,
+        hasScroll: hasScroll,
         isNearTop: isNearTop
       });
       
