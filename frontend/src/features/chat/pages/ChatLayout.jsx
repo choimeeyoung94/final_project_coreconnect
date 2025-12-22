@@ -1471,44 +1471,9 @@ export default function ChatLayout() {
             setHasMore(!pageData.last); // last가 false면 더 있음
             setCurrentPage(0);
 
-            // ⭐ 채팅방 선택 시 메시지 로드 후 스크롤 처리
-            // ✅ 핵심: 초기 로드일 때만 스크롤 (무한 스크롤 트리거 방지)
-            console.log("🔍 [ChatLayout] 스크롤 처리 체크:", {
-              isInitialLoad: isInitialLoadRef.current,
-              scrollToUnread: scrollToUnread,
-              messagesLength: messagesWithPendingUpdates.length
-            });
-            
-            if (isInitialLoadRef.current && !scrollToUnread) {
-              // ⭐ 초기 로드일 때만 스크롤
-              console.log("✅ [ChatLayout] 초기 로드 확인 - 스크롤 예정");
-              
-              // ✅ 초기 로드 플래그 즉시 해제 (무한 스크롤 방지)
-              isInitialLoadRef.current = false;
-              console.log("🏁 [ChatLayout] isInitialLoadRef를 false로 설정 (무한 스크롤 방지)");
-              
-              // ✅ DOM 업데이트 직후 스크롤 (requestAnimationFrame 사용)
-              requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                  const scrollContainer = document.querySelector('.chat-message-list-container');
-                  if (scrollContainer) {
-                    scrollContainer.scrollTop = scrollContainer.scrollHeight;
-                    console.log("📜 [ChatLayout] ✅ 초기 로드 - 최신 메시지로 스크롤:", {
-                      scrollTop: scrollContainer.scrollTop,
-                      scrollHeight: scrollContainer.scrollHeight,
-                      messagesLength: messagesWithPendingUpdates.length
-                    });
-                  }
-                });
-              });
-            } else {
-              console.log("🚫 [ChatLayout] 초기 로드 아님 - 스크롤 안 함:", {
-                isInitialLoad: isInitialLoadRef.current,
-                scrollToUnread: scrollToUnread
-              });
-              // ✅ 초기 로드 플래그 해제
-              isInitialLoadRef.current = false;
-            }
+            // ❌ 제거: 자동 스크롤 로직 전부 제거
+            // 초기 로드 플래그만 해제
+            isInitialLoadRef.current = false;
 
             // ⭐ 채팅방 접속 시 안읽은 메시지들을 읽음 처리
             // ⭐ 중요: 메시지 로드 후 마커가 렌더링되고 스크롤이 완료된 후에 읽음 처리
@@ -1586,318 +1551,57 @@ export default function ChatLayout() {
 
   // ---------- 이전 메시지 로딩 (무한 스크롤) ----------
   const handleLoadMoreMessages = async () => {
-    console.log("🔄 [ChatLayout] handleLoadMoreMessages 호출:", {
-      selectedRoomId: selectedRoomId,
-      isLoadingMore: isLoadingMore,
-      hasMore: hasMore,
-      currentPage: currentPage,
-      isInitialLoad: isInitialLoadRef.current // ✅ 로그 추가
-    });
-    
-    // ⭐ 핵심: 초기 로드 중에는 무한 스크롤 차단!
-    if (isInitialLoadRef.current) {
-      console.log("🚫 [ChatLayout] 초기 로드 중 - 무한 스크롤 차단:", {
-        isInitialLoad: isInitialLoadRef.current,
-        timestamp: new Date().toISOString()
-      });
-      return;
-    }
-    
+    // 중복 호출/끝 페이지/선택 방 없음 차단
     if (!selectedRoomId || isLoadingMore || !hasMore) {
-      console.log("🚫 [ChatLayout] 이전 메시지 로드 중단:", {
+      console.log("🚫 [ChatLayout] 이전 메시지 로드 차단:", {
         selectedRoomId: !!selectedRoomId,
-        isLoadingMore: isLoadingMore,
-        hasMore: hasMore
+        isLoadingMore,
+        hasMore
       });
       return;
     }
 
-    console.log("✅ [ChatLayout] 이전 메시지 로드 시작:", {
-      currentPage: currentPage,
-      nextPage: currentPage + 1
-    });
-    
-    // ✅ 초기 로드가 아님을 명시
-    isInitialLoadRef.current = false;
-    
     setIsLoadingMore(true);
 
-    // ✅ 스크롤 위치 저장 (복원을 위해)
-    const scrollContainer = document.querySelector('.chat-message-list-container');
-    let scrollHeightBefore = 0;
-    let scrollTopBefore = 0;
-
-    if (scrollContainer) {
-      scrollHeightBefore = scrollContainer.scrollHeight;
-      scrollTopBefore = scrollContainer.scrollTop;
-      console.log("💾 [ChatLayout] 스크롤 위치 저장:", {
-        scrollHeightBefore,
-        scrollTopBefore
-      });
-    }
+    // 1) 현재 스크롤 높이/위치 저장
+    const el = document.querySelector('.chat-message-list-container');
+    const before = {
+      scrollHeight: el?.scrollHeight ?? 0,
+      scrollTop: el?.scrollTop ?? 0
+    };
+    
+    console.log("💾 [ChatLayout] 스크롤 위치 저장:", before);
 
     try {
       const nextPage = currentPage + 1;
-      console.log("📡 [ChatLayout] API 호출:", {
-        roomId: selectedRoomId,
-        page: nextPage,
-        size: 20
-      });
-      
       const res = await fetchChatRoomMessages(selectedRoomId, nextPage, 20);
-      
-      console.log("📥 [ChatLayout] API 응답 받음:", {
-        hasData: !!res?.data,
-        dataStructure: res?.data ? Object.keys(res.data) : []
-      });
+      const pageData = res?.data?.data || res?.data;
 
-      if (res && res.data) {
-        // ResponseDTO 구조: { status, message, data: Page<ChatMessageResponseDTO> }
-        const pageData = res.data.data || res.data; // res.data.data가 Page 객체
-        if (pageData && Array.isArray(pageData.content)) {
-          // 이전 메시지를 앞에 추가 (오름차순 유지)
-          // pageData.content는 내림차순이므로 역순으로 정렬
-          const newMessages = [...pageData.content].reverse();
+      if (pageData?.content && Array.isArray(pageData.content)) {
+        // 서버는 최신순으로 내려주므로 prepend를 위해 reverse
+        const newMessages = [...pageData.content].reverse();
 
-          // ⭐ 중간에 초대된 사용자는 초대 시점부터의 메시지만 표시
-          const currentUserId = userProfile?.id || userProfile?.userId;
-          const currentUserEmail = userProfile?.email;
-          let joinedAtTime = null;
+        // 2) 기존 메시지 앞에 새 메시지 붙이기 (오름차순 유지)
+        setMessages(prev => [...newMessages, ...prev]);
 
-          if (currentUserId || currentUserEmail) {
-            // 현재 사용자의 입장 메시지 찾기 (기존 메시지 + 새로 로드한 메시지에서)
-            const allMessagesForJoinCheck = [...messages, ...newMessages];
-            const joinMessage = allMessagesForJoinCheck.find((msg) => {
-              const isJoinOrInviteMessage = msg.messageContent && 
-                (msg.messageContent.includes("님이 입장했습니다") || 
-                 msg.messageContent.includes("님이 초대되었습니다"));
-              
-              // 메시지 내용에서 사용자 이름 추출하여 현재 사용자와 비교
-              if (isJoinOrInviteMessage && msg.messageContent) {
-                const nameMatch = msg.messageContent.match(/^(.+?)님이/);
-                if (nameMatch) {
-                  const messageSenderName = nameMatch[1];
-                  // 현재 사용자 이름과 비교
-                  const isMyJoinMessage = 
-                    (userProfile?.name && messageSenderName === userProfile.name) ||
-                    (msg.senderId === currentUserId) ||
-                    (msg.senderEmail && currentUserEmail &&
-                      msg.senderEmail.trim().toLowerCase() === currentUserEmail.trim().toLowerCase());
-                  return isMyJoinMessage;
-                }
-              }
-              return false;
+        // 페이징 상태 업데이트
+        setHasMore(!pageData.last);
+        setCurrentPage(nextPage);
+
+        // 3) 스크롤 위치 복원: 추가된 높이만큼 scrollTop을 더해줌
+        //    → 사용자가 보고 있던 지점 그대로 유지
+        setTimeout(() => {
+          const afterHeight = el?.scrollHeight ?? 0;
+          const heightDiff = afterHeight - before.scrollHeight;
+          if (el) {
+            el.scrollTop = before.scrollTop + heightDiff;
+            console.log("✅ [ChatLayout] 스크롤 위치 복원:", {
+              before: before.scrollTop,
+              heightDiff,
+              after: el.scrollTop
             });
-
-            if (joinMessage && joinMessage.sendAt) {
-              joinedAtTime = new Date(joinMessage.sendAt).getTime();
-            }
           }
-
-          // 초대 시점 이후의 메시지만 필터링
-          // ⭐ 중요: 다른 사람의 입장 메시지도 초대 시점 이전이면 제외
-          const filteredNewMessages = joinedAtTime
-            ? newMessages.filter((msg) => {
-              const msgTime = msg.sendAt ? new Date(msg.sendAt).getTime() : 0;
-              
-              // 입장/초대 메시지인 경우
-              const isJoinOrInviteMessage = msg.messageContent && 
-                (msg.messageContent.includes("님이 입장했습니다") || 
-                 msg.messageContent.includes("님이 초대되었습니다"));
-              
-              if (isJoinOrInviteMessage) {
-                // 메시지 내용에서 사용자 이름 추출
-                const nameMatch = msg.messageContent.match(/^(.+?)님이/);
-                if (nameMatch) {
-                  const messageSenderName = nameMatch[1];
-                  // 현재 사용자의 입장/초대 메시지인지 확인
-                  const isMyMessage = 
-                    (userProfile?.name && messageSenderName === userProfile.name) ||
-                    (msg.senderId === currentUserId) ||
-                    (msg.senderEmail && currentUserEmail &&
-                      msg.senderEmail.trim().toLowerCase() === currentUserEmail.trim().toLowerCase());
-                  
-                  // 현재 사용자의 입장/초대 메시지는 항상 포함
-                  if (isMyMessage) {
-                    return true;
-                  }
-                  // 다른 사람의 입장/초대 메시지는 초대 시점 이후만 포함
-                  return msgTime >= joinedAtTime;
-                }
-              }
-              
-              // 일반 메시지는 초대 시점 이후만 포함
-              return msgTime >= joinedAtTime;
-            })
-            : newMessages;
-
-          // ⭐ 중복 메시지 체크: 이미 존재하는 메시지는 제외
-          // ⭐ 중요: 기존 메시지의 unreadCount를 보존하기 위해 병합 로직 사용
-          setMessages(prev => {
-            const existingIds = new Set(prev.map(m => {
-              const mId = m?.id;
-              return mId != null ? Number(mId) : null;
-            }).filter(id => id != null));
-
-            // ⭐ 기존 메시지의 unreadCount를 Map으로 저장 (병합 시 사용)
-            const existingUnreadCounts = new Map();
-            prev.forEach(m => {
-              const mId = m?.id;
-              if (mId != null) {
-                existingUnreadCounts.set(Number(mId), m.unreadCount);
-              }
-            });
-
-            const processedNewMessages = filteredNewMessages.map(msg => {
-              const msgId = msg?.id;
-              if (msgId == null) return null;
-              const numId = Number(msgId);
-
-              // ⭐ 대기 중인 unreadCount 업데이트 우선 적용
-              const pendingUpdate = pendingUnreadCountUpdatesRef.current.get(numId);
-              if (pendingUpdate !== undefined) {
-                console.log("📊 [ChatLayout] 이전 메시지 로드 시 대기 중인 unreadCount 업데이트 적용:", {
-                  chatId: numId,
-                  이전unreadCount: msg.unreadCount,
-                  새로운unreadCount: pendingUpdate
-                });
-                pendingUnreadCountUpdatesRef.current.delete(numId);
-                return {
-                  ...msg,
-                  unreadCount: pendingUpdate,
-                  fileUrls: msg.fileUrls || (msg.fileUrl ? [msg.fileUrl] : undefined), // fileUrls 보존
-                  fileUrl: msg.fileUrl,
-                  fileYn: msg.fileYn
-                };
-              }
-
-              // ⭐ 기존 메시지가 있으면 unreadCount를 보존 (UNREAD_COUNT_UPDATE로 patch된 값 우선)
-              if (existingIds.has(numId)) {
-                const existingUnreadCount = existingUnreadCounts.get(numId);
-                // ⭐ 기존에 patch된 unreadCount가 있으면 그것을 사용 (더 최신일 수 있음)
-                if (existingUnreadCount != null) {
-                  return {
-                    ...msg,
-                    unreadCount: existingUnreadCount,
-                    fileUrls: msg.fileUrls || (msg.fileUrl ? [msg.fileUrl] : undefined), // fileUrls 보존
-                    fileUrl: msg.fileUrl,
-                    fileYn: msg.fileYn
-                  };
-                }
-              }
-
-              // ⭐ 새로운 메시지이거나 기존 unreadCount가 없으면 fetch된 값 사용
-              // ⚠️ 중요: fileUrls 보존
-              return {
-                ...msg,
-                fileUrls: msg.fileUrls || (msg.fileUrl ? [msg.fileUrl] : undefined),
-                fileUrl: msg.fileUrl,
-                fileYn: msg.fileYn
-              };
-            }).filter(msg => msg != null);
-
-            // ⭐ 중복 제거: 기존에 없는 메시지만 추가
-            const trulyNewMessages = processedNewMessages.filter(msg => {
-              const msgId = msg?.id;
-              if (msgId == null) return false;
-              return !existingIds.has(Number(msgId));
-            });
-
-            // ⭐ 기존 메시지와 병합: 기존 메시지는 unreadCount 보존, 새로운 메시지는 추가
-            const merged = prev.map(existingMsg => {
-              const existingId = existingMsg?.id;
-              if (existingId == null) return existingMsg;
-
-              // ⭐ fetch된 메시지 중 같은 ID가 있으면 unreadCount를 보존한 채로 병합
-              const fetchedMsg = processedNewMessages.find(m => Number(m.id) === Number(existingId));
-              if (fetchedMsg) {
-                // ⭐ 기존 unreadCount가 있으면 보존 (UNREAD_COUNT_UPDATE로 patch된 값)
-                return {
-                  ...fetchedMsg,
-                  unreadCount: existingMsg.unreadCount != null ? existingMsg.unreadCount : fetchedMsg.unreadCount,
-                  fileUrls: fetchedMsg.fileUrls || (fetchedMsg.fileUrl ? [fetchedMsg.fileUrl] : undefined), // fileUrls 보존
-                  fileUrl: fetchedMsg.fileUrl,
-                  fileYn: fetchedMsg.fileYn
-                };
-              }
-
-              return existingMsg;
-            });
-
-            if (trulyNewMessages.length < processedNewMessages.length) {
-              console.log("📨 [ChatLayout] 중복 메시지 제외 (이전 메시지 로딩, unreadCount 보존):", {
-                전체메시지수: processedNewMessages.length,
-                중복제외후: trulyNewMessages.length,
-                제외된메시지수: processedNewMessages.length - trulyNewMessages.length,
-                병합된메시지수: merged.length
-              });
-            }
-
-            console.log("✅ [ChatLayout] 이전 메시지 병합 완료:", {
-              추가된메시지수: trulyNewMessages.length,
-              기존메시지수: prev.length,
-              전체메시지수: trulyNewMessages.length + merged.length
-            });
-            
-            return [...trulyNewMessages, ...merged];
-          });
-          
-          setTotalPages(pageData.totalPages || 0);
-          setHasMore(!pageData.last);
-          setCurrentPage(nextPage);
-          
-          console.log("✅ [ChatLayout] 페이지 상태 업데이트 완료:", {
-            totalPages: pageData.totalPages,
-            currentPage: nextPage,
-            hasMore: !pageData.last,
-            isLast: pageData.last
-          });
-          
-          // ✅ 스크롤 위치 복원 (메시지 추가 후)
-          // ⭐ requestAnimationFrame 이중 사용으로 DOM 업데이트 완료 보장
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              if (scrollContainer) {
-                const scrollHeightAfter = scrollContainer.scrollHeight;
-                const heightDiff = scrollHeightAfter - scrollHeightBefore;
-                const newScrollTop = scrollTopBefore + heightDiff;
-                
-                console.log("📍 [ChatLayout] 스크롤 위치 복원 준비:", {
-                  scrollHeightBefore,
-                  scrollHeightAfter,
-                  heightDiff,
-                  scrollTopBefore,
-                  newScrollTop
-                });
-                
-                // ⭐ 스크롤 위치 설정
-                scrollContainer.scrollTop = newScrollTop;
-                
-                console.log("✅ [ChatLayout] 스크롤 위치 복원 완료:", {
-                  설정한위치: newScrollTop,
-                  실제위치: scrollContainer.scrollTop,
-                  차이: Math.abs(scrollContainer.scrollTop - newScrollTop)
-                });
-                
-                // ⭐ 추가 검증: 스크롤 위치가 제대로 설정되지 않았으면 재시도
-                if (Math.abs(scrollContainer.scrollTop - newScrollTop) > 10) {
-                  console.warn("⚠️ [ChatLayout] 스크롤 위치 불일치 - 재시도");
-                  setTimeout(() => {
-                    scrollContainer.scrollTop = newScrollTop;
-                    console.log("🔄 [ChatLayout] 스크롤 위치 재설정:", {
-                      재설정위치: newScrollTop,
-                      실제위치: scrollContainer.scrollTop
-                    });
-                  }, 50);
-                }
-              }
-            });
-          });
-        } else {
-          console.warn("⚠️ [ChatLayout] pageData.content가 배열이 아님:", pageData);
-        }
-      } else {
-        console.warn("⚠️ [ChatLayout] res.data가 없음:", res);
+        }, 0);
       }
     } catch (error) {
       console.error("❌ [ChatLayout] 이전 메시지 로딩 실패:", error);
