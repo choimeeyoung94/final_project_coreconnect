@@ -1630,6 +1630,8 @@ export default function ChatLayout() {
 
         // 3) 스크롤 위치 복원: 추가된 높이만큼 scrollTop을 더해줌
         //    → 사용자가 보고 있던 지점 그대로 유지
+
+        // requestAnimationFrame을 사용하여 DOM 렌더링 완료 후 스크롤 조정
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             const afterHeight = el?.scrollHeight ?? 0;
@@ -1663,7 +1665,12 @@ export default function ChatLayout() {
     } catch (error) {
       console.error("❌ [ChatLayout] 이전 메시지 로딩 실패:", error);
     } finally {
-      setIsLoadingMore(false);
+
+      // 로딩 상태는 스크롤 위치 복원 후에 해제 (약간의 지연)
+      setTimeout(() => {
+        console.log("🏁 [ChatLayout] 로딩 상태 false로 변경");
+        setIsLoadingMore(false);
+      }, 50);
     }
   };
 
