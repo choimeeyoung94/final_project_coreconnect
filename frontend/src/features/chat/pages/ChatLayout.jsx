@@ -1482,8 +1482,16 @@ export default function ChatLayout() {
             setCurrentPage(0);
 
             // ⭐ 채팅방 선택 시 메시지 로드 후 스크롤 처리
-            // ✅ 수정: 초기 로드일 때만 스크롤 (무한 스크롤 시에는 스크롤 안 함)
+            // ✅ 수정: 초기 로드일 때만 스크롤 (무한 스크롤 시에는 절대 스크롤 안 함)
+            console.log("🔍 [ChatLayout] 스크롤 처리 체크:", {
+              isInitialLoad: isInitialLoadRef.current,
+              scrollToUnread: scrollToUnread,
+              messagesLength: messagesWithPendingUpdates.length
+            });
+            
             if (isInitialLoadRef.current && !scrollToUnread) {
+              // ⭐ 초기 로드일 때만 스크롤
+              console.log("✅ [ChatLayout] 초기 로드 확인 - 스크롤 예정");
               setTimeout(() => {
                 const scrollContainer = document.querySelector('.chat-message-list-container');
                 if (scrollContainer) {
@@ -1497,9 +1505,10 @@ export default function ChatLayout() {
                 }
                 // ✅ 초기 로드 플래그 해제
                 isInitialLoadRef.current = false;
+                console.log("🏁 [ChatLayout] isInitialLoadRef를 false로 설정");
               }, 300);
             } else {
-              console.log("📜 [ChatLayout] ⏭️ 초기 로드 아님 - 스크롤 안 함:", {
+              console.log("🚫 [ChatLayout] 초기 로드 아님 - 스크롤 안 함:", {
                 isInitialLoad: isInitialLoadRef.current,
                 scrollToUnread: scrollToUnread
               });
