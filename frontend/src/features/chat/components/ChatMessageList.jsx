@@ -16,6 +16,7 @@ function ChatMessageList({
   const { userProfile } = useContext(UserProfileContext) || {};
   const scrollRef = useRef();
   const restoreRef = useRef({ scrollHeight: 0, scrollTop: 0, pending: false });
+  const prevLoadingAboveRef = useRef(loadingAbove);
 
   const handleScroll = () => {
     const el = scrollRef.current;
@@ -35,12 +36,21 @@ function ChatMessageList({
     }
   };
 
-  // 메시지 길이 변화 또는 로딩 종료 후 스크롤 복원
+  // loadingAbove가 true -> false로 변경될 때만 스크롤 복원 (실시간 메시지 도착 시 스크롤 점프 방지)
   React.useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+
+    // loadingAbove가 true에서 false로 변경되었는지 확인
+    const wasLoading = prevLoadingAboveRef.current;
+    const isNowNotLoading = !loadingAbove;
+    prevLoadingAboveRef.current = loadingAbove;
+
+    // loadingAbove가 true -> false로 변경되고, pending이 true일 때만 복원
+    if (!wasLoading || !isNowNotLoading) return;
+
     const { pending, scrollHeight: prevH, scrollTop: prevT } = restoreRef.current;
-    if (!pending || loadingAbove) return;
+    if (!pending) return;
 
     const newH = el.scrollHeight;
     const diff = newH - prevH;
@@ -58,7 +68,7 @@ function ChatMessageList({
 
     // 완료 후 초기화
     restoreRef.current = { scrollHeight: 0, scrollTop: 0, pending: false };
-  }, [messages.length, loadingAbove]);
+  }, [loadingAbove]);
 
   return (
     <Box
@@ -271,3 +281,5 @@ function ChatMessageList({
 }
 
 export default ChatMessageList;
+
+
