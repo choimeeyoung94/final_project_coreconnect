@@ -1730,11 +1730,8 @@ export default function ChatLayout() {
     };
   }, [selectedRoomId]);
 
-  // ---------- 메시지 박스 끝으로 스크롤 ----------
-  const messagesEndRef = useRef(null);
-  useEffect(() => {
-    if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  // ❌ 제거: messages 변경 시 자동 스크롤 (무한 스크롤 방해)
+  // 초기 접속 시 스크롤은 초기 로드 useEffect에서 처리
 
   // ⭐ 디버깅: messages 상태 변경 추적 (필요시 주석 해제)
   useEffect(() => {
