@@ -75,8 +75,6 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
   const unreadMarkerRef = useRef(null);
   const isUserScrollingRef = useRef(false); // 사용자가 수동으로 스크롤 중인지 추적
   const isNearBottomBeforeUpdateRef = useRef(true); // 메시지 추가 전에 스크롤이 하단 근처였는지 추적
-  const lastMessageIdRef = useRef(messages.length > 0 ? messages[messages.length - 1]?.id : null); // ⭐ 마지막 메시지 ID 추적
-  const firstMessageIdRef = useRef(messages.length > 0 ? messages[0]?.id : null); // ⭐ 첫 번째 메시지 ID 추적 (이전 메시지 로드 감지용)
 
   // 무한 스크롤(위로 올릴 때 loadMore) - 스크롤 위치 유지
   const handleScroll = () => {
@@ -246,74 +244,8 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
     };
   }, [messages, showUnreadMarker, markerDismissed]);
 
-  // 새 메시지 오면 맨 아래로 스크롤 (조건부)
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || messages.length === 0 || scrollToUnread) return;
-    
-    // ⭐ 핵심: 마지막 메시지 ID와 첫 번째 메시지 ID로 구분
-    const currentLastMessageId = messages.length > 0 ? messages[messages.length - 1]?.id : null;
-    const currentFirstMessageId = messages.length > 0 ? messages[0]?.id : null;
-    
-    const isNewMessageAdded = currentLastMessageId !== lastMessageIdRef.current && currentLastMessageId !== null;
-    const isOldMessageLoaded = currentFirstMessageId !== firstMessageIdRef.current && currentFirstMessageId !== null;
-    
-    // ✅ 이전 메시지 로드와 새 메시지 추가를 명확히 구분
-    if (isNewMessageAdded && !isOldMessageLoaded) {
-      // ✅ 새 메시지만 추가된 경우 (이전 메시지 로드가 아닌 경우)
-      console.log("🆕 [ChatMessageList] 새 메시지 추가 감지:", {
-        previousLastId: lastMessageIdRef.current,
-        currentLastId: currentLastMessageId,
-        firstMessageId: currentFirstMessageId,
-        previousFirstMessageId: firstMessageIdRef.current,
-        isOldMessageLoaded: isOldMessageLoaded
-      });
-      
-      // 마지막 메시지 ID 업데이트
-      lastMessageIdRef.current = currentLastMessageId;
-      firstMessageIdRef.current = currentFirstMessageId;
-      
-      // 새 메시지가 추가된 경우: 이전에 스크롤이 하단 근처였고, 사용자가 수동 스크롤 중이 아닐 때만 자동 스크롤
-      const shouldAutoScroll = isNearBottomBeforeUpdateRef.current && !isUserScrollingRef.current;
-      
-      console.log("📊 [ChatMessageList] 자동 스크롤 조건 체크:", {
-        isNearBottomBefore: isNearBottomBeforeUpdateRef.current,
-        isUserScrolling: isUserScrollingRef.current,
-        shouldAutoScroll: shouldAutoScroll
-      });
-      
-      if (shouldAutoScroll) {
-        // ⭐ 스크롤을 맨 아래로 내리기
-        setTimeout(() => {
-          if (el) {
-            el.scrollTop = el.scrollHeight;
-            isNearBottomBeforeUpdateRef.current = true;
-            console.log("✅ [ChatMessageList] 자동 스크롤 실행 (새 메시지):", {
-              scrollTop: el.scrollTop,
-              scrollHeight: el.scrollHeight
-            });
-          }
-        }, 100);
-      } else {
-        console.log("🚫 [ChatMessageList] 자동 스크롤 건너뜀 (사용자가 스크롤 중)");
-      }
-    } else if (isOldMessageLoaded) {
-      // ✅ 이전 메시지 로드된 경우 (자동 스크롤 안 함)
-      console.log("📜 [ChatMessageList] 이전 메시지 로드 감지 (자동 스크롤 안 함):", {
-        firstMessageId: currentFirstMessageId,
-        previousFirstMessageId: firstMessageIdRef.current,
-        lastMessageId: currentLastMessageId,
-        messagesLength: messages.length
-      });
-      
-      // ID 업데이트
-      firstMessageIdRef.current = currentFirstMessageId;
-      if (isNewMessageAdded) {
-        lastMessageIdRef.current = currentLastMessageId;
-      }
-    }
-    
-  }, [messages, firstUnreadIndex, scrollToUnread]);
+  // ❌ 완전 제거: ChatLayout에서 스크롤을 관리하므로 여기서는 절대 스크롤하지 않음
+  // ChatMessageList는 단순히 메시지를 표시하고 스크롤 이벤트를 감지하는 역할만 수행
   
   // ⭐ 안읽은 메시지 위치로 스크롤 (채팅방 선택 시)
   useEffect(() => {
