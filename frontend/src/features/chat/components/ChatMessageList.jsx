@@ -15,6 +15,8 @@ function ChatMessageList({
 }) {
   const { userProfile } = useContext(UserProfileContext) || {};
   const scrollRef = useRef();
+  const restoreRef = useRef({ scrollHeight: 0, scrollTop: 0, pending: false });
+  const prevLoadingAboveRef = useRef(loadingAbove);
 
   const handleScroll = () => {
     const el = scrollRef.current;
@@ -23,10 +25,50 @@ function ChatMessageList({
     // 스크롤이 상단 150px 이내면 onLoadMore 호출
     const isNearTop = el.scrollTop <= 150;
     if (onLoadMore && hasMoreAbove && !loadingAbove && isNearTop) {
-      console.log("🔄 [ChatMessageList] onLoadMore 호출 - 위치:", el.scrollTop);
+      // 로딩 전 위치/높이 저장
+      restoreRef.current = {
+        scrollHeight: el.scrollHeight,
+        scrollTop: el.scrollTop,
+        pending: true,
+      };
+      console.log("🔄 [ChatMessageList] onLoadMore 호출 - 위치 저장:", restoreRef.current);
       onLoadMore(); // 위치 저장/복원은 ChatLayout에서 처리
     }
   };
+
+  // loadingAbove가 true -> false로 변경될 때만 스크롤 복원 (실시간 메시지 도착 시 스크롤 점프 방지)
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    // loadingAbove가 true에서 false로 변경되었는지 확인
+    const wasLoading = prevLoadingAboveRef.current;
+    const isNowNotLoading = !loadingAbove;
+    prevLoadingAboveRef.current = loadingAbove;
+
+    // loadingAbove가 true -> false로 변경되고, pending이 true일 때만 복원
+    if (!wasLoading || !isNowNotLoading) return;
+
+    const { pending, scrollHeight: prevH, scrollTop: prevT } = restoreRef.current;
+    if (!pending) return;
+
+    const newH = el.scrollHeight;
+    const diff = newH - prevH;
+    const restored = prevT + diff;
+    el.scrollTop = restored;
+
+    console.log("✅ [ChatMessageList] 스크롤 위치 복원:", {
+      prevH,
+      newH,
+      diff,
+      prevT,
+      restored,
+      actual: el.scrollTop,
+    });
+
+    // 완료 후 초기화
+    restoreRef.current = { scrollHeight: 0, scrollTop: 0, pending: false };
+  }, [loadingAbove]);
 
   return (
     <Box
@@ -37,6 +79,7 @@ function ChatMessageList({
         height: "55vh",
         maxHeight: 600,
         overflowY: "auto",
+        overflowAnchor: "none",
         background: "#fafbff",
         px: 3,
         pt: 2,
@@ -238,3 +281,5 @@ function ChatMessageList({
 }
 
 export default ChatMessageList;
+
+
