@@ -83,6 +83,9 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
     const el = scrollRef.current;
     if (!el) return;
     
+    // ⭐ 디버깅: handleScroll 호출 확인
+    console.log("🖱️ [ChatMessageList] handleScroll 호출");
+    
     // 스크롤이 하단 근처인지 확인 (50px 오차 허용)
     const scrollTop = el.scrollTop;
     const scrollHeight = el.scrollHeight;
