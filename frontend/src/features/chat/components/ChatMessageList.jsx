@@ -73,11 +73,30 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
   const scrollPositionRef = useRef({ scrollHeight: 0, scrollTop: 0 });
   const autoHideTimerRef = useRef(null);
   const unreadMarkerRef = useRef(null);
+  const isUserScrollingRef = useRef(false); // 사용자가 수동으로 스크롤 중인지 추적
+  const isNearBottomBeforeUpdateRef = useRef(true); // 메시지 추가 전에 스크롤이 하단 근처였는지 추적
+  const lastMessageIdRef = useRef(messages.length > 0 ? messages[messages.length - 1]?.id : null); // ⭐ 마지막 메시지 ID 추적
 
   // 무한 스크롤(위로 올릴 때 loadMore) - 스크롤 위치 유지
   const handleScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
+    
+    // 스크롤이 하단 근처인지 확인 (50px 오차 허용)
+    const scrollTop = el.scrollTop;
+    const scrollHeight = el.scrollHeight;
+    const clientHeight = el.clientHeight;
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50;
+    
+    // 사용자가 수동으로 스크롤을 위로 올렸는지 추적
+    if (!isNearBottom) {
+      isUserScrollingRef.current = true;
+    } else {
+      isUserScrollingRef.current = false;
+    }
+    
+    // 다음 업데이트를 위해 현재 스크롤 위치 저장
+    isNearBottomBeforeUpdateRef.current = isNearBottom;
     
     // 이전 메시지 로드 (무한 스크롤)
     if (onLoadMore && hasMoreAbove && !loadingAbove && el.scrollTop <= 24) {
@@ -86,6 +105,9 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
         scrollHeight: el.scrollHeight,
         scrollTop: el.scrollTop,
       };
+      
+      // 사용자가 위로 스크롤 중임을 표시
+      isUserScrollingRef.current = true;
       
       // 이전 메시지 로드
       onLoadMore();
@@ -211,20 +233,66 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
     };
   }, [messages, showUnreadMarker, markerDismissed]);
 
-  // 새 메시지 오면 항상 맨 아래로 스크롤 (안읽은 메시지가 없고 scrollToUnread가 false일 때만)
+  // 새 메시지 오면 맨 아래로 스크롤 (조건부)
   useEffect(() => {
     const el = scrollRef.current;
-    if (el && messages.length > 0 && !scrollToUnread) {
-      // 안읽은 메시지가 없을 때만 자동 스크롤
-      if (firstUnreadIndex < 0) {
+    if (!el || messages.length === 0 || scrollToUnread) return;
+    
+    // ⭐ 핵심: 마지막 메시지 ID가 변경되었는지 확인 (새 메시지 추가 판단)
+    const currentLastMessageId = messages.length > 0 ? messages[messages.length - 1]?.id : null;
+    const isNewMessageAdded = currentLastMessageId !== lastMessageIdRef.current && currentLastMessageId !== null;
+    
+    // ⭐ 이전 메시지 로드 vs 새 메시지 추가 구분
+    // - 새 메시지 추가: 마지막 메시지 ID가 변경됨
+    // - 이전 메시지 로드: 마지막 메시지 ID는 그대로, 첫 번째 메시지 ID가 변경됨
+    
+    if (isNewMessageAdded) {
+      console.log("🆕 [ChatMessageList] 새 메시지 추가 감지:", {
+        previousLastId: lastMessageIdRef.current,
+        currentLastId: currentLastMessageId,
+        messagesLength: messages.length
+      });
+      
+      // 마지막 메시지 ID 업데이트
+      lastMessageIdRef.current = currentLastMessageId;
+      
+      // 새 메시지가 추가된 경우: 이전에 스크롤이 하단 근처였고, 사용자가 수동 스크롤 중이 아닐 때만 자동 스크롤
+      const shouldAutoScroll = isNearBottomBeforeUpdateRef.current && !isUserScrollingRef.current && firstUnreadIndex < 0;
+      
+      console.log("📊 [ChatMessageList] 자동 스크롤 조건 체크:", {
+        isNearBottomBefore: isNearBottomBeforeUpdateRef.current,
+        isUserScrolling: isUserScrollingRef.current,
+        firstUnreadIndex: firstUnreadIndex,
+        shouldAutoScroll: shouldAutoScroll
+      });
+      
+      if (shouldAutoScroll) {
         // ⭐ 스크롤을 맨 아래로 내리기 (약간의 지연을 두어 DOM 업데이트 완료 후 실행)
         setTimeout(() => {
           if (el) {
             el.scrollTop = el.scrollHeight;
+            isNearBottomBeforeUpdateRef.current = true;
+            console.log("✅ [ChatMessageList] 자동 스크롤 실행:", {
+              scrollTop: el.scrollTop,
+              scrollHeight: el.scrollHeight
+            });
           }
         }, 100);
+      } else {
+        console.log("🚫 [ChatMessageList] 자동 스크롤 건너뜀");
       }
+    } else if (messages.length > previousMessagesLengthRef.current) {
+      // 메시지 수는 증가했지만 마지막 메시지 ID는 그대로 → 이전 메시지 로드
+      console.log("📜 [ChatMessageList] 이전 메시지 로드 감지 (자동 스크롤 안 함):", {
+        messagesLength: messages.length,
+        previousLength: previousMessagesLengthRef.current,
+        lastMessageId: currentLastMessageId
+      });
     }
+    
+    // 메시지 수 업데이트
+    previousMessagesLengthRef.current = messages.length;
+    
   }, [messages, firstUnreadIndex, scrollToUnread]);
   
   // ⭐ 안읽은 메시지 위치로 스크롤 (채팅방 선택 시)
