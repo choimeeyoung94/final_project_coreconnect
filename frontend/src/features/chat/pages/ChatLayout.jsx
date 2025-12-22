@@ -1598,11 +1598,6 @@ export default function ChatLayout() {
   const handleLoadMoreMessages = async () => {
     // 중복 호출/끝 페이지/선택 방 없음 차단
     if (!selectedRoomId || isLoadingMore || !hasMore) {
-      console.log("🚫 [ChatLayout] 이전 메시지 로드 차단:", {
-        selectedRoomId: !!selectedRoomId,
-        isLoadingMore,
-        hasMore
-      });
       return;
     }
 
@@ -1635,23 +1630,24 @@ export default function ChatLayout() {
 
         // 3) 스크롤 위치 복원: 추가된 높이만큼 scrollTop을 더해줌
         //    → 사용자가 보고 있던 지점 그대로 유지
-        setTimeout(() => {
+        requestAnimationFrame(() => {
           const afterHeight = el?.scrollHeight ?? 0;
           const heightDiff = afterHeight - before.scrollHeight;
           if (el) {
-            el.scrollTop = before.scrollTop + heightDiff;
+            const restored = before.scrollTop + heightDiff;
+            el.scrollTop = restored;
             console.log("✅ [ChatLayout] 스크롤 위치 복원:", {
               before: before.scrollTop,
               heightDiff,
-              after: el.scrollTop
+              restored,
+              actual: el.scrollTop
             });
           }
-        }, 0);
+        });
       }
     } catch (error) {
       console.error("❌ [ChatLayout] 이전 메시지 로딩 실패:", error);
     } finally {
-      console.log("🏁 [ChatLayout] 로딩 상태 false로 변경");
       setIsLoadingMore(false);
     }
   };
