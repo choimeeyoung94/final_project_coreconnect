@@ -1471,9 +1471,28 @@ export default function ChatLayout() {
             setHasMore(!pageData.last); // last가 false면 더 있음
             setCurrentPage(0);
 
-            // ❌ 제거: 자동 스크롤 로직 전부 제거
-            // 초기 로드 플래그만 해제
-            isInitialLoadRef.current = false;
+            // ⭐ 채팅방 처음 접속 시에만 최신 메시지로 자동 스크롤
+            if (isInitialLoadRef.current && !scrollToUnread) {
+              console.log("✅ [ChatLayout] 초기 접속 - 최신 메시지로 스크롤");
+              
+              // 초기 로드 플래그 해제 (다음부터는 스크롤 유지)
+              isInitialLoadRef.current = false;
+              
+              // DOM 업데이트 후 최신 메시지로 스크롤
+              setTimeout(() => {
+                const scrollContainer = document.querySelector('.chat-message-list-container');
+                if (scrollContainer) {
+                  scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                  console.log("📜 [ChatLayout] 최신 메시지로 스크롤 완료:", {
+                    scrollTop: scrollContainer.scrollTop,
+                    scrollHeight: scrollContainer.scrollHeight
+                  });
+                }
+              }, 0);
+            } else {
+              console.log("🚫 [ChatLayout] 초기 접속 아님 - 스크롤 유지");
+              isInitialLoadRef.current = false;
+            }
 
             // ⭐ 채팅방 접속 시 안읽은 메시지들을 읽음 처리
             // ⭐ 중요: 메시지 로드 후 마커가 렌더링되고 스크롤이 완료된 후에 읽음 처리
