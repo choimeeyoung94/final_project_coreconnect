@@ -56,7 +56,7 @@ const formatTime = (time) => {
   }
 };
 
-function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbove, loadingAbove, onMessagesLoaded, scrollToUnread = false, onScrollToUnreadComplete }) {
+function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbove, loadingAbove, onMessagesLoaded, scrollToUnread = false, onScrollToUnreadComplete }) { // eslint-disable-line no-unused-vars
   // 👇 로그인 정보 받기!
   const { userProfile } = useContext(UserProfileContext) || {};
   const userEmail = userProfile?.email;
@@ -76,6 +76,7 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
   const isUserScrollingRef = useRef(false); // 사용자가 수동으로 스크롤 중인지 추적
   const isNearBottomBeforeUpdateRef = useRef(true); // 메시지 추가 전에 스크롤이 하단 근처였는지 추적
   const lastMessageIdRef = useRef(messages.length > 0 ? messages[messages.length - 1]?.id : null); // ⭐ 마지막 메시지 ID 추적
+  const firstMessageIdRef = useRef(messages.length > 0 ? messages[0]?.id : null); // ⭐ 첫 번째 메시지 ID 추적 (이전 메시지 로드 감지용)
 
   // 무한 스크롤(위로 올릴 때 loadMore) - 스크롤 위치 유지
   const handleScroll = () => {
@@ -112,11 +113,17 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
         isNearTop: isNearTop
       });
       
-      // 현재 스크롤 위치와 높이 저장
+      // ✅ 현재 스크롤 위치와 높이 저장 (더 정확하게)
       scrollPositionRef.current = {
         scrollHeight: el.scrollHeight,
         scrollTop: el.scrollTop,
       };
+      
+      console.log("💾 [ChatMessageList] 스크롤 위치 저장:", {
+        scrollHeight: el.scrollHeight,
+        scrollTop: el.scrollTop,
+        저장시각: new Date().toISOString()
+      });
       
       // ✅ 사용자가 위로 스크롤 중임을 표시
       isUserScrollingRef.current = true;
@@ -152,21 +159,20 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
     const el = scrollRef.current;
     if (!el) return;
     
-    // 이전 메시지가 추가된 경우 (메시지 수가 증가하고 스크롤이 위쪽에 있을 때)
+    // 이전 메시지가 추가된 경우 (메시지 수가 증가하고 저장된 스크롤 위치가 있을 때)
     const messagesIncreased = messages.length > previousMessagesLengthRef.current;
-    const isScrolledToTop = el.scrollTop < 300; // 300px 이하면 상단으로 간주
     
     console.log("📐 [ChatMessageList] 스크롤 위치 복원 체크:", {
       messagesLength: messages.length,
       previousLength: previousMessagesLengthRef.current,
       messagesIncreased: messagesIncreased,
-      isScrolledToTop: isScrolledToTop,
       scrollTop: el.scrollTop,
       savedScrollHeight: scrollPositionRef.current.scrollHeight,
       loadingAbove: loadingAbove
     });
     
-    if (messagesIncreased && isScrolledToTop && scrollPositionRef.current.scrollHeight > 0) {
+    // ✅ 수정: 조건을 더 명확하게 - 저장된 스크롤 위치가 있으면 무조건 복원
+    if (messagesIncreased && scrollPositionRef.current.scrollHeight > 0) {
       const newScrollHeight = el.scrollHeight;
       const heightDiff = newScrollHeight - scrollPositionRef.current.scrollHeight;
       
@@ -178,18 +184,17 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
         새로운scrollTop: scrollPositionRef.current.scrollTop + heightDiff
       });
       
-      // 스크롤 위치 복원 (즉시 실행)
-      requestAnimationFrame(() => {
-        if (el) {
-          const newScrollTop = scrollPositionRef.current.scrollTop + heightDiff;
-          el.scrollTop = newScrollTop;
-          console.log("📍 [ChatMessageList] 스크롤 위치 설정 완료:", {
-            설정한위치: newScrollTop,
-            실제위치: el.scrollTop
-          });
-          scrollPositionRef.current = { scrollHeight: 0, scrollTop: 0 }; // 초기화
-        }
+      // ✅ 스크롤 위치 복원 (즉시 실행, requestAnimationFrame 제거)
+      const newScrollTop = scrollPositionRef.current.scrollTop + heightDiff;
+      el.scrollTop = newScrollTop;
+      
+      console.log("📍 [ChatMessageList] 스크롤 위치 설정 완료:", {
+        설정한위치: newScrollTop,
+        실제위치: el.scrollTop
       });
+      
+      // ✅ 초기화
+      scrollPositionRef.current = { scrollHeight: 0, scrollTop: 0 };
     }
     
     previousMessagesLengthRef.current = messages.length;
@@ -283,25 +288,29 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
     const el = scrollRef.current;
     if (!el || messages.length === 0 || scrollToUnread) return;
     
-    // ⭐ 핵심: 마지막 메시지 ID가 변경되었는지 확인 (새 메시지 추가 판단)
+    // ⭐ 핵심: 마지막 메시지 ID와 첫 번째 메시지 ID로 구분
     const currentLastMessageId = messages.length > 0 ? messages[messages.length - 1]?.id : null;
+    const currentFirstMessageId = messages.length > 0 ? messages[0]?.id : null;
+    
     const isNewMessageAdded = currentLastMessageId !== lastMessageIdRef.current && currentLastMessageId !== null;
+    const isOldMessageLoaded = currentFirstMessageId !== firstMessageIdRef.current && currentFirstMessageId !== null;
     
-    // ⭐ 이전 메시지 로드 vs 새 메시지 추가 구분
-    // - 새 메시지 추가: 마지막 메시지 ID가 변경됨
-    // - 이전 메시지 로드: 마지막 메시지 ID는 그대로, 첫 번째 메시지 ID가 변경됨
-    
-    if (isNewMessageAdded) {
+    // ✅ 이전 메시지 로드와 새 메시지 추가를 명확히 구분
+    if (isNewMessageAdded && !isOldMessageLoaded) {
+      // ✅ 새 메시지만 추가된 경우 (이전 메시지 로드가 아닌 경우)
       console.log("🆕 [ChatMessageList] 새 메시지 추가 감지:", {
         previousLastId: lastMessageIdRef.current,
         currentLastId: currentLastMessageId,
-        messagesLength: messages.length
+        firstMessageId: currentFirstMessageId,
+        previousFirstMessageId: firstMessageIdRef.current,
+        isOldMessageLoaded: isOldMessageLoaded
       });
       
       // 마지막 메시지 ID 업데이트
       lastMessageIdRef.current = currentLastMessageId;
+      firstMessageIdRef.current = currentFirstMessageId;
       
-      // ✅ 수정: firstUnreadIndex 조건 제거 - 사용자가 스크롤 중이 아닐 때만 자동 스크롤
+      // 새 메시지가 추가된 경우: 이전에 스크롤이 하단 근처였고, 사용자가 수동 스크롤 중이 아닐 때만 자동 스크롤
       const shouldAutoScroll = isNearBottomBeforeUpdateRef.current && !isUserScrollingRef.current;
       
       console.log("📊 [ChatMessageList] 자동 스크롤 조건 체크:", {
@@ -311,12 +320,12 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
       });
       
       if (shouldAutoScroll) {
-        // ⭐ 스크롤을 맨 아래로 내리기 (약간의 지연을 두어 DOM 업데이트 완료 후 실행)
+        // ⭐ 스크롤을 맨 아래로 내리기
         setTimeout(() => {
           if (el) {
             el.scrollTop = el.scrollHeight;
             isNearBottomBeforeUpdateRef.current = true;
-            console.log("✅ [ChatMessageList] 자동 스크롤 실행:", {
+            console.log("✅ [ChatMessageList] 자동 스크롤 실행 (새 메시지):", {
               scrollTop: el.scrollTop,
               scrollHeight: el.scrollHeight
             });
@@ -325,17 +334,21 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
       } else {
         console.log("🚫 [ChatMessageList] 자동 스크롤 건너뜀 (사용자가 스크롤 중)");
       }
-    } else if (messages.length > previousMessagesLengthRef.current) {
-      // 메시지 수는 증가했지만 마지막 메시지 ID는 그대로 → 이전 메시지 로드
+    } else if (isOldMessageLoaded) {
+      // ✅ 이전 메시지 로드된 경우 (자동 스크롤 안 함)
       console.log("📜 [ChatMessageList] 이전 메시지 로드 감지 (자동 스크롤 안 함):", {
-        messagesLength: messages.length,
-        previousLength: previousMessagesLengthRef.current,
-        lastMessageId: currentLastMessageId
+        firstMessageId: currentFirstMessageId,
+        previousFirstMessageId: firstMessageIdRef.current,
+        lastMessageId: currentLastMessageId,
+        messagesLength: messages.length
       });
+      
+      // ID 업데이트
+      firstMessageIdRef.current = currentFirstMessageId;
+      if (isNewMessageAdded) {
+        lastMessageIdRef.current = currentLastMessageId;
+      }
     }
-    
-    // 메시지 수 업데이트
-    previousMessagesLengthRef.current = messages.length;
     
   }, [messages, firstUnreadIndex, scrollToUnread]);
   
@@ -443,7 +456,8 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
         }, 200);
       }
     }
-  }, [onMessagesLoaded, firstUnreadIndex]); // ⚠️ messages.length 제거!
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onMessagesLoaded, firstUnreadIndex]); // ⚠️ messages.length 제거! (의도적으로 제외)
 
   return (
     <Box
