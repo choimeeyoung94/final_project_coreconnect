@@ -37,6 +37,7 @@ function ChatMessageList({
         height: "55vh",
         maxHeight: 600,
         overflowY: "auto",
+        overflowAnchor: "none",
         background: "#fafbff",
         px: 3,
         pt: 2,

@@ -1631,18 +1631,33 @@ export default function ChatLayout() {
         // 3) 스크롤 위치 복원: 추가된 높이만큼 scrollTop을 더해줌
         //    → 사용자가 보고 있던 지점 그대로 유지
         requestAnimationFrame(() => {
-          const afterHeight = el?.scrollHeight ?? 0;
-          const heightDiff = afterHeight - before.scrollHeight;
-          if (el) {
-            const restored = before.scrollTop + heightDiff;
-            el.scrollTop = restored;
-            console.log("✅ [ChatLayout] 스크롤 위치 복원:", {
-              before: before.scrollTop,
-              heightDiff,
-              restored,
-              actual: el.scrollTop
-            });
-          }
+          requestAnimationFrame(() => {
+            const afterHeight = el?.scrollHeight ?? 0;
+            const heightDiff = afterHeight - before.scrollHeight;
+            if (el) {
+              const restored = before.scrollTop + heightDiff;
+              el.scrollTop = restored;
+              // 재확인 후 필요시 한 번 더 보정
+              if (Math.abs(el.scrollTop - restored) > 2) {
+                setTimeout(() => {
+                  el.scrollTop = restored;
+                  console.log("🔁 [ChatLayout] 스크롤 위치 재보정:", {
+                    before: before.scrollTop,
+                    heightDiff,
+                    restored,
+                    actual: el.scrollTop
+                  });
+                }, 30);
+              } else {
+                console.log("✅ [ChatLayout] 스크롤 위치 복원:", {
+                  before: before.scrollTop,
+                  heightDiff,
+                  restored,
+                  actual: el.scrollTop
+                });
+              }
+            }
+          });
         });
       }
     } catch (error) {
