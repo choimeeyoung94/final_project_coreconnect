@@ -155,50 +155,10 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
   };
   
   // ⭐ 이전 메시지 로드 시 스크롤 위치 복원
+  // ✅ 수정: ChatLayout에서 스크롤 위치 복원을 처리하므로 여기서는 단순히 메시지 수만 추적
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    
-    // 이전 메시지가 추가된 경우 (메시지 수가 증가하고 저장된 스크롤 위치가 있을 때)
-    const messagesIncreased = messages.length > previousMessagesLengthRef.current;
-    
-    console.log("📐 [ChatMessageList] 스크롤 위치 복원 체크:", {
-      messagesLength: messages.length,
-      previousLength: previousMessagesLengthRef.current,
-      messagesIncreased: messagesIncreased,
-      scrollTop: el.scrollTop,
-      savedScrollHeight: scrollPositionRef.current.scrollHeight,
-      loadingAbove: loadingAbove
-    });
-    
-    // ✅ 수정: 조건을 더 명확하게 - 저장된 스크롤 위치가 있으면 무조건 복원
-    if (messagesIncreased && scrollPositionRef.current.scrollHeight > 0) {
-      const newScrollHeight = el.scrollHeight;
-      const heightDiff = newScrollHeight - scrollPositionRef.current.scrollHeight;
-      
-      console.log("✅ [ChatMessageList] 스크롤 위치 복원 실행:", {
-        이전scrollHeight: scrollPositionRef.current.scrollHeight,
-        새로운scrollHeight: newScrollHeight,
-        heightDiff: heightDiff,
-        이전scrollTop: scrollPositionRef.current.scrollTop,
-        새로운scrollTop: scrollPositionRef.current.scrollTop + heightDiff
-      });
-      
-      // ✅ 스크롤 위치 복원 (즉시 실행, requestAnimationFrame 제거)
-      const newScrollTop = scrollPositionRef.current.scrollTop + heightDiff;
-      el.scrollTop = newScrollTop;
-      
-      console.log("📍 [ChatMessageList] 스크롤 위치 설정 완료:", {
-        설정한위치: newScrollTop,
-        실제위치: el.scrollTop
-      });
-      
-      // ✅ 초기화
-      scrollPositionRef.current = { scrollHeight: 0, scrollTop: 0 };
-    }
-    
     previousMessagesLengthRef.current = messages.length;
-  }, [messages.length, loadingAbove]);
+  }, [messages.length]);
 
   // 첫 번째 안읽은 메시지 인덱스 찾기
   useEffect(() => {
@@ -436,28 +396,8 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
     setTimeout(() => scrollToMarker(), 300);
   }, [scrollToUnread, firstUnreadIndex, messages.length, onScrollToUnreadComplete]);
 
-  // ⭐ 채팅방 선택 시 메시지 로드 후 최신 메시지로 스크롤 (안읽은 메시지가 없을 때만)
-  // onMessagesLoaded prop이 호출되면 스크롤을 맨 아래로 이동
-  // ✅ 수정: messages.length 의존성 제거 → 채팅방 변경 시에만 실행되도록
-  useEffect(() => {
-    if (onMessagesLoaded && messages.length > 0 && firstUnreadIndex < 0) {
-      const el = scrollRef.current;
-      if (el) {
-        // DOM 업데이트 완료 후 스크롤 (약간의 지연)
-        setTimeout(() => {
-          if (el) {
-            el.scrollTop = el.scrollHeight;
-            console.log("📜 [ChatMessageList] 채팅방 선택 시 최신 메시지로 스크롤:", {
-              scrollTop: el.scrollTop,
-              scrollHeight: el.scrollHeight,
-              messagesLength: messages.length
-            });
-          }
-        }, 200);
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onMessagesLoaded, firstUnreadIndex]); // ⚠️ messages.length 제거! (의도적으로 제외)
+  // ❌ 제거: ChatLayout에서 초기 스크롤을 처리하므로 이 로직은 불필요하고 간섭함
+  // ⭐ onMessagesLoaded 로직 완전 제거 (ChatLayout의 isInitialLoadRef로 대체)
 
   return (
     <Box

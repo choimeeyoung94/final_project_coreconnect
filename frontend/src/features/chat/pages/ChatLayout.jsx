@@ -103,6 +103,7 @@ export default function ChatLayout() {
 
   const userName = userProfile?.name || ""; // 유저명
   const inputRef = useRef(); // 입력창 관리 ref
+  const isInitialLoadRef = useRef(true); // ✅ 초기 로드 여부 추적 (무한 스크롤과 구분)
 
   const [socketConnected, setSocketConnected] = useState(false); // 소켓 연결 상태
 
@@ -1262,6 +1263,9 @@ export default function ChatLayout() {
   useEffect(() => {
     async function loadMessages() {
       if (selectedRoomId) {
+        // ✅ 초기 로드 플래그 설정
+        isInitialLoadRef.current = true;
+        
         // 채팅방이 변경되면 페이징 상태 초기화
         setCurrentPage(0);
         setHasMore(true);
@@ -1478,20 +1482,29 @@ export default function ChatLayout() {
             setCurrentPage(0);
 
             // ⭐ 채팅방 선택 시 메시지 로드 후 스크롤 처리
-            // scrollToUnread가 true이면 ChatMessageList에서 처리하므로 여기서는 스크롤하지 않음
-            // scrollToUnread가 false일 때만 최신 메시지로 스크롤
-            if (!scrollToUnread) {
+            // ✅ 수정: 초기 로드일 때만 스크롤 (무한 스크롤 시에는 스크롤 안 함)
+            if (isInitialLoadRef.current && !scrollToUnread) {
               setTimeout(() => {
                 const scrollContainer = document.querySelector('.chat-message-list-container');
                 if (scrollContainer) {
                   scrollContainer.scrollTop = scrollContainer.scrollHeight;
-                  console.log("📜 [ChatLayout] 채팅방 선택 시 최신 메시지로 스크롤:", {
+                  console.log("📜 [ChatLayout] ✅ 초기 로드 - 최신 메시지로 스크롤:", {
                     scrollTop: scrollContainer.scrollTop,
                     scrollHeight: scrollContainer.scrollHeight,
-                    messagesLength: messagesWithPendingUpdates.length
+                    messagesLength: messagesWithPendingUpdates.length,
+                    isInitialLoad: isInitialLoadRef.current
                   });
                 }
+                // ✅ 초기 로드 플래그 해제
+                isInitialLoadRef.current = false;
               }, 300);
+            } else {
+              console.log("📜 [ChatLayout] ⏭️ 초기 로드 아님 - 스크롤 안 함:", {
+                isInitialLoad: isInitialLoadRef.current,
+                scrollToUnread: scrollToUnread
+              });
+              // ✅ 초기 로드 플래그 해제
+              isInitialLoadRef.current = false;
             }
 
             // ⭐ 채팅방 접속 시 안읽은 메시지들을 읽음 처리
@@ -1574,7 +1587,8 @@ export default function ChatLayout() {
       selectedRoomId: selectedRoomId,
       isLoadingMore: isLoadingMore,
       hasMore: hasMore,
-      currentPage: currentPage
+      currentPage: currentPage,
+      isInitialLoad: isInitialLoadRef.current // ✅ 로그 추가
     });
     
     if (!selectedRoomId || isLoadingMore || !hasMore) {
@@ -1591,16 +1605,23 @@ export default function ChatLayout() {
       nextPage: currentPage + 1
     });
     
+    // ✅ 초기 로드가 아님을 명시
+    isInitialLoadRef.current = false;
+    
     setIsLoadingMore(true);
 
-    // 스크롤 위치 저장을 위한 ref (ChatMessageList에서 접근 가능하도록)
-    const scrollContainerRef = document.querySelector('.chat-message-list-container');
+    // ✅ 스크롤 위치 저장 (복원을 위해)
+    const scrollContainer = document.querySelector('.chat-message-list-container');
     let scrollHeightBefore = 0;
     let scrollTopBefore = 0;
 
-    if (scrollContainerRef) {
-      scrollHeightBefore = scrollContainerRef.scrollHeight;
-      scrollTopBefore = scrollContainerRef.scrollTop;
+    if (scrollContainer) {
+      scrollHeightBefore = scrollContainer.scrollHeight;
+      scrollTopBefore = scrollContainer.scrollTop;
+      console.log("💾 [ChatLayout] 스크롤 위치 저장:", {
+        scrollHeightBefore,
+        scrollTopBefore
+      });
     }
 
     try {
@@ -1819,6 +1840,26 @@ export default function ChatLayout() {
             hasMore: !pageData.last,
             isLast: pageData.last
           });
+          
+          // ✅ 스크롤 위치 복원 (메시지 추가 후)
+          setTimeout(() => {
+            if (scrollContainer) {
+              const scrollHeightAfter = scrollContainer.scrollHeight;
+              const heightDiff = scrollHeightAfter - scrollHeightBefore;
+              const newScrollTop = scrollTopBefore + heightDiff;
+              
+              scrollContainer.scrollTop = newScrollTop;
+              
+              console.log("📍 [ChatLayout] 스크롤 위치 복원:", {
+                scrollHeightBefore,
+                scrollHeightAfter,
+                heightDiff,
+                scrollTopBefore,
+                newScrollTop,
+                실제scrollTop: scrollContainer.scrollTop
+              });
+            }
+          }, 100);
         } else {
           console.warn("⚠️ [ChatLayout] pageData.content가 배열이 아님:", pageData);
         }
