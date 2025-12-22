@@ -197,14 +197,25 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
 
   // 첫 번째 안읽은 메시지 인덱스 찾기
   useEffect(() => {
-    // readYn이 false인 경우를 안읽은 메시지로 처리
-    // null이나 undefined는 읽은 것으로 간주
+    // ✅ 수정: readYn 대신 unreadCount > 0으로 판단
+    // ⭐ 이유: 서버에서 readYn이 항상 정확하지 않을 수 있으므로
+    //         unreadCount를 기준으로 판단하는 것이 더 정확함
     const unreadIdx = messages.findIndex((msg) => {
-      // readYn이 명시적으로 false인 경우만 안읽은 메시지로 처리
-      return msg.readYn === false;
+      return msg.unreadCount != null && msg.unreadCount > 0;
     });
+    
     const hasUnreadMessages = unreadIdx >= 0;
     const previousUnreadIdx = previousUnreadIndexRef.current;
+    
+    // ⭐ 디버깅 로그 (안읽은 메시지 발견 시)
+    if (hasUnreadMessages) {
+      console.log("✅ [ChatMessageList] 안읽은 메시지 발견 (unreadCount 기준):", {
+        unreadIdx,
+        메시지ID: messages[unreadIdx]?.id,
+        unreadCount: messages[unreadIdx]?.unreadCount,
+        messageContent: messages[unreadIdx]?.messageContent?.substring(0, 20)
+      });
+    }
     
     setFirstUnreadIndex(unreadIdx);
     
@@ -217,12 +228,8 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
     // 안읽은 메시지가 있으면 항상 마커 표시 (markerDismissed가 false일 때만)
     if (hasUnreadMessages && !markerDismissed) {
       setShowUnreadMarker(true);
-      console.log("✅ [ChatMessageList] 마커 표시 설정: true", {
-        unreadIdx: unreadIdx,
-        markerDismissed: markerDismissed,
-        hasUnreadMessages: hasUnreadMessages,
-        firstUnreadMessage: messages[unreadIdx]
-      });
+      console.log("✅ [ChatMessageList] 마커 표시 설정: true (unreadCount 기준)");
+      
       // 기존 타이머가 있으면 취소
       if (autoHideTimerRef.current) {
         clearTimeout(autoHideTimerRef.current);
@@ -231,7 +238,7 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
     } else if (!hasUnreadMessages) {
       // 안읽은 메시지가 없으면 마커 숨김
       setShowUnreadMarker(false);
-      console.log("❌ [ChatMessageList] 마커 숨김: 안읽은 메시지 없음");
+      console.log("❌ [ChatMessageList] 마커 숨김: 안읽은 메시지 없음 (unreadCount 기준)");
       if (autoHideTimerRef.current) {
         clearTimeout(autoHideTimerRef.current);
         autoHideTimerRef.current = null;
@@ -243,20 +250,23 @@ function ChatMessageList({ messages, roomType = "group", onLoadMore, hasMoreAbov
     }
     
     // 디버깅 로그
-    console.log("📌 [ChatMessageList] 안읽은 메시지 상태:", {
-      unreadIdx: unreadIdx,
-      hasUnreadMessages: hasUnreadMessages,
-      showUnreadMarker: showUnreadMarker,
-      markerDismissed: markerDismissed,
+    console.log("📌 [ChatMessageList] 안읽은 메시지 상태 (unreadCount 기준):", {
+      unreadIdx,
+      hasUnreadMessages,
+      showUnreadMarker,
+      markerDismissed,
       messagesLength: messages.length,
-      readYnValues: messages.map((m, i) => ({ 
-        idx: i,
-        id: m.id, 
-        readYn: m.readYn, 
-        readYnType: typeof m.readYn,
-        isUnread: m.readYn === false
+      unreadCount있는메시지: messages.filter(m => m.unreadCount > 0).map(m => ({
+        idx: messages.indexOf(m),
+        id: m.id,
+        unreadCount: m.unreadCount,
+        readYn: m.readYn
       })),
-      firstUnreadMessage: unreadIdx >= 0 ? messages[unreadIdx] : null
+      firstUnreadMessage: unreadIdx >= 0 ? {
+        id: messages[unreadIdx]?.id,
+        unreadCount: messages[unreadIdx]?.unreadCount,
+        readYn: messages[unreadIdx]?.readYn
+      } : null
     });
     
     // cleanup: 컴포넌트 언마운트 시 타이머 정리
