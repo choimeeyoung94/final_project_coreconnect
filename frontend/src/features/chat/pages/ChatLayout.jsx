@@ -1603,15 +1603,6 @@ export default function ChatLayout() {
 
     setIsLoadingMore(true);
 
-    // 1) 현재 스크롤 높이/위치 저장
-    const el = document.querySelector('.chat-message-list-container');
-    const before = {
-      scrollHeight: el?.scrollHeight ?? 0,
-      scrollTop: el?.scrollTop ?? 0
-    };
-    
-    console.log("💾 [ChatLayout] 스크롤 위치 저장:", before);
-
     try {
       const nextPage = currentPage + 1;
       const res = await fetchChatRoomMessages(selectedRoomId, nextPage, 20);
@@ -1627,40 +1618,6 @@ export default function ChatLayout() {
         // 페이징 상태 업데이트
         setHasMore(!pageData.last);
         setCurrentPage(nextPage);
-
-        // 3) 스크롤 위치 복원: 추가된 높이만큼 scrollTop을 더해줌
-        //    → 사용자가 보고 있던 지점 그대로 유지
-
-        // requestAnimationFrame을 사용하여 DOM 렌더링 완료 후 스크롤 조정
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            const afterHeight = el?.scrollHeight ?? 0;
-            const heightDiff = afterHeight - before.scrollHeight;
-            if (el) {
-              const restored = before.scrollTop + heightDiff;
-              el.scrollTop = restored;
-              // 재확인 후 필요시 한 번 더 보정
-              if (Math.abs(el.scrollTop - restored) > 2) {
-                setTimeout(() => {
-                  el.scrollTop = restored;
-                  console.log("🔁 [ChatLayout] 스크롤 위치 재보정:", {
-                    before: before.scrollTop,
-                    heightDiff,
-                    restored,
-                    actual: el.scrollTop
-                  });
-                }, 30);
-              } else {
-                console.log("✅ [ChatLayout] 스크롤 위치 복원:", {
-                  before: before.scrollTop,
-                  heightDiff,
-                  restored,
-                  actual: el.scrollTop
-                });
-              }
-            }
-          });
-        });
       }
     } catch (error) {
       console.error("❌ [ChatLayout] 이전 메시지 로딩 실패:", error);

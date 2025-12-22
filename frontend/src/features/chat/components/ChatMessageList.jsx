@@ -15,6 +15,7 @@ function ChatMessageList({
 }) {
   const { userProfile } = useContext(UserProfileContext) || {};
   const scrollRef = useRef();
+  const restoreRef = useRef({ scrollHeight: 0, scrollTop: 0, pending: false });
 
   const handleScroll = () => {
     const el = scrollRef.current;
@@ -23,10 +24,41 @@ function ChatMessageList({
     // 스크롤이 상단 150px 이내면 onLoadMore 호출
     const isNearTop = el.scrollTop <= 150;
     if (onLoadMore && hasMoreAbove && !loadingAbove && isNearTop) {
-      console.log("🔄 [ChatMessageList] onLoadMore 호출 - 위치:", el.scrollTop);
+      // 로딩 전 위치/높이 저장
+      restoreRef.current = {
+        scrollHeight: el.scrollHeight,
+        scrollTop: el.scrollTop,
+        pending: true,
+      };
+      console.log("🔄 [ChatMessageList] onLoadMore 호출 - 위치 저장:", restoreRef.current);
       onLoadMore(); // 위치 저장/복원은 ChatLayout에서 처리
     }
   };
+
+  // 메시지 길이 변화 또는 로딩 종료 후 스크롤 복원
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const { pending, scrollHeight: prevH, scrollTop: prevT } = restoreRef.current;
+    if (!pending || loadingAbove) return;
+
+    const newH = el.scrollHeight;
+    const diff = newH - prevH;
+    const restored = prevT + diff;
+    el.scrollTop = restored;
+
+    console.log("✅ [ChatMessageList] 스크롤 위치 복원:", {
+      prevH,
+      newH,
+      diff,
+      prevT,
+      restored,
+      actual: el.scrollTop,
+    });
+
+    // 완료 후 초기화
+    restoreRef.current = { scrollHeight: 0, scrollTop: 0, pending: false };
+  }, [messages.length, loadingAbove]);
 
   return (
     <Box
