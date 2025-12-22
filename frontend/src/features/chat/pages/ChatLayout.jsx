@@ -1594,6 +1594,15 @@ export default function ChatLayout() {
       isInitialLoad: isInitialLoadRef.current // ✅ 로그 추가
     });
     
+    // ⭐ 핵심: 초기 로드 중에는 무한 스크롤 차단!
+    if (isInitialLoadRef.current) {
+      console.log("🚫 [ChatLayout] 초기 로드 중 - 무한 스크롤 차단:", {
+        isInitialLoad: isInitialLoadRef.current,
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+    
     if (!selectedRoomId || isLoadingMore || !hasMore) {
       console.log("🚫 [ChatLayout] 이전 메시지 로드 중단:", {
         selectedRoomId: !!selectedRoomId,
@@ -1845,24 +1854,45 @@ export default function ChatLayout() {
           });
           
           // ✅ 스크롤 위치 복원 (메시지 추가 후)
-          setTimeout(() => {
-            if (scrollContainer) {
-              const scrollHeightAfter = scrollContainer.scrollHeight;
-              const heightDiff = scrollHeightAfter - scrollHeightBefore;
-              const newScrollTop = scrollTopBefore + heightDiff;
-              
-              scrollContainer.scrollTop = newScrollTop;
-              
-              console.log("📍 [ChatLayout] 스크롤 위치 복원:", {
-                scrollHeightBefore,
-                scrollHeightAfter,
-                heightDiff,
-                scrollTopBefore,
-                newScrollTop,
-                실제scrollTop: scrollContainer.scrollTop
-              });
-            }
-          }, 100);
+          // ⭐ requestAnimationFrame 이중 사용으로 DOM 업데이트 완료 보장
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              if (scrollContainer) {
+                const scrollHeightAfter = scrollContainer.scrollHeight;
+                const heightDiff = scrollHeightAfter - scrollHeightBefore;
+                const newScrollTop = scrollTopBefore + heightDiff;
+                
+                console.log("📍 [ChatLayout] 스크롤 위치 복원 준비:", {
+                  scrollHeightBefore,
+                  scrollHeightAfter,
+                  heightDiff,
+                  scrollTopBefore,
+                  newScrollTop
+                });
+                
+                // ⭐ 스크롤 위치 설정
+                scrollContainer.scrollTop = newScrollTop;
+                
+                console.log("✅ [ChatLayout] 스크롤 위치 복원 완료:", {
+                  설정한위치: newScrollTop,
+                  실제위치: scrollContainer.scrollTop,
+                  차이: Math.abs(scrollContainer.scrollTop - newScrollTop)
+                });
+                
+                // ⭐ 추가 검증: 스크롤 위치가 제대로 설정되지 않았으면 재시도
+                if (Math.abs(scrollContainer.scrollTop - newScrollTop) > 10) {
+                  console.warn("⚠️ [ChatLayout] 스크롤 위치 불일치 - 재시도");
+                  setTimeout(() => {
+                    scrollContainer.scrollTop = newScrollTop;
+                    console.log("🔄 [ChatLayout] 스크롤 위치 재설정:", {
+                      재설정위치: newScrollTop,
+                      실제위치: scrollContainer.scrollTop
+                    });
+                  }, 50);
+                }
+              }
+            });
+          });
         } else {
           console.warn("⚠️ [ChatLayout] pageData.content가 배열이 아님:", pageData);
         }
