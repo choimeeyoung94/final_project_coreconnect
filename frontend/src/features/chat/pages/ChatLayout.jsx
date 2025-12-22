@@ -1471,27 +1471,53 @@ export default function ChatLayout() {
             setHasMore(!pageData.last); // last가 false면 더 있음
             setCurrentPage(0);
 
-            // ⭐ 채팅방 처음 접속 시에만 최신 메시지로 자동 스크롤
-            if (isInitialLoadRef.current && !scrollToUnread) {
-              console.log("✅ [ChatLayout] 초기 접속 - 최신 메시지로 스크롤");
-              
+            // ⭐ 채팅방 처음 접속 시 스크롤 처리
+            if (isInitialLoadRef.current) {
               // 초기 로드 플래그 해제 (다음부터는 스크롤 유지)
               isInitialLoadRef.current = false;
               
-              // DOM 업데이트 후 최신 메시지로 스크롤
+              // DOM 업데이트 후 스크롤
               setTimeout(() => {
                 const scrollContainer = document.querySelector('.chat-message-list-container');
-                if (scrollContainer) {
+                if (!scrollContainer) return;
+
+                // 1) 안읽은 메시지 찾기 (unreadCount > 0)
+                const firstUnreadMessage = messagesWithPendingUpdates.find(
+                  msg => msg.unreadCount != null && msg.unreadCount > 0
+                );
+
+                if (firstUnreadMessage && !scrollToUnread) {
+                  // ✅ 안읽은 메시지가 있으면 해당 위치로 스크롤
+                  console.log("📬 [ChatLayout] 안읽은 메시지로 스크롤:", {
+                    messageId: firstUnreadMessage.id,
+                    unreadCount: firstUnreadMessage.unreadCount
+                  });
+                  
+                  // 메시지 요소 찾기 (DOM에서 data-message-id 속성 활용 가능)
+                  // 간단하게 중간 위치로 스크롤 (안읽은 메시지가 화면 중앙에 오도록)
+                  const unreadIndex = messagesWithPendingUpdates.indexOf(firstUnreadMessage);
+                  const totalMessages = messagesWithPendingUpdates.length;
+                  const scrollRatio = unreadIndex / totalMessages;
+                  scrollContainer.scrollTop = scrollContainer.scrollHeight * scrollRatio;
+                  
+                  console.log("📜 [ChatLayout] 안읽은 메시지로 스크롤 완료:", {
+                    unreadIndex,
+                    totalMessages,
+                    scrollTop: scrollContainer.scrollTop
+                  });
+                } else {
+                  // ✅ 안읽은 메시지가 없으면 최신 메시지로 스크롤
+                  console.log("✅ [ChatLayout] 초기 접속 - 최신 메시지로 스크롤 (안읽은 메시지 없음)");
                   scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                  
                   console.log("📜 [ChatLayout] 최신 메시지로 스크롤 완료:", {
                     scrollTop: scrollContainer.scrollTop,
                     scrollHeight: scrollContainer.scrollHeight
                   });
                 }
-              }, 0);
+              }, 100); // 100ms로 증가 (DOM 렌더링 완료 보장)
             } else {
               console.log("🚫 [ChatLayout] 초기 접속 아님 - 스크롤 유지");
-              isInitialLoadRef.current = false;
             }
 
             // ⭐ 채팅방 접속 시 안읽은 메시지들을 읽음 처리
