@@ -1268,12 +1268,54 @@ export default function ChatLayout() {
         setIsLoadingMore(false);
 
         const res = await fetchChatRoomMessages(selectedRoomId, 0, 20);
+        
+        // ⭐ API 응답 구조 확인 (디버깅)
+        console.log("🔍 [ChatLayout] 초기 메시지 로드 API 응답:", {
+          selectedRoomId,
+          hasResponse: !!res,
+          hasData: !!res?.data,
+          dataKeys: res?.data ? Object.keys(res.data) : [],
+          hasNestedData: !!res?.data?.data,
+          nestedDataKeys: res?.data?.data ? Object.keys(res.data.data) : [],
+          contentPath1: res?.data?.content, // 직접 content
+          contentPath2: res?.data?.data?.content, // data.data.content
+          contentLength1: res?.data?.content?.length,
+          contentLength2: res?.data?.data?.content?.length
+        });
+        
         if (res && res.data) {
           // ResponseDTO 구조: { status, message, data: Page<ChatMessageResponseDTO> }
           const pageData = res.data.data || res.data; // res.data.data가 Page 객체
+          
+          // ⭐ pageData 구조 확인 (디버깅)
+          console.log("🔍 [ChatLayout] pageData 구조 확인:", {
+            hasContent: Array.isArray(pageData.content),
+            contentLength: pageData?.content?.length,
+            totalPages: pageData?.totalPages,
+            last: pageData?.last,
+            pageDataType: typeof pageData,
+            pageDataKeys: pageData ? Object.keys(pageData) : [],
+            첫번째메시지샘플: pageData?.content?.[0]
+          });
+          
           if (pageData && Array.isArray(pageData.content)) {
             // 최신 메시지부터 내림차순으로 받아오므로 역순으로 정렬하여 오름차순으로 표시
             const sortedMessages = [...pageData.content].reverse();
+            
+            // ⭐ 정렬 후 메시지 확인 (디버깅)
+            console.log("🔍 [ChatLayout] 정렬된 메시지 확인:", {
+              sortedLength: sortedMessages.length,
+              첫번째메시지: sortedMessages[0] ? {
+                id: sortedMessages[0].id,
+                content: sortedMessages[0].messageContent?.substring(0, 50),
+                sendAt: sortedMessages[0].sendAt
+              } : null,
+              마지막메시지: sortedMessages[sortedMessages.length - 1] ? {
+                id: sortedMessages[sortedMessages.length - 1].id,
+                content: sortedMessages[sortedMessages.length - 1].messageContent?.substring(0, 50),
+                sendAt: sortedMessages[sortedMessages.length - 1].sendAt
+              } : null
+            });
 
             // ⭐ 중간에 초대된 사용자는 초대 시점부터의 메시지만 표시
             // 현재 사용자의 입장 메시지를 찾아서 초대 시점 확인
@@ -1321,8 +1363,12 @@ export default function ChatLayout() {
 
             // 초대 시점 이후의 메시지만 필터링
             // ⭐ 중요: 다른 사람의 입장 메시지도 초대 시점 이전이면 제외
-            const filteredMessages = joinedAtTime
-              ? sortedMessages.filter((msg) => {
+            // ⚠️ 디버깅: 임시로 필터링 비활성화 (필요시 주석 해제)
+            const DISABLE_FILTER_FOR_DEBUG = false; // ⭐ true로 변경하면 필터링 비활성화
+            
+            const filteredMessages = (DISABLE_FILTER_FOR_DEBUG || !joinedAtTime)
+              ? sortedMessages // ⭐ 디버깅: 모든 메시지 표시
+              : sortedMessages.filter((msg) => {
                 const msgTime = msg.sendAt ? new Date(msg.sendAt).getTime() : 0;
                 
                 // 입장/초대 메시지인 경우
@@ -1353,14 +1399,20 @@ export default function ChatLayout() {
                 
                 // 일반 메시지는 초대 시점 이후만 포함
                 return msgTime >= joinedAtTime;
-              })
-              : sortedMessages; // 초대 시점을 찾을 수 없으면 모든 메시지 표시
+              });
 
             console.log("📅 [ChatLayout] 메시지 필터링 결과:", {
               전체메시지수: sortedMessages.length,
               필터링된메시지수: filteredMessages.length,
+              제외된메시지수: sortedMessages.length - filteredMessages.length,
               초대시점: joinedAtTime ? new Date(joinedAtTime).toISOString() : "없음",
-              필터링여부: joinedAtTime !== null
+              필터링활성화: !DISABLE_FILTER_FOR_DEBUG && joinedAtTime !== null,
+              디버그모드: DISABLE_FILTER_FOR_DEBUG,
+              제외된메시지샘플: sortedMessages.filter(m => !filteredMessages.includes(m)).slice(0, 3).map(m => ({
+                id: m.id,
+                content: m.messageContent?.substring(0, 30),
+                sendAt: m.sendAt
+              }))
             });
 
             // ⭐ 중요: 채팅방 진입 시 fetch한 메시지 사용
@@ -1375,12 +1427,17 @@ export default function ChatLayout() {
               timestamp: fetchTimestamp,
               이전messages배열길이: messages.length,
               이전messagesIds: messages.map(m => ({ id: m?.id, unreadCount: m?.unreadCount })),
-              새로운messages배열길이: sortedMessages.length,
-              새로운messagesIds: sortedMessages.map(m => ({ id: m?.id, unreadCount: m?.unreadCount })),
+              새로운messages배열길이: filteredMessages.length, // ⭐ 수정: filteredMessages로 변경
+              새로운messagesIds: filteredMessages.map(m => ({ id: m?.id, unreadCount: m?.unreadCount })),
               roomId: selectedRoomId
             });
 
             // ⭐ 대기 중인 unreadCount 업데이트 적용 (메시지가 로드되기 전에 도착한 UNREAD_COUNT_UPDATE 처리)
+            console.log("🔄 [ChatLayout] 대기 중인 unreadCount 업데이트 처리 시작:", {
+              filteredMessagesLength: filteredMessages.length,
+              pendingUpdatesSize: pendingUnreadCountUpdatesRef.current.size
+            });
+            
             const messagesWithPendingUpdates = filteredMessages.map((m) => {
               const chatId = Number(m.id);
               const pendingUpdate = pendingUnreadCountUpdatesRef.current.get(chatId);
@@ -1397,6 +1454,16 @@ export default function ChatLayout() {
             });
 
             setMessages(messagesWithPendingUpdates);
+            
+            // ⭐ setMessages 호출 직후 상태 확인 (비동기이므로 실제 상태는 다음 렌더링에서 확인)
+            setTimeout(() => {
+              console.log("📊 [ChatLayout] setMessages 호출 후 상태 확인 (비동기):", {
+                timestamp: new Date().toISOString(),
+                messagesLength: messages.length,
+                messagesIds: messages.map(m => m?.id).slice(0, 5),
+                targetChatId: messagesWithPendingUpdates[0]?.id
+              });
+            }, 100);
 
             console.log("📨 [ChatLayout] 채팅방 진입 시 메시지 로드 완료:", {
               timestamp: fetchTimestamp,
