@@ -21,14 +21,52 @@ function ChatDetailPane({
   onLeaveRoom // 채팅방 나가기 콜백
 }) {
   const messagesEndRef = useRef(null);
+  const previousMessageCountRef = useRef(0);
   const [participantsDialogOpen, setParticipantsDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [participants, setParticipants] = useState([]);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const menuOpen = Boolean(menuAnchorEl);
 
+  // ⭐ 채팅방 변경 시에만 맨 아래로 스크롤 (초기 진입)
   useEffect(() => {
-    if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({behavior: "smooth"});
+    if (messagesEndRef.current && selectedRoom?.roomId) {
+      console.log("🏠 [ChatDetailPane] 채팅방 변경 - 맨 아래로 스크롤");
+      messagesEndRef.current.scrollIntoView({behavior: "smooth"});
+      previousMessageCountRef.current = messages.length;
+    }
+  }, [selectedRoom?.roomId]);
+
+  // ⭐ 메시지 추가 시 조건부 스크롤 (스크롤이 맨 아래에 있을 때만)
+  useEffect(() => {
+    const scrollContainer = document.querySelector('.chat-message-list-container');
+    if (!scrollContainer || !messagesEndRef.current) return;
+
+    const isNewMessage = messages.length > previousMessageCountRef.current;
+    
+    if (isNewMessage) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 150; // 150px 이내면 맨 아래로 간주
+      
+      console.log("📨 [ChatDetailPane] 새 메시지 감지:", {
+        messagesLength: messages.length,
+        previousCount: previousMessageCountRef.current,
+        scrollTop: scrollTop,
+        scrollHeight: scrollHeight,
+        clientHeight: clientHeight,
+        distanceFromBottom: scrollHeight - scrollTop - clientHeight,
+        isNearBottom: isNearBottom
+      });
+      
+      if (isNearBottom) {
+        console.log("✅ [ChatDetailPane] 스크롤이 맨 아래 근처 - 자동 스크롤 실행");
+        messagesEndRef.current.scrollIntoView({behavior: "smooth"});
+      } else {
+        console.log("🚫 [ChatDetailPane] 스크롤이 위쪽 - 자동 스크롤 건너뜀");
+      }
+    }
+    
+    previousMessageCountRef.current = messages.length;
   }, [messages]);
 
   // 참여자 목록 조회
