@@ -1,10 +1,10 @@
-import React, { useRef, useContext } from "react";
+import React, { useRef, useContext, useLayoutEffect } from "react";
 import { Box, Typography, Avatar, IconButton } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import { UserProfileContext } from "../../../App";
 
-// ChatMessageList는 스크롤 관리에 관여하지 않도록 합니다.
-// (위로 150px 이내면 onLoadMore 호출만 수행, 자동 스크롤 로직은 전부 제거)
+// ChatMessageList: 과거 메시지 로딩 시 스크롤 튕김 방지를 위한 최적화 버전
+// useLayoutEffect를 사용하여 브라우저 페인트 전에 스크롤 위치를 보정합니다.
 
 function ChatMessageList({
   messages,
@@ -15,8 +15,8 @@ function ChatMessageList({
 }) {
   const { userProfile } = useContext(UserProfileContext) || {};
   const scrollRef = useRef();
-  const restoreRef = useRef({ scrollHeight: 0, scrollTop: 0, pending: false });
-  const prevLoadingAboveRef = useRef(loadingAbove);
+  const previousScrollHeightRef = useRef(0);
+  const isFetchingRef = useRef(false);
 
   const handleScroll = () => {
     const el = scrollRef.current;
@@ -24,51 +24,43 @@ function ChatMessageList({
 
     // 스크롤이 상단 150px 이내면 onLoadMore 호출
     const isNearTop = el.scrollTop <= 150;
-    if (onLoadMore && hasMoreAbove && !loadingAbove && isNearTop) {
-      // 로딩 전 위치/높이 저장
-      restoreRef.current = {
-        scrollHeight: el.scrollHeight,
-        scrollTop: el.scrollTop,
-        pending: true,
-      };
-      console.log("🔄 [ChatMessageList] onLoadMore 호출 - 위치 저장:", restoreRef.current);
-      onLoadMore(); // 위치 저장/복원은 ChatLayout에서 처리
+    if (onLoadMore && hasMoreAbove && !loadingAbove && !isFetchingRef.current && isNearTop) {
+      // 데이터 로드 전 현재 스크롤 높이 저장
+      isFetchingRef.current = true;
+      previousScrollHeightRef.current = el.scrollHeight;
+      
+      console.log("🔄 [ChatMessageList] 과거 메시지 로딩 시작 - 현재 scrollHeight:", el.scrollHeight);
+      onLoadMore();
     }
   };
 
-  // loadingAbove가 true -> false로 변경될 때만 스크롤 복원 (실시간 메시지 도착 시 스크롤 점프 방지)
-  React.useEffect(() => {
+  // ⭐ 핵심: useLayoutEffect로 스크롤 위치 보정 (브라우저 페인트 전 실행)
+  // loadingAbove가 false가 되면 데이터 로드 완료이므로 스크롤 위치를 조정합니다.
+  useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
 
-    // loadingAbove가 true에서 false로 변경되었는지 확인
-    const wasLoading = prevLoadingAboveRef.current;
-    const isNowNotLoading = !loadingAbove;
-    prevLoadingAboveRef.current = loadingAbove;
+    // 로딩이 완료되었고(loadingAbove === false), 이전 높이가 저장되어 있으면 복원
+    if (!loadingAbove && previousScrollHeightRef.current > 0 && isFetchingRef.current) {
+      const currentScrollHeight = el.scrollHeight;
+      const heightDifference = currentScrollHeight - previousScrollHeightRef.current;
+      
+      // 새로 추가된 메시지 높이만큼 스크롤 위치를 이동
+      // 사용자가 보고 있던 메시지 위치가 그대로 유지됩니다.
+      el.scrollTop = heightDifference;
 
-    // loadingAbove가 true -> false로 변경되고, pending이 true일 때만 복원
-    if (!wasLoading || !isNowNotLoading) return;
+      console.log("✅ [ChatMessageList] 스크롤 위치 복원 완료:", {
+        이전높이: previousScrollHeightRef.current,
+        현재높이: currentScrollHeight,
+        추가된높이: heightDifference,
+        복원된위치: el.scrollTop,
+      });
 
-    const { pending, scrollHeight: prevH, scrollTop: prevT } = restoreRef.current;
-    if (!pending) return;
-
-    const newH = el.scrollHeight;
-    const diff = newH - prevH;
-    const restored = prevT + diff;
-    el.scrollTop = restored;
-
-    console.log("✅ [ChatMessageList] 스크롤 위치 복원:", {
-      prevH,
-      newH,
-      diff,
-      prevT,
-      restored,
-      actual: el.scrollTop,
-    });
-
-    // 완료 후 초기화
-    restoreRef.current = { scrollHeight: 0, scrollTop: 0, pending: false };
-  }, [loadingAbove]);
+      // 값 초기화
+      previousScrollHeightRef.current = 0;
+      isFetchingRef.current = false;
+    }
+  }, [loadingAbove, messages]); // messages 의존성 추가로 메시지 업데이트 감지
 
   return (
     <Box
