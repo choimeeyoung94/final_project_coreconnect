@@ -14,6 +14,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
@@ -29,7 +30,22 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "chat_message")
+@Table(
+    name = "chat_message",
+    indexes = {
+        // ⭐ 채팅방별 메시지 조회 최적화 (가장 많이 사용되는 조회 패턴)
+        @Index(name = "idx_chat_room_sent_at", columnList = "chat_room_id, sent_at DESC"),
+        
+        // ⭐ 발신자별 메시지 조회 최적화
+        @Index(name = "idx_sender_sent_at", columnList = "sender_id, sent_at DESC"),
+        
+        // ⭐ 읽지 않은 메시지 조회 최적화
+        @Index(name = "idx_chat_room_read_yn", columnList = "chat_room_id, read_yn, sent_at DESC"),
+        
+        // ⭐ 전체 메시지 시간순 조회 최적화
+        @Index(name = "idx_sent_at", columnList = "sent_at DESC")
+    }
+)
 public class Chat {
 
 	@Id

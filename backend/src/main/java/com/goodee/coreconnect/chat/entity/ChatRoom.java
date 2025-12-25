@@ -12,6 +12,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
@@ -23,7 +24,19 @@ import lombok.Setter;
 
 @Getter
 @Entity
-@Table(name = "chat_room")
+@Table(
+    name = "chat_room",
+    indexes = {
+        // ⭐ 개설자별 채팅방 조회 최적화
+        @Index(name = "idx_chat_room_user", columnList = "user_id"),
+        
+        // ⭐ 채팅방 타입별 조회 최적화
+        @Index(name = "idx_chat_room_type", columnList = "room_type"),
+        
+        // ⭐ 즐겨찾기 채팅방 조회 최적화
+        @Index(name = "idx_favorite_status", columnList = "favorite_status")
+    }
+)
 public class ChatRoom {
 
 

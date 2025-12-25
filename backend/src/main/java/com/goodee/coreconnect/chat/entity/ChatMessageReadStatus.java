@@ -9,6 +9,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -20,7 +21,19 @@ import jakarta.persistence.Table;
  * - 동일한 메시지에 대해 여러 참여자가 각각의 읽음 상태를 가질 수 있음
  */
 @Entity
-@Table(name = "chat_message_read_status")
+@Table(
+    name = "chat_message_read_status",
+    indexes = {
+        // ⭐ 사용자별 읽지 않은 메시지 조회 최적화
+        @Index(name = "idx_user_read_yn", columnList = "user_id, chat_message_read_status_read_yn"),
+        
+        // ⭐ 메시지별 읽음 상태 조회 최적화
+        @Index(name = "idx_chat_user", columnList = "chat_message_id, user_id"),
+        
+        // ⭐ 사용자별 읽은 시간 기준 조회 최적화
+        @Index(name = "idx_user_read_at", columnList = "user_id, chat_message_read_status_read_at DESC")
+    }
+)
 @IdClass(ChatMessageReadStatusId.class)
 public class ChatMessageReadStatus {
 	// ⭐ 복합키: chat_id와 user_id의 조합이 PK
