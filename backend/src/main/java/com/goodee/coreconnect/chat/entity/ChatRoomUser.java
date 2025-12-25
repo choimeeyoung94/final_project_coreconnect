@@ -7,6 +7,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -18,7 +19,16 @@ import lombok.Setter;
 
 @Getter
 @Entity
-@Table(name = "chat_room_user")
+@Table(
+    name = "chat_room_user",
+    indexes = {
+        // ⭐ 사용자별 참여 채팅방 조회 최적화
+        @Index(name = "idx_user_chat_room", columnList = "user_id, chat_room_id"),
+        
+        // ⭐ 채팅방별 참여자 조회 최적화
+        @Index(name = "idx_chat_room_user", columnList = "chat_room_id, user_id")
+    }
+)
 public class ChatRoomUser {
 
 	@Id

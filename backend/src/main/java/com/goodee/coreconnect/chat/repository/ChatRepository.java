@@ -15,8 +15,10 @@ import com.goodee.coreconnect.chat.entity.Chat;
 
 public interface ChatRepository extends JpaRepository<Chat, Integer> {
 
-    // 1. 채팅방의 모든 메시지
-    List<Chat> findByChatRoomId(Integer id);
+    // 1. 채팅방의 모든 메시지 (N+1 해결: sender와 chatRoom Fetch Join)
+    @EntityGraph(attributePaths = {"sender", "chatRoom"})
+    @Query("SELECT c FROM Chat c WHERE c.chatRoom.id = :roomId ORDER BY c.sendAt ASC")
+    List<Chat> findByChatRoomId(@Param("roomId") Integer roomId);
 
     // 2. 여러 채팅방의 모든 메시지 (sender도 함께 로드)
     @EntityGraph(attributePaths = {"sender", "chatRoom"})
