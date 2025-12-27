@@ -78,7 +78,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 
 	@Override
 	public List<String> getParticipantEmail(Integer roomId) {
-		List<ChatRoomUser> users = chatRoomUserRepository.findByChatRoomIdWithUser(roomId);
+		List<ChatRoomUser> users = chatRoomUserRepository.findByChatRoomId(roomId);
 		return users.stream()
 				.map(chatRoomUser -> chatRoomUser.getUser().getEmail())
 				.collect(Collectors.toList());
@@ -301,7 +301,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	@Override
 	public List<ChatRoomUser> getChatRoomUsers(Integer roomId) {
 		// ⭐ User와 Department를 함께 조회하여 Lazy Loading 문제 해결
-		return chatRoomUserRepository.findByChatRoomIdWithUser(roomId);
+		return chatRoomUserRepository.findByChatRoomId(roomId);
 	}
 
 	/**
