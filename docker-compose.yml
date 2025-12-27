@@ -791,8 +791,6 @@ services:
       --max-allowed-packet=256M
       --tmp-table-size=64M
       --max-heap-table-size=64M
-      --query-cache-size=0
-      --query-cache-type=0
       --default-authentication-plugin=mysql_native_password
     volumes:
       - mysql-master-data:/var/lib/mysql
@@ -855,8 +853,6 @@ services:
       --max-allowed-packet=256M
       --tmp-table-size=64M
       --max-heap-table-size=64M
-      --query-cache-size=0
-      --query-cache-type=0
       --default-authentication-plugin=mysql_native_password
     volumes:
       - mysql-slave1-data:/var/lib/mysql
@@ -922,8 +918,6 @@ services:
       --max-allowed-packet=256M
       --tmp-table-size=64M
       --max-heap-table-size=64M
-      --query-cache-size=0
-      --query-cache-type=0
       --default-authentication-plugin=mysql_native_password
     volumes:
       - mysql-slave2-data:/var/lib/mysql
