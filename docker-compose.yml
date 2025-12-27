@@ -1,120 +1,1088 @@
+version: '3.8'
+
+# ================================================================
+# 10만명 동시접속 채팅방 - Docker Compose 구성
+# ================================================================
+
+networks:
+  chat-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  mysql-master-data:
+    driver: local
+  mysql-slave1-data:
+    driver: local
+  mysql-slave2-data:
+    driver: local
+  redis-pubsub-data:
+    driver: local
+  redis-session-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
 services:
-  # 1. MySQL 서비스 추가 ⭐
-  mysql:
-    container_name: mysql-container
-    image: mysql:8.0
+  # ================================================================
+  # 1️⃣ Nginx Load Balancer
+  # ================================================================
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: chat-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
     networks:
-      - my-network
+      chat-network:
+        ipv4_address: 172.20.0.10
+    depends_on:
+      - chat-app-1
+      - chat-app-2
+      - chat-app-3
+      - chat-app-4
+      - chat-app-5
+      - chat-app-6
+      - chat-app-7
+      - chat-app-8
+      - chat-app-9
+      - chat-app-10
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ================================================================
+  # 2️⃣ Spring Boot Chat Servers (10대)
+  # ================================================================
+  
+  # Server #1
+  chat-app-1:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - BUILD_DATE=${BUILD_DATE:-unknown}
+        - VCS_REF=${VCS_REF:-unknown}
+    image: chat-server:latest
+    container_name: chat-app-1
+    hostname: chat-app-1
+    ports:
+      - "8081:8080"
+      - "9091:9090"  # JMX
+    environment:
+      - SERVER_ID=1
+      - SERVER_PORT=8080
+      - MAX_CONNECTIONS=10000
+      - SPRING_PROFILES_ACTIVE=prod
+      - REDIS_HOST=redis-pubsub
+      - REDIS_PORT=6379
+      - REDIS_SESSION_HOST=redis-session
+      - REDIS_SESSION_PORT=6380
+      - MYSQL_HOST=mysql-master
+      - MYSQL_PORT=3306
+      - MYSQL_SLAVE_HOST=mysql-slave-1
+      - MYSQL_SLAVE_PORT=3306
+      - MYSQL_DATABASE=db_coreconnect
+      - MYSQL_USERNAME=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:-Chat@2024!Secure}
+      - JAVA_OPTS=-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.21
+    depends_on:
+      redis-pubsub:
+        condition: service_healthy
+      redis-session:
+        condition: service_healthy
+      mysql-master:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # Server #2
+  chat-app-2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: chat-server:latest
+    container_name: chat-app-2
+    hostname: chat-app-2
+    ports:
+      - "8082:8080"
+      - "9092:9090"
+    environment:
+      - SERVER_ID=2
+      - SERVER_PORT=8080
+      - MAX_CONNECTIONS=10000
+      - SPRING_PROFILES_ACTIVE=prod
+      - REDIS_HOST=redis-pubsub
+      - REDIS_PORT=6379
+      - REDIS_SESSION_HOST=redis-session
+      - REDIS_SESSION_PORT=6380
+      - MYSQL_HOST=mysql-master
+      - MYSQL_PORT=3306
+      - MYSQL_SLAVE_HOST=mysql-slave-1
+      - MYSQL_SLAVE_PORT=3306
+      - MYSQL_DATABASE=db_coreconnect
+      - MYSQL_USERNAME=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:-Chat@2024!Secure}
+      - JAVA_OPTS=-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.22
+    depends_on:
+      redis-pubsub:
+        condition: service_healthy
+      redis-session:
+        condition: service_healthy
+      mysql-master:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # Server #3
+  chat-app-3:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: chat-server:latest
+    container_name: chat-app-3
+    hostname: chat-app-3
+    ports:
+      - "8083:8080"
+      - "9093:9090"
+    environment:
+      - SERVER_ID=3
+      - SERVER_PORT=8080
+      - MAX_CONNECTIONS=10000
+      - SPRING_PROFILES_ACTIVE=prod
+      - REDIS_HOST=redis-pubsub
+      - REDIS_PORT=6379
+      - REDIS_SESSION_HOST=redis-session
+      - REDIS_SESSION_PORT=6380
+      - MYSQL_HOST=mysql-master
+      - MYSQL_PORT=3306
+      - MYSQL_SLAVE_HOST=mysql-slave-2
+      - MYSQL_SLAVE_PORT=3306
+      - MYSQL_DATABASE=db_coreconnect
+      - MYSQL_USERNAME=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:-Chat@2024!Secure}
+      - JAVA_OPTS=-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.23
+    depends_on:
+      redis-pubsub:
+        condition: service_healthy
+      redis-session:
+        condition: service_healthy
+      mysql-master:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # Server #4
+  chat-app-4:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: chat-server:latest
+    container_name: chat-app-4
+    hostname: chat-app-4
+    ports:
+      - "8084:8080"
+      - "9094:9090"
+    environment:
+      - SERVER_ID=4
+      - SERVER_PORT=8080
+      - MAX_CONNECTIONS=10000
+      - SPRING_PROFILES_ACTIVE=prod
+      - REDIS_HOST=redis-pubsub
+      - REDIS_PORT=6379
+      - REDIS_SESSION_HOST=redis-session
+      - REDIS_SESSION_PORT=6380
+      - MYSQL_HOST=mysql-master
+      - MYSQL_PORT=3306
+      - MYSQL_SLAVE_HOST=mysql-slave-2
+      - MYSQL_SLAVE_PORT=3306
+      - MYSQL_DATABASE=db_coreconnect
+      - MYSQL_USERNAME=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:-Chat@2024!Secure}
+      - JAVA_OPTS=-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.24
+    depends_on:
+      redis-pubsub:
+        condition: service_healthy
+      redis-session:
+        condition: service_healthy
+      mysql-master:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # Server #5
+  chat-app-5:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: chat-server:latest
+    container_name: chat-app-5
+    hostname: chat-app-5
+    ports:
+      - "8085:8080"
+      - "9095:9090"
+    environment:
+      - SERVER_ID=5
+      - SERVER_PORT=8080
+      - MAX_CONNECTIONS=10000
+      - SPRING_PROFILES_ACTIVE=prod
+      - REDIS_HOST=redis-pubsub
+      - REDIS_PORT=6379
+      - REDIS_SESSION_HOST=redis-session
+      - REDIS_SESSION_PORT=6380
+      - MYSQL_HOST=mysql-master
+      - MYSQL_PORT=3306
+      - MYSQL_SLAVE_HOST=mysql-slave-1
+      - MYSQL_SLAVE_PORT=3306
+      - MYSQL_DATABASE=db_coreconnect
+      - MYSQL_USERNAME=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:-Chat@2024!Secure}
+      - JAVA_OPTS=-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.25
+    depends_on:
+      redis-pubsub:
+        condition: service_healthy
+      redis-session:
+        condition: service_healthy
+      mysql-master:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # Server #6
+  chat-app-6:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: chat-server:latest
+    container_name: chat-app-6
+    hostname: chat-app-6
+    ports:
+      - "8086:8080"
+      - "9096:9090"
+    environment:
+      - SERVER_ID=6
+      - SERVER_PORT=8080
+      - MAX_CONNECTIONS=10000
+      - SPRING_PROFILES_ACTIVE=prod
+      - REDIS_HOST=redis-pubsub
+      - REDIS_PORT=6379
+      - REDIS_SESSION_HOST=redis-session
+      - REDIS_SESSION_PORT=6380
+      - MYSQL_HOST=mysql-master
+      - MYSQL_PORT=3306
+      - MYSQL_SLAVE_HOST=mysql-slave-2
+      - MYSQL_SLAVE_PORT=3306
+      - MYSQL_DATABASE=db_coreconnect
+      - MYSQL_USERNAME=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:-Chat@2024!Secure}
+      - JAVA_OPTS=-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.26
+    depends_on:
+      redis-pubsub:
+        condition: service_healthy
+      redis-session:
+        condition: service_healthy
+      mysql-master:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # Server #7
+  chat-app-7:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: chat-server:latest
+    container_name: chat-app-7
+    hostname: chat-app-7
+    ports:
+      - "8087:8080"
+      - "9097:9090"
+    environment:
+      - SERVER_ID=7
+      - SERVER_PORT=8080
+      - MAX_CONNECTIONS=10000
+      - SPRING_PROFILES_ACTIVE=prod
+      - REDIS_HOST=redis-pubsub
+      - REDIS_PORT=6379
+      - REDIS_SESSION_HOST=redis-session
+      - REDIS_SESSION_PORT=6380
+      - MYSQL_HOST=mysql-master
+      - MYSQL_PORT=3306
+      - MYSQL_SLAVE_HOST=mysql-slave-1
+      - MYSQL_SLAVE_PORT=3306
+      - MYSQL_DATABASE=db_coreconnect
+      - MYSQL_USERNAME=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:-Chat@2024!Secure}
+      - JAVA_OPTS=-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.27
+    depends_on:
+      redis-pubsub:
+        condition: service_healthy
+      redis-session:
+        condition: service_healthy
+      mysql-master:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # Server #8
+  chat-app-8:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: chat-server:latest
+    container_name: chat-app-8
+    hostname: chat-app-8
+    ports:
+      - "8088:8080"
+      - "9098:9090"
+    environment:
+      - SERVER_ID=8
+      - SERVER_PORT=8080
+      - MAX_CONNECTIONS=10000
+      - SPRING_PROFILES_ACTIVE=prod
+      - REDIS_HOST=redis-pubsub
+      - REDIS_PORT=6379
+      - REDIS_SESSION_HOST=redis-session
+      - REDIS_SESSION_PORT=6380
+      - MYSQL_HOST=mysql-master
+      - MYSQL_PORT=3306
+      - MYSQL_SLAVE_HOST=mysql-slave-2
+      - MYSQL_SLAVE_PORT=3306
+      - MYSQL_DATABASE=db_coreconnect
+      - MYSQL_USERNAME=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:-Chat@2024!Secure}
+      - JAVA_OPTS=-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.28
+    depends_on:
+      redis-pubsub:
+        condition: service_healthy
+      redis-session:
+        condition: service_healthy
+      mysql-master:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # Server #9
+  chat-app-9:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: chat-server:latest
+    container_name: chat-app-9
+    hostname: chat-app-9
+    ports:
+      - "8089:8080"
+      - "9099:9090"
+    environment:
+      - SERVER_ID=9
+      - SERVER_PORT=8080
+      - MAX_CONNECTIONS=10000
+      - SPRING_PROFILES_ACTIVE=prod
+      - REDIS_HOST=redis-pubsub
+      - REDIS_PORT=6379
+      - REDIS_SESSION_HOST=redis-session
+      - REDIS_SESSION_PORT=6380
+      - MYSQL_HOST=mysql-master
+      - MYSQL_PORT=3306
+      - MYSQL_SLAVE_HOST=mysql-slave-1
+      - MYSQL_SLAVE_PORT=3306
+      - MYSQL_DATABASE=db_coreconnect
+      - MYSQL_USERNAME=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:-Chat@2024!Secure}
+      - JAVA_OPTS=-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.29
+    depends_on:
+      redis-pubsub:
+        condition: service_healthy
+      redis-session:
+        condition: service_healthy
+      mysql-master:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # Server #10
+  chat-app-10:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: chat-server:latest
+    container_name: chat-app-10
+    hostname: chat-app-10
+    ports:
+      - "8090:8080"
+      - "9100:9090"
+    environment:
+      - SERVER_ID=10
+      - SERVER_PORT=8080
+      - MAX_CONNECTIONS=10000
+      - SPRING_PROFILES_ACTIVE=prod
+      - REDIS_HOST=redis-pubsub
+      - REDIS_PORT=6379
+      - REDIS_SESSION_HOST=redis-session
+      - REDIS_SESSION_PORT=6380
+      - MYSQL_HOST=mysql-master
+      - MYSQL_PORT=3306
+      - MYSQL_SLAVE_HOST=mysql-slave-2
+      - MYSQL_SLAVE_PORT=3306
+      - MYSQL_DATABASE=db_coreconnect
+      - MYSQL_USERNAME=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:-Chat@2024!Secure}
+      - JAVA_OPTS=-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.30
+    depends_on:
+      redis-pubsub:
+        condition: service_healthy
+      redis-session:
+        condition: service_healthy
+      mysql-master:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ================================================================
+  # 3️⃣ Redis Pub/Sub (메시지 동기화)
+  # ================================================================
+  redis-pubsub:
+    image: redis:7.2-alpine
+    container_name: chat-redis-pubsub
+    hostname: redis-pubsub
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+      --maxmemory 2gb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+      --tcp-backlog 511
+      --timeout 0
+      --tcp-keepalive 300
+      --daemonize no
+      --loglevel notice
+    volumes:
+      - redis-pubsub-data:/data
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.40
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ================================================================
+  # 4️⃣ Redis Session (세션 클러스터링)
+  # ================================================================
+  redis-session:
+    image: redis:7.2-alpine
+    container_name: chat-redis-session
+    hostname: redis-session
+    ports:
+      - "6380:6380"
+    command: >
+      redis-server
+      --port 6380
+      --maxmemory 4gb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --appendonly yes
+      --appendfsync everysec
+      --tcp-backlog 511
+      --timeout 0
+      --tcp-keepalive 300
+      --daemonize no
+      --loglevel notice
+    volumes:
+      - redis-session-data:/data
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.41
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6380", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ================================================================
+  # 5️⃣ MySQL Master (Write)
+  # ================================================================
+  mysql-master:
+    image: mysql:8.0
+    container_name: chat-mysql-master
+    hostname: mysql-master
     ports:
       - "3306:3306"
-    expose:
-      - "3306"
-    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      TZ: Asia/Seoul
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-Chat@2024!Secure}
+      - MYSQL_DATABASE=db_coreconnect
+      - MYSQL_REPLICATION_MODE=master
+      - MYSQL_REPLICATION_USER=repl_user
+      - MYSQL_REPLICATION_PASSWORD=${MYSQL_REPLICATION_PASSWORD:-Repl@2024!Pass}
+      - TZ=Asia/Seoul
+    command: >
+      --server-id=1
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --binlog-do-db=db_coreconnect
+      --max-connections=1000
+      --innodb-buffer-pool-size=2G
+      --innodb-log-file-size=512M
+      --innodb-flush-log-at-trx-commit=2
+      --innodb-flush-method=O_DIRECT
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max-allowed-packet=256M
+      --tmp-table-size=64M
+      --max-heap-table-size=64M
+      --query-cache-size=0
+      --query-cache-type=0
+      --default-authentication-plugin=mysql_native_password
     volumes:
-      # ⭐ 데이터 영구 저장 (컨테이너 삭제해도 데이터 보존)
-      - mysql-data:/var/lib/mysql
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-      - --default-time-zone=+09:00
+      - mysql-master-data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.50
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
 
-  # 2. backend 서비스 생성
-  backend:
-    # 1) 도커 컨테이너 이름
-    container_name: boot-container
-    # 2) ./backend 경로에 있는 Dockerfile로 도커 이미지를 빌드할 것
-    build: 
-      context: ./backend
-    # 3) 이미 존재하는 외부 네트워크를 사용
-    networks:
-      - my-network
-    # 4) 포트 매핑: 호스트 8080 -> 컨테이너 8080 (부하 테스트를 위해 외부 접근 허용)
+  # ================================================================
+  # 6️⃣ MySQL Slave 1 (Read)
+  # ================================================================
+  mysql-slave-1:
+    image: mysql:8.0
+    container_name: chat-mysql-slave-1
+    hostname: mysql-slave-1
     ports:
-      - "8080:8080"
-    # 컨테이너 간 통신도 유지
-    expose:
-      - "8080"
-    # 5) 재시작 정책: 수동으로 중지하지 않는 한 항상 재시작
-    restart: unless-stopped
-    # 6) MySQL 서비스가 준비될 때까지 대기 ⭐
+      - "3307:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-Chat@2024!Secure}
+      - MYSQL_DATABASE=db_coreconnect
+      - MYSQL_REPLICATION_MODE=slave
+      - MYSQL_MASTER_HOST=mysql-master
+      - MYSQL_MASTER_PORT=3306
+      - MYSQL_REPLICATION_USER=repl_user
+      - MYSQL_REPLICATION_PASSWORD=${MYSQL_REPLICATION_PASSWORD:-Repl@2024!Pass}
+      - TZ=Asia/Seoul
+    command: >
+      --server-id=2
+      --relay-log=mysql-relay-bin
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --binlog-do-db=db_coreconnect
+      --read-only=1
+      --max-connections=1000
+      --innodb-buffer-pool-size=2G
+      --innodb-flush-log-at-trx-commit=2
+      --innodb-flush-method=O_DIRECT
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max-allowed-packet=256M
+      --tmp-table-size=64M
+      --max-heap-table-size=64M
+      --query-cache-size=0
+      --query-cache-type=0
+      --default-authentication-plugin=mysql_native_password
+    volumes:
+      - mysql-slave1-data:/var/lib/mysql
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.51
     depends_on:
-      mysql:
+      mysql-master:
         condition: service_healthy
-    # 7) Healthcheck: 커스텀 /api/health 엔드포인트 사용
-    # Rolling Update 시 새 컨테이너가 완전히 준비될 때까지 대기
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
-      retries: 30
-      start_period: 90s
-    # 8) docker-compose를 사용하면 Dockerfile를 통하지 않아도 환경 변수를 직접 컨테이너(boot-container)로 전달 가능
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://coreconnect.io.kr}
-      WEBSOCKET_ALLOWED_ORIGINS: ${WEBSOCKET_ALLOWED_ORIGINS:-http://coreconnect.io.kr}
-      COOKIE_SECURE: ${COOKIE_SECURE:-false}
-      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-Lax}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_REGION: ${AWS_REGION}
-      AWS_BUCKET_NAME: ${AWS_BUCKET_NAME}
-      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
-      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-admin@coreconnect.io.kr}
-      SENDGRID_FROM_NAME: ${SENDGRID_FROM_NAME:-CoreConnect}
-      SENDGRID_REPLY_TO: ${SENDGRID_REPLY_TO:-admin@coreconnect.io.kr}
-      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN}
-      MAIL_USERNAME: ${MAIL_USERNAME}
-      MAIL_PASSWORD: ${MAIL_PASSWORD}
-  
-  # 2. frontend 서비스 생성
-  frontend:
-    # 1) 도커 컨테이너 이름
-    container_name: nginx-container
-    # 2) ./frontend 경로에 있는 Dockerfile로 도커 이미지를 빌드할 것
-    build: 
-      context: ./frontend
-    # 3) 포트 포워딩 (HTTP 80, HTTPS 443)
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ================================================================
+  # 7️⃣ MySQL Slave 2 (Read)
+  # ================================================================
+  mysql-slave-2:
+    image: mysql:8.0
+    container_name: chat-mysql-slave-2
+    hostname: mysql-slave-2
     ports:
-      - 80:80
-      - 443:443
-    # 4) boot-container와 동일한 도커 네트워크 사용
-    networks:
-      - my-network
-    # 5) 재시작 정책: 수동으로 중지하지 않는 한 항상 재시작
-    restart: unless-stopped
-    # 6) Let's Encrypt 인증서 볼륨 마운트 (HTTPS 사용 시에만 주석 해제)
-    # ⚠️ 주의: HTTPS를 사용하지 않는다면 아래 볼륨을 주석 처리해야 합니다.
+      - "3308:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-Chat@2024!Secure}
+      - MYSQL_DATABASE=db_coreconnect
+      - MYSQL_REPLICATION_MODE=slave
+      - MYSQL_MASTER_HOST=mysql-master
+      - MYSQL_MASTER_PORT=3306
+      - MYSQL_REPLICATION_USER=repl_user
+      - MYSQL_REPLICATION_PASSWORD=${MYSQL_REPLICATION_PASSWORD:-Repl@2024!Pass}
+      - TZ=Asia/Seoul
+    command: >
+      --server-id=3
+      --relay-log=mysql-relay-bin
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --binlog-do-db=db_coreconnect
+      --read-only=1
+      --max-connections=1000
+      --innodb-buffer-pool-size=2G
+      --innodb-flush-log-at-trx-commit=2
+      --innodb-flush-method=O_DIRECT
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max-allowed-packet=256M
+      --tmp-table-size=64M
+      --max-heap-table-size=64M
+      --query-cache-size=0
+      --query-cache-type=0
+      --default-authentication-plugin=mysql_native_password
     volumes:
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-      - ./frontend/letsencrypt-challenge:/usr/share/nginx/html/.well-known/acme-challenge
-    # 7) backend 서비스가 시작될 때까지 대기 (healthcheck 조건 완화)
+      - mysql-slave2-data:/var/lib/mysql
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.52
     depends_on:
-      - backend
-      # backend:
-      #   condition: service_healthy  # ⚠️ 임시로 주석 처리 (curl 없는 경우)
+      mysql-master:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
 
-# 외부 네트워크 사용 (도커 네트워크 my-network는 도커 컴포즈 실행 전에 미리 만들어 두어야 함)
-networks:
-  my-network:
-    external: true
+  # ================================================================
+  # 8️⃣ Prometheus (메트릭 수집)
+  # ================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: chat-prometheus
+    hostname: prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.60
+    depends_on:
+      - chat-app-1
+      - chat-app-2
+      - chat-app-3
+      - chat-app-4
+      - chat-app-5
+      - chat-app-6
+      - chat-app-7
+      - chat-app-8
+      - chat-app-9
+      - chat-app-10
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-# MySQL 데이터 영구 저장을 위한 볼륨
-volumes:
-  mysql-data:
-    driver: local
+  # ================================================================
+  # 9️⃣ Grafana (모니터링 대시보드)
+  # ================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: chat-grafana
+    hostname: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin123}
+      - GF_INSTALL_PLUGINS=redis-datasource,mysql-datasource
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - TZ=Asia/Seoul
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.61
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ================================================================
+  # 🔟 Redis Commander (선택 사항 - Redis GUI)
+  # ================================================================
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: chat-redis-commander
+    hostname: redis-commander
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=pubsub:redis-pubsub:6379,session:redis-session:6380
+      - HTTP_USER=admin
+      - HTTP_PASSWORD=${REDIS_COMMANDER_PASSWORD:-admin123}
+    networks:
+      chat-network:
+        ipv4_address: 172.20.0.70
+    depends_on:
+      - redis-pubsub
+      - redis-session
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
