@@ -40,5 +40,3 @@ spec:
         value: 4  # 또는 한 번에 최대 4개 Pod 추가
         periodSeconds: 15
       selectPolicy: Max  # 더 큰 값 선택
-
-
