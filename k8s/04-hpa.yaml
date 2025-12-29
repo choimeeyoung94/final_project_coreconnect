@@ -1,0 +1,44 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: chat-server-hpa
+  namespace: chat-system
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: chat-server
+  minReplicas: 3   # 최소 3개 Pod (비용 절감)
+  maxReplicas: 20  # 최대 20개 Pod (트래픽 폭증 대응)
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70  # CPU 70% 넘으면 Pod 증가
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80  # 메모리 80% 넘으면 Pod 증가
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300  # 5분 안정화 후 스케일 다운
+      policies:
+      - type: Percent
+        value: 50  # 한 번에 50%씩만 감소
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0  # 즉시 스케일 업
+      policies:
+      - type: Percent
+        value: 100  # 한 번에 100%까지 증가 가능
+        periodSeconds: 15
+      - type: Pods
+        value: 4  # 또는 한 번에 최대 4개 Pod 추가
+        periodSeconds: 15
+      selectPolicy: Max  # 더 큰 값 선택
+
+
