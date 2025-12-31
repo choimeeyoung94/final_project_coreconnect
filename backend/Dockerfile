@@ -1,28 +1,45 @@
-# 1. 빌드 스테이지
-FROM gradle:8-jdk17-alpine AS bootbuild
-WORKDIR /website/backend
+# Multi-stage build for Spring Boot with Gradle
+FROM gradle:8.5-jdk17 AS build
 
-# Gradle 설정 파일 복사 후 디펜던시 설정
+WORKDIR /app
+
+# Copy Gradle files
 COPY build.gradle settings.gradle ./
-RUN gradle dependencies --no-daemon
+COPY gradle gradle/
 
-# 소스 코드 복사 후 빌드
+# Download dependencies (cache layer)
+RUN gradle dependencies --no-daemon || return 0
+
+# Copy source code
 COPY src ./src
-RUN gradle bootJar --no-daemon -x test
 
-# 2. 런타임 스테이지
+# Build application
+RUN gradle clean bootJar --no-daemon -x test
+
+# Runtime stage
 FROM eclipse-temurin:17-jre-alpine
-WORKDIR /website/backend
 
-# Health Check를 위한 curl 설치
-RUN apk add --no-cache curl
+WORKDIR /app
 
-# 빌드 스테이지에서 생성한 JAR 파일을 런타임 스테이지로 복사
-# Gradle 프로젝트의 빌드 디렉터리는 build임
-COPY --from=bootbuild /website/backend/build/libs/*.jar website.jar
+# Create non-root user
+RUN addgroup -g 1001 -S appuser && \
+    adduser -S appuser -u 1001 -G appuser
 
-# 포트 노출 (부트 기본 포트)
+# Copy jar from build stage
+COPY --from=build /app/build/libs/*.jar app.jar
+
+# Change ownership
+RUN chown -R appuser:appuser /app
+
+USER appuser
+
 EXPOSE 8080
 
-# JAR 파일 실행
-ENTRYPOINT ["java", "-jar", "website.jar"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+
+# JVM options for container
+ENV JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
+
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Dspring.profiles.active=prod -jar app.jar"]

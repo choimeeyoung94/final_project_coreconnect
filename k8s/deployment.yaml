@@ -1,0 +1,178 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-service
+  namespace: chat-system
+  labels:
+    app: chat-service
+    version: v1
+spec:
+  replicas: 10  # 10개 파드로 시작
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 3
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: chat-service
+  template:
+    metadata:
+      labels:
+        app: chat-service
+        version: v1
+    spec:
+      # 파드를 여러 노드에 분산
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - chat-service
+              topologyKey: kubernetes.io/hostname
+      
+      containers:
+      - name: chat-service
+        image: 230438301300.dkr.ecr.ap-northeast-2.amazonaws.com/chat-service:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        
+        # 환경변수 (ConfigMap & Secret)
+        env:
+        # ConfigMap에서
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: DB_HOST
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: DB_PORT
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: DB_NAME
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: REDIS_HOST
+        - name: REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: REDIS_PORT
+        - name: AWS_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: AWS_REGION
+        - name: WEBSOCKET_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: WEBSOCKET_ORIGINS
+        - name: JWT_EXPIRATION
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: JWT_EXPIRATION
+        
+        # Secret에서
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: DB_USERNAME
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: DB_PASSWORD
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: REDIS_PASSWORD
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: JWT_SECRET
+        - name: AWS_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: AWS_ACCESS_KEY
+        - name: AWS_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: AWS_SECRET_KEY
+        - name: SENDGRID_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: SENDGRID_API_KEY
+        
+        # 리소스 요청/제한
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+        
+        # Liveness Probe (컨테이너 살아있는지)
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 90
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Readiness Probe (트래픽 받을 준비되었는지)
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        
+        # Startup Probe (최초 기동 시간 여유)
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        
+        # 보안 컨텍스트
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+

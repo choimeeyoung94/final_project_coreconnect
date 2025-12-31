@@ -1,0 +1,11 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: chat-service-pdb
+  namespace: chat-system
+spec:
+  minAvailable: 8  # 최소 8개 파드 항상 유지
+  selector:
+    matchLabels:
+      app: chat-service
+

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chat-system
+  labels:
+    name: chat-system
+    app: coreconnect
+
