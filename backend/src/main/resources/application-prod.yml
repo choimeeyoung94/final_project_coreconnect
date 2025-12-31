@@ -1,0 +1,139 @@
+spring:
+  application:
+    name: coreconnect-chat
+  
+  # MySQL 설정 (환경변수로 주입)
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:coreconnect}?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: false
+        show_sql: false
+    open-in-view: false
+  
+  # Redis 설정 (세션 공유 + 캐싱)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 10
+          min-idle: 2
+  
+  # Redis Session (여러 파드 간 세션 공유 - 필수!)
+  session:
+    store-type: redis
+    redis:
+      namespace: coreconnect:session
+      flush-mode: on_save
+    timeout: 1800s # 30분
+  
+  # Security
+  security:
+    user:
+      name: ${SECURITY_USER:admin}
+      password: ${SECURITY_PASSWORD:admin}
+
+# JWT 설정
+jwt:
+  secret: ${JWT_SECRET:your-secret-key-change-this-in-production}
+  expiration: ${JWT_EXPIRATION:86400000} # 24시간
+
+# WebSocket 설정
+websocket:
+  allowed-origins: ${WEBSOCKET_ORIGINS:*}
+  endpoint: /ws
+  destination-prefix: /app
+  broker-prefix: /topic
+
+# AWS S3 설정 (기존 프로젝트에 있다면)
+cloud:
+  aws:
+    credentials:
+      access-key: ${AWS_ACCESS_KEY:}
+      secret-key: ${AWS_SECRET_KEY:}
+    region:
+      static: ${AWS_REGION:ap-northeast-2}
+    s3:
+      bucket: ${AWS_S3_BUCKET:}
+
+# SendGrid (이메일)
+sendgrid:
+  api-key: ${SENDGRID_API_KEY:}
+
+# Actuator (헬스체크 - Kubernetes용)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+    redis:
+      enabled: true
+    db:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Server 설정
+server:
+  port: 8080
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+    max-connections: 8192
+    accept-count: 100
+    connection-timeout: 20000
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.goodee.coreconnect: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.springframework.messaging: DEBUG
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# MyBatis
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+  mapper-locations: classpath:mapper/**/*.xml
+

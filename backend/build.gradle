@@ -30,6 +30,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation 'org.springframework.session:spring-session-data-redis' // Redis 세션 공유 (K8s용)
+	implementation 'org.springframework.boot:spring-boot-starter-actuator' // 헬스체크용
 	implementation platform('io.awspring.cloud:spring-cloud-aws-dependencies:3.0.4')
 	implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.3'
 	implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3'
