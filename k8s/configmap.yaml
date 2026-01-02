@@ -21,4 +21,7 @@ data:
   
   # JWT
   JWT_EXPIRATION: "86400000"
+  
+  # Security Mode (open: 모든 요청 허용, secure: 인증 필요)
+  SECURITY_MODE: "open"
 
