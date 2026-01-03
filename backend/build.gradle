@@ -21,6 +21,8 @@ configurations {
 }
 
 repositories {
+	// CI 환경에서 repo.maven.apache.org 접근이 차단(403)되는 경우를 대비한 미러
+	maven { url = uri("https://repo1.maven.org/maven2") }
 	mavenCentral()
 }
 
