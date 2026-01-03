@@ -50,6 +50,16 @@ public class AuthController {
   private final UserRepository userRepository;  
   private final PasswordEncoder passwordEncoder;
   private final AccountLogService accountLogService;
+
+  /**
+   * security.mode=open 인 경우 로드 테스트/개발 편의를 위해
+   * 로그인 시 사용자 자동 생성/비밀번호 동기화를 허용합니다.
+   *
+   * - secure: 기존 정책 유지(유저 없음/비번 불일치면 401)
+   * - open: 유저 없으면 생성 후 로그인 성공, 비번 불일치면 비번을 요청값으로 갱신 후 성공
+   */
+  @Value("${security.mode:secure}")
+  private String securityMode;
   
   @Value("${app.cookie.secure:false}")
   private boolean cookieSecure;
@@ -74,16 +84,42 @@ public class AuthController {
       
       // 이메일로 사용자 조회
       User user = userRepository.findByEmail(email).orElse(null);
-      if (user == null) { 
-        // 로그인 실패 이력 저장 (사용자가 존재하지 않음)
-        accountLogService.saveLoginFailLog(email, ipPair.getIpv4(), ipPair.getIpv6());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build(); 
-      }
-      // 비밀번호 비교 (BCrypt)
-      if (!passwordEncoder.matches(password, user.getPassword())) {
-        // 로그인 실패 이력 저장 (비밀번호 오류)
-        accountLogService.saveLoginFailLog(email, ipPair.getIpv4(), ipPair.getIpv6());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+      // ✅ open 모드: 로드테스트/개발 편의를 위해 로그인 실패를 최소화
+      if ("open".equalsIgnoreCase(securityMode)) {
+        if (user == null) {
+          log.info("[AUTH] open mode: user not found, auto-creating user. email={}", email);
+          user = User.createUser(
+              passwordEncoder.encode(password),   // 요청 비밀번호로 생성
+              "LoadTest User",                    // 기본 이름
+              Role.USER,                          // 기본 권한
+              email,
+              null,                               // phone
+              null,                               // department
+              null,                               // jobGrade
+              null                                // employeeNumber (unique, nullable)
+          );
+          user = userRepository.save(user);
+        } else if (!passwordEncoder.matches(password, user.getPassword())) {
+          log.info("[AUTH] open mode: password mismatch, syncing password. email={}", email);
+          user.changePassword(passwordEncoder.encode(password));
+          user.activate();
+          user.changeRole(Role.USER);
+          user = userRepository.save(user);
+        }
+      } else {
+        // 🔒 secure 모드: 기존 정책 유지
+        if (user == null) {
+          // 로그인 실패 이력 저장 (사용자가 존재하지 않음)
+          accountLogService.saveLoginFailLog(email, ipPair.getIpv4(), ipPair.getIpv6());
+          return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        // 비밀번호 비교 (BCrypt)
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+          // 로그인 실패 이력 저장 (비밀번호 오류)
+          accountLogService.saveLoginFailLog(email, ipPair.getIpv4(), ipPair.getIpv6());
+          return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
       }
 
       // 사용자 Role 추출

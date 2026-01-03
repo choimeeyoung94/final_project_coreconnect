@@ -78,6 +78,18 @@ public class SecurityConfig {
                 // 공개 경로: 인증 없이 접근 가능
                 // 주의: OPTIONS 요청은 CORS 필터가 자동으로 처리하므로 permitAll()에서 제외
                 .requestMatchers(
+                    "/",                                  // 루트 경로
+                    "/login",                             // 로그인 페이지
+                    "/login/**",                          // 로그인 관련 경로
+                    "/*.html",                            // HTML 파일
+                    "/*.js",                              // JavaScript 파일
+                    "/*.css",                             // CSS 파일
+                    "/*.ico",                             // 파비콘
+                    "/*.png",                             // 이미지
+                    "/*.jpg",                             // 이미지
+                    "/*.svg",                             // SVG 이미지
+                    "/static/**",                         // 정적 리소스
+                    "/assets/**",                         // React 빌드 assets
                     "/v3/api-docs/**",                    // Swagger API 문서
                     "/swagger-ui/**",                     // Swagger UI
                     "/swagger-ui.html",                   // Swagger UI (구버전)
