@@ -700,3 +700,12 @@ kubectl get pods -n chat-system
 
 
 
+
+
+
+
+
+
+
+
+

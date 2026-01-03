@@ -24,4 +24,9 @@ data:
   
   # Security Mode (open: 모든 요청 허용, secure: 인증 필요)
   SECURITY_MODE: "open"
+  
+  # JPA/Hibernate DDL Auto (create, update, validate, none)
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
+  SPRING_JPA_SHOW_SQL: "true"
+  SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"
 
