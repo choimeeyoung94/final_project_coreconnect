@@ -194,11 +194,14 @@ sudo k3s crictl images | grep chat-server
 ### 4.1 Namespace 생성
 
 ```yaml
-# k8s/namespace.yaml
+# k8s/00-namespace.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
   name: chat-system
+  labels:
+    name: chat-system
+    app: coreconnect
 ```
 
 ### 4.2 MySQL Deployment
@@ -404,7 +407,7 @@ spec:
 mkdir -p k8s
 
 # 위의 YAML 파일들을 k8s/ 디렉토리에 저장
-# (namespace.yaml, mysql-deployment.yaml, redis-deployment.yaml, 
+# (00-namespace.yaml, mysql-deployment.yaml, redis-deployment.yaml,
 #  chat-deployment.yaml, chat-hpa.yaml)
 
 # 한 번에 배포
@@ -696,6 +699,11 @@ kubectl get pods -n chat-system
 - EC2에 배포해서 실제 검증
 
 준비되셨나요? 🚀
+
+
+
+
+
 
 
 

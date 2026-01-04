@@ -83,6 +83,16 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .addInterceptors(webSocketAuthInterceptor) // WebSocket 인증 인터셉터 추가
                 .withSockJS(); // 필요하다면 SockJS 지원도 추가
         log.info("🔥 [WebSocketConfig] /ws/chat 엔드포인트 등록 완료");
+
+        // ============================================================
+        // ✅ 부하테스트/자동화용: Raw WebSocket(STOMP) 엔드포인트
+        // - k6는 SockJS(/ws/chat)를 직접 지원하지 않음
+        // - 프론트는 /ws/chat(SockJS) 그대로 유지하고, 부하테스트는 /ws/chat-ws 로 수행
+        // ============================================================
+        registry.addEndpoint("/ws/chat-ws")
+                .setAllowedOrigins(origins)
+                .addInterceptors(webSocketAuthInterceptor);
+        log.info("🔥 [WebSocketConfig] /ws/chat-ws 엔드포인트 등록 완료 (부하 테스트/자동화용 Raw WebSocket)");
         
         // 부하 테스트용 순수 WebSocket 엔드포인트 (SockJS 없음)
         registry.addEndpoint("/ws/chat-raw")
