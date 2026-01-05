@@ -96,6 +96,7 @@ public class SecurityConfig {
                     "/swagger-resources/**",              // Swagger 리소스
                     "/webjars/**",                        // WebJars 리소스
                     "/ws/chat/**",                        // WebSocket 채팅 (SockJS info 엔드포인트 접근용, 실제 연결은 WebSocketAuthInterceptor에서 검증)
+                    "/ws/chat-ws/**",                     // WebSocket 채팅 (부하 테스트/자동화용 Raw WebSocket, 실제 연결은 WebSocketAuthInterceptor에서 검증)
                     "/ws/chat-raw/**",                    // WebSocket 부하 테스트용 (인증 없음)
                     "/ws/notification/**",                // WebSocket 알림
                     "/api/v1/auth/**",                    // 인증 관련 API
