@@ -92,6 +92,21 @@ public interface ChatMessageReadStatusRepository extends JpaRepository<ChatMessa
     // 특정 메시지와 특정 사용자 조합의 읽음 상태를 조회
     Optional<ChatMessageReadStatus> findByChatIdAndUserId(Integer chatId, Integer userId);
     
+    /**
+     * ⭐ 여러 채팅방의 안읽은 메시지 개수를 한 번에 조회 (배치 최적화)
+     * - N+1 문제 해결
+     * - Cache Miss인 방들만 조회하여 성능 향상
+     */
+    @Query("SELECT r.chat.chatRoom.id, COUNT(1) FROM ChatMessageReadStatus r " +
+           "WHERE r.user.id = :userId " +
+           "AND r.chat.chatRoom.id IN :roomIds " +
+           "AND r.readYn = false " +
+           "GROUP BY r.chat.chatRoom.id")
+    List<Object[]> countUnreadByRoomIdsForUser(
+        @Param("userId") Integer userId,
+        @Param("roomIds") List<Integer> roomIds
+    );
+    
     // 또는 직접 JPQL 사용하고 싶을 때
     @Query("SELECT c FROM ChatMessageReadStatus c WHERE c.chat.id = :chatId AND c.user.id = :userId")
     Optional<ChatMessageReadStatus> findReadStatusByChatIdAndUserId(@Param("chatId") Integer chatId, @Param("userId") Integer userId);

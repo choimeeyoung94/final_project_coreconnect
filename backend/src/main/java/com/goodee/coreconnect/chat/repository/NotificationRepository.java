@@ -2,6 +2,8 @@ package com.goodee.coreconnect.chat.repository;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -65,6 +67,75 @@ public interface NotificationRepository extends JpaRepository<Notification, Inte
     	    @Param("userId") Integer userId,
     	    @Param("types") List<NotificationType> types
     	);
+    
+    // ========== ⭐ 페이징 지원 메서드 (성능 최적화) ==========
+    
+    /**
+     * 사용자의 모든 알림 조회 (페이징)
+     * - 10만개의 알림이 있어도 필요한 만큼만 조회하여 성능 향상
+     */
+    @Query("SELECT n FROM Notification n " +
+           "WHERE n.user.id = :userId " +
+           "ORDER BY n.notificationSentAt DESC")
+    Page<Notification> findByUserIdOrderBySentAtDesc(
+        @Param("userId") Integer userId, 
+        Pageable pageable
+    );
+    
+    /**
+     * 사용자의 미읽은 알림 조회 (페이징)
+     * - idx_user_deleted_read_sent 인덱스 활용
+     */
+    @Query("SELECT n FROM Notification n " +
+           "WHERE n.user.id = :userId " +
+           "AND n.notificationReadYn = false " +
+           "AND (n.notificationDeletedYn = false OR n.notificationDeletedYn IS NULL) " +
+           "ORDER BY n.notificationSentAt DESC")
+    Page<Notification> findUnreadByUserId(
+        @Param("userId") Integer userId, 
+        Pageable pageable
+    );
+    
+    /**
+     * 사용자의 특정 타입 미읽은 알림 조회 (페이징)
+     * - idx_user_type_read_deleted_sent 인덱스 활용
+     * - 가장 많이 사용되는 패턴
+     */
+    @Query("SELECT n FROM Notification n " +
+           "WHERE n.user.id = :userId " +
+           "AND n.notificationType IN (:types) " +
+           "AND n.notificationReadYn = false " +
+           "AND (n.notificationDeletedYn = false OR n.notificationDeletedYn IS NULL) " +
+           "ORDER BY n.notificationSentAt DESC")
+    Page<Notification> findUnreadByUserIdAndTypesPaged(
+        @Param("userId") Integer userId,
+        @Param("types") List<NotificationType> types,
+        Pageable pageable
+    );
+    
+    /**
+     * 사용자별 미읽은 알림 개수 조회 (카운트만)
+     * - Covering Index로 매우 빠른 조회
+     * - 인덱스만으로 결과 반환 (테이블 접근 불필요)
+     */
+    @Query("SELECT COUNT(n) FROM Notification n " +
+           "WHERE n.user.id = :userId " +
+           "AND n.notificationReadYn = false " +
+           "AND (n.notificationDeletedYn = false OR n.notificationDeletedYn IS NULL)")
+    long countUnreadByUserId(@Param("userId") Integer userId);
+    
+    /**
+     * 사용자별 특정 타입 미읽은 알림 개수 조회
+     */
+    @Query("SELECT COUNT(n) FROM Notification n " +
+           "WHERE n.user.id = :userId " +
+           "AND n.notificationType IN (:types) " +
+           "AND n.notificationReadYn = false " +
+           "AND (n.notificationDeletedYn = false OR n.notificationDeletedYn IS NULL)")
+    long countUnreadByUserIdAndTypes(
+        @Param("userId") Integer userId,
+        @Param("types") List<NotificationType> types
+    );
     
     /** 특정 사용자가 보낸 모든 알림 조회 (sentYn 보정용) */
     List<Notification> findBySenderId(Integer senderId);

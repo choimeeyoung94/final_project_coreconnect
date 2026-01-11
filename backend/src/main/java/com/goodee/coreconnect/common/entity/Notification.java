@@ -17,6 +17,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -28,7 +29,65 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor // ★ 롬복 기본 생성자(생략 가능, 직접 protected Notification() {} 써도 OK)
 @Entity
-@Table(name = "notification")
+@Table(
+    name = "notification",
+    indexes = {
+        // ⭐ 가장 중요: 사용자별 미읽은/미삭제 알림 조회 + 시간순 정렬
+        // WHERE user_id = ? AND deleted_yn = false AND read_yn = false ORDER BY sent_at DESC
+        @Index(
+            name = "idx_user_deleted_read_sent", 
+            columnList = "user_id, notification_deleted_yn, notification_read_yn, notification_sent_at DESC"
+        ),
+        
+        // ⭐ 타입별 필터링 포함 조회 (가장 많이 사용되는 패턴)
+        // WHERE user_id = ? AND deleted_yn = false AND read_yn = false AND type IN (...) ORDER BY sent_at DESC
+        @Index(
+            name = "idx_user_type_read_deleted_sent",
+            columnList = "user_id, notification_type, notification_read_yn, notification_deleted_yn, notification_sent_at DESC"
+        ),
+        
+        // ⭐ 채팅 메시지별 알림 조회
+        // WHERE chat_message_id = ?
+        @Index(
+            name = "idx_chat_message",
+            columnList = "chat_message_id"
+        ),
+        
+        // ⭐ 문서별 알림 조회
+        // WHERE doc_id = ?
+        @Index(
+            name = "idx_document",
+            columnList = "doc_id"
+        ),
+        
+        // ⭐ 게시판별 알림 조회
+        // WHERE board_id = ?
+        @Index(
+            name = "idx_board",
+            columnList = "board_id"
+        ),
+        
+        // ⭐ 일정별 알림 조회
+        // WHERE schedule_id = ?
+        @Index(
+            name = "idx_schedule",
+            columnList = "schedule_id"
+        ),
+        
+        // ⭐ 발신자별 알림 조회 (관리자용)
+        // WHERE sender_id = ? ORDER BY sent_at DESC
+        @Index(
+            name = "idx_sender_sent",
+            columnList = "sender_id, notification_sent_at DESC"
+        ),
+        
+        // ⭐ 전체 알림 시간순 조회 (백업/통계용)
+        @Index(
+            name = "idx_sent_at",
+            columnList = "notification_sent_at DESC"
+        )
+    }
+)
 @DynamicUpdate // 변경된 필드만 업데이트하도록 설정
 public class Notification {
   
