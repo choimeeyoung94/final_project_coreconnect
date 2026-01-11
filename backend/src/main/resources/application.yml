@@ -1,22 +1,53 @@
 spring:
   # ==========================================
-  # 데이터베이스 Connection Pool 설정
+  # 🔵 Master-Slave 데이터베이스 설정
   # ==========================================
   datasource:
-    hikari:
-      # Connection Pool 크기 (부하 테스트용 튜닝)
-      maximum-pool-size: 40          # 테스트 대상: 40 (DB 커넥션 한도에 맞춰 조정)
-      minimum-idle: 10               # 테스트 대상: 10 (유휴 커넥션 유지 최소값)
-      
-      # 타임아웃 설정
-      connection-timeout: 15000      # 15초 (대기 시간 상한을 다소 낮춤)
-      idle-timeout: 300000           # 5분 (유휴 Connection 유지)
-      max-lifetime: 1200000          # 20분 (Connection 최대 수명)
-      
-      # 모니터링 및 검증
-      leak-detection-threshold: 60000 # 1분 (Connection 누수 감지)
-      connection-test-query: SELECT 1 # Connection 검증 쿼리
-      validation-timeout: 5000       # 5초 (검증 타임아웃)
+    # Master DataSource (Write 전용)
+    master:
+      hikari:
+        jdbc-url: ${SPRING_DATASOURCE_MASTER_URL:jdbc:mysql://mysql-master:3306/db_coreconnect?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true}
+        username: ${MYSQL_USERNAME:root}
+        password: ${MYSQL_PASSWORD:finalcoreconnect}
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        
+        # Connection Pool 크기 (Master는 Write 작업이므로 적절한 크기 유지)
+        maximum-pool-size: 30          # Write 작업용 풀 크기
+        minimum-idle: 10               # 최소 유휴 커넥션
+        
+        # 타임아웃 설정
+        connection-timeout: 15000      # 15초
+        idle-timeout: 300000           # 5분
+        max-lifetime: 1200000          # 20분
+        
+        # 모니터링 및 검증
+        leak-detection-threshold: 60000 # 1분
+        connection-test-query: SELECT 1
+        validation-timeout: 5000       # 5초
+        pool-name: MasterDB-Pool
+    
+    # Slave DataSource (Read 전용)
+    slave:
+      hikari:
+        jdbc-url: ${SPRING_DATASOURCE_SLAVE_URL:jdbc:mysql://mysql-slave-1:3306/db_coreconnect?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true}
+        username: ${MYSQL_USERNAME:root}
+        password: ${MYSQL_PASSWORD:finalcoreconnect}
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        
+        # Connection Pool 크기 (Read 작업이 많으므로 더 큰 풀 크기)
+        maximum-pool-size: 50          # Read 작업용 풀 크기 (Master보다 크게)
+        minimum-idle: 15               # 최소 유휴 커넥션
+        
+        # 타임아웃 설정
+        connection-timeout: 15000      # 15초
+        idle-timeout: 300000           # 5분
+        max-lifetime: 1200000          # 20분
+        
+        # 모니터링 및 검증
+        leak-detection-threshold: 60000 # 1분
+        connection-test-query: SELECT 1
+        validation-timeout: 5000       # 5초
+        pool-name: SlaveDB-Pool
   
   # Redis 설정
   data:
