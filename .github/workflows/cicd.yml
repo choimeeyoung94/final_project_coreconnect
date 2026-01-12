@@ -171,6 +171,11 @@ jobs:
           mkdir -p $HOME/.kube
           echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
           chmod 600 $HOME/.kube/config
+      
+      # 4-1. Namespace 생성
+      - name: Create namespace if not exists
+        run: |
+          kubectl create namespace ${{ env.K8S_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
 
       # 5. ConfigMap 업데이트
       - name: Update ConfigMap
@@ -209,17 +214,21 @@ jobs:
             --namespace=${{ env.K8S_NAMESPACE }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      # 7. Deployment 이미지 업데이트
+      # 7. Deployment 생성/업데이트
       - name: Update Deployment image
         run: |
-          kubectl set image deployment/chat-service \
-            chat-service=${{ needs.build-and-push.outputs.backend-image }} \
-            -n ${{ env.K8S_NAMESPACE }}
-          
-          # Frontend가 있다면
-          # kubectl set image deployment/chat-frontend \
-          #   chat-frontend=${{ needs.build-and-push.outputs.frontend-image }} \
-          #   -n ${{ env.K8S_NAMESPACE }}
+          # Deployment가 없으면 생성, 있으면 이미지 업데이트
+          if kubectl get deployment chat-service -n ${{ env.K8S_NAMESPACE }} &> /dev/null; then
+            echo "Deployment exists. Updating image..."
+            kubectl set image deployment/chat-service \
+              chat-service=${{ needs.build-and-push.outputs.backend-image }} \
+              -n ${{ env.K8S_NAMESPACE }}
+          else
+            echo "Deployment not found. Creating from manifest..."
+            # Deployment 매니페스트에서 이미지 URL 업데이트하여 적용
+            sed "s|image:.*chat-service.*|image: ${{ needs.build-and-push.outputs.backend-image }}|g" k8s/deployment.yaml | kubectl apply -f -
+            kubectl apply -f k8s/service.yaml
+          fi
 
       # 8. Rollout 상태 확인
       - name: Wait for rollout to complete
