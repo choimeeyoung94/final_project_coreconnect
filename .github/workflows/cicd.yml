@@ -163,10 +163,12 @@ jobs:
         with:
           version: 'v1.28.0'
 
-      # 4. Kubeconfig 설정 (EKS)
-      - name: Update kubeconfig for EKS
+      # 4. Kubeconfig 설정 (K3s)
+      - name: Setup kubeconfig for K3s
         run: |
-          aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
 
       # 5. ConfigMap 업데이트
       - name: Update ConfigMap
