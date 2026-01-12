@@ -1,0 +1,21 @@
+# ================================================================
+# Grafana 대시보드 프로비저닝
+# 10만명 동시접속 채팅방 - 대시보드 자동 로드
+# ================================================================
+
+apiVersion: 1
+
+providers:
+  - name: 'Chat Cluster Dashboards'
+    orgId: 1
+    folder: 'Chat Monitoring'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: true
+
+
+

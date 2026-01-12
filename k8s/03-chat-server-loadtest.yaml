@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-service
+  namespace: chat-system
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: chat-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-server
+  namespace: chat-system
+spec:
+  replicas: 10  # ✅ 부하테스트용 10개 Pod
+  selector:
+    matchLabels:
+      app: chat-server
+  template:
+    metadata:
+      labels:
+        app: chat-server
+    spec:
+      containers:
+      - name: chat-server
+        image: chat-server:latest
+        imagePullPolicy: Never
+        env:
+        - name: SERVER_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: SERVER_PORT
+          value: "8080"
+        - name: MAX_CONNECTIONS
+          value: "10000"
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        - name: REDIS_HOST
+          value: "redis-pubsub"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: MYSQL_HOST
+          value: "mysql"
+        - name: MYSQL_PORT
+          value: "3306"
+        - name: MYSQL_DATABASE
+          value: "db_coreconnect"
+        - name: MYSQL_USERNAME
+          value: "root"
+        - name: MYSQL_PASSWORD
+          value: "Chat@2024!Secure"
+        - name: JAVA_OPTS
+          value: "-Xms1g -Xmx2g -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 90
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+

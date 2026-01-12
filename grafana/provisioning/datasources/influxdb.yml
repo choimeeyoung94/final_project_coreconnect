@@ -1,0 +1,18 @@
+# ============================================================
+# Grafana Data Source 설정 - InfluxDB
+# ============================================================
+
+apiVersion: 1
+
+datasources:
+  - name: InfluxDB-K6
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    database: k6
+    isDefault: true
+    jsonData:
+      httpMode: GET
+    editable: true
+    version: 1
+

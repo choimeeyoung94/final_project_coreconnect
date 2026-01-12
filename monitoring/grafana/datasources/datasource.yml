@@ -1,0 +1,88 @@
+# ================================================================
+# Grafana 데이터소스 프로비저닝
+# 10만명 동시접속 채팅방 - Grafana 자동 설정
+# ================================================================
+
+apiVersion: 1
+
+datasources:
+  # ----------------------------------------------------------------
+  # Prometheus 데이터소스
+  # ----------------------------------------------------------------
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      httpMethod: POST
+      timeInterval: 15s
+    version: 1
+
+  # ----------------------------------------------------------------
+  # MySQL 데이터소스 (Master)
+  # ----------------------------------------------------------------
+  - name: MySQL-Master
+    type: mysql
+    access: proxy
+    url: mysql-master:3306
+    database: db_coreconnect
+    user: root
+    secureJsonData:
+      password: 'Chat@2024!Secure'
+    editable: true
+    jsonData:
+      maxOpenConns: 10
+      maxIdleConns: 5
+      connMaxLifetime: 300
+    version: 1
+
+  # ----------------------------------------------------------------
+  # MySQL 데이터소스 (Slave 1)
+  # ----------------------------------------------------------------
+  - name: MySQL-Slave-1
+    type: mysql
+    access: proxy
+    url: mysql-slave-1:3306
+    database: db_coreconnect
+    user: root
+    secureJsonData:
+      password: 'Chat@2024!Secure'
+    editable: true
+    jsonData:
+      maxOpenConns: 10
+      maxIdleConns: 5
+      connMaxLifetime: 300
+    version: 1
+
+  # ----------------------------------------------------------------
+  # Redis 데이터소스 (Pub/Sub)
+  # ----------------------------------------------------------------
+  - name: Redis-PubSub
+    type: redis-datasource
+    access: proxy
+    url: redis://redis-pubsub:6379
+    editable: true
+    jsonData:
+      client: standalone
+      timeout: 10
+      poolSize: 5
+    version: 1
+
+  # ----------------------------------------------------------------
+  # Redis 데이터소스 (Session)
+  # ----------------------------------------------------------------
+  - name: Redis-Session
+    type: redis-datasource
+    access: proxy
+    url: redis://redis-session:6380
+    editable: true
+    jsonData:
+      client: standalone
+      timeout: 10
+      poolSize: 5
+    version: 1
+
+
+

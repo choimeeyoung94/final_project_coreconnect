@@ -1,0 +1,34 @@
+# ================================================================
+# 10만명 동시접속 채팅방 - 환경 변수 설정
+# ================================================================
+# 이 파일을 .env로 복사해서 사용하세요
+# 명령어: cp 환경변수_설정.txt .env
+# ================================================================
+
+# MySQL 설정
+MYSQL_ROOT_PASSWORD=Chat@2024!Secure
+MYSQL_DATABASE=db_coreconnect
+MYSQL_REPLICATION_USER=repl_user
+MYSQL_REPLICATION_PASSWORD=Repl@2024!Pass
+
+# Redis 설정
+REDIS_MAXMEMORY=2gb
+REDIS_SESSION_MAXMEMORY=4gb
+
+# Grafana 설정
+GF_ADMIN_PASSWORD=admin123
+
+# Redis Commander 설정
+REDIS_COMMANDER_PASSWORD=admin123
+
+# 빌드 정보
+BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+VCS_REF=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+
+# 서버 설정
+MAX_CONNECTIONS=10000
+JVM_HEAP_MIN=2g
+JVM_HEAP_MAX=4g
+
+
+

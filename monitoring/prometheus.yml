@@ -1,0 +1,168 @@
+# ================================================================
+# Prometheus 설정
+# 10만명 동시접속 채팅방 - 메트릭 수집
+# ================================================================
+
+global:
+  scrape_interval: 15s      # 15초마다 메트릭 수집
+  evaluation_interval: 15s  # 15초마다 규칙 평가
+  scrape_timeout: 10s
+  external_labels:
+    cluster: 'chat-cluster'
+    environment: 'production'
+    region: 'asia-northeast-2'
+
+# ================================================================
+# 알람 규칙 (선택 사항)
+# ================================================================
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - alertmanager:9093
+
+# ================================================================
+# 스크랩 타겟
+# ================================================================
+scrape_configs:
+  # ----------------------------------------------------------------
+  # Prometheus 자체 모니터링
+  # ----------------------------------------------------------------
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+          instance: 'prometheus-1'
+
+  # ----------------------------------------------------------------
+  # Spring Boot Actuator (10대 서버)
+  # ----------------------------------------------------------------
+  - job_name: 'spring-boot'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    static_configs:
+      - targets:
+          - 'chat-app-1:8080'
+          - 'chat-app-2:8080'
+          - 'chat-app-3:8080'
+          - 'chat-app-4:8080'
+          - 'chat-app-5:8080'
+          - 'chat-app-6:8080'
+          - 'chat-app-7:8080'
+          - 'chat-app-8:8080'
+          - 'chat-app-9:8080'
+          - 'chat-app-10:8080'
+        labels:
+          service: 'chat-server'
+          cluster: 'chat-cluster'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: 'chat-app-(\d+):8080'
+        replacement: 'server-$1'
+
+  # ----------------------------------------------------------------
+  # JMX Metrics (Java 애플리케이션)
+  # ----------------------------------------------------------------
+  - job_name: 'jmx'
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'chat-app-1:9090'
+          - 'chat-app-2:9090'
+          - 'chat-app-3:9090'
+          - 'chat-app-4:9090'
+          - 'chat-app-5:9090'
+          - 'chat-app-6:9090'
+          - 'chat-app-7:9090'
+          - 'chat-app-8:9090'
+          - 'chat-app-9:9090'
+          - 'chat-app-10:9090'
+        labels:
+          service: 'jmx-exporter'
+          cluster: 'chat-cluster'
+
+  # ----------------------------------------------------------------
+  # Redis Pub/Sub (메시지 동기화)
+  # ----------------------------------------------------------------
+  - job_name: 'redis-pubsub'
+    static_configs:
+      - targets:
+          - 'redis-pubsub:6379'
+        labels:
+          service: 'redis'
+          role: 'pubsub'
+          cluster: 'chat-cluster'
+
+  # ----------------------------------------------------------------
+  # Redis Session (세션 클러스터링)
+  # ----------------------------------------------------------------
+  - job_name: 'redis-session'
+    static_configs:
+      - targets:
+          - 'redis-session:6380'
+        labels:
+          service: 'redis'
+          role: 'session'
+          cluster: 'chat-cluster'
+
+  # ----------------------------------------------------------------
+  # MySQL Master (Write)
+  # ----------------------------------------------------------------
+  - job_name: 'mysql-master'
+    static_configs:
+      - targets:
+          - 'mysql-master:3306'
+        labels:
+          service: 'mysql'
+          role: 'master'
+          cluster: 'chat-cluster'
+
+  # ----------------------------------------------------------------
+  # MySQL Slave (Read)
+  # ----------------------------------------------------------------
+  - job_name: 'mysql-slave'
+    static_configs:
+      - targets:
+          - 'mysql-slave-1:3306'
+          - 'mysql-slave-2:3306'
+        labels:
+          service: 'mysql'
+          role: 'slave'
+          cluster: 'chat-cluster'
+
+  # ----------------------------------------------------------------
+  # Nginx (Load Balancer)
+  # ----------------------------------------------------------------
+  - job_name: 'nginx'
+    scrape_interval: 10s
+    static_configs:
+      - targets:
+          - 'nginx:80'
+        labels:
+          service: 'nginx'
+          role: 'load-balancer'
+          cluster: 'chat-cluster'
+
+  # ----------------------------------------------------------------
+  # Grafana
+  # ----------------------------------------------------------------
+  - job_name: 'grafana'
+    static_configs:
+      - targets:
+          - 'grafana:3000'
+        labels:
+          service: 'grafana'
+          cluster: 'chat-cluster'
+
+# ================================================================
+# 규칙 파일 (선택 사항)
+# ================================================================
+# rule_files:
+#   - "alert_rules.yml"
+#   - "recording_rules.yml"
+
+
+

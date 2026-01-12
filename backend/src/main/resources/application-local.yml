@@ -1,0 +1,20 @@
+# ========================================
+# 로컬 개발 환경 설정 (application-local.yml)
+# ========================================
+# Redis 설정을 비활성화하거나 로컬용으로 설정
+# ========================================
+
+spring:
+  data:
+    redis:
+      # Redis가 없어도 실행되도록 설정
+      host: localhost
+      port: 6379
+      password: ""
+      timeout: 2000ms
+  # Redis 자동 설정 비활성화 (선택사항)
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+

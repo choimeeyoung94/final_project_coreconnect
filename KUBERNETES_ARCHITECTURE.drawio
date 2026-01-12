@@ -1,0 +1,152 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="kubernetes-architecture" name="현재 시스템 아키텍처">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        
+        <!-- Title -->
+        <mxCell id="2" value="Kubernetes 기반 그룹웨어 백엔드 시스템" style="text;fontSize=24;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="20" width="600" height="40" as="geometry"/>
+        </mxCell>
+        
+        <!-- User -->
+        <mxCell id="3" value="사용자 (브라우저/앱)" style="rounded=1;fillColor=#E1F5FE;strokeColor=#01579B;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="80" width="160" height="60" as="geometry"/>
+        </mxCell>
+        
+        <!-- AWS Cloud -->
+        <mxCell id="4" value="AWS Cloud" style="rounded=1;fillColor=#FFF3E0;strokeColor=#E65100;fontSize=16;fontStyle=1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="180" width="1320" height="680" as="geometry"/>
+        </mxCell>
+        
+        <!-- ALB -->
+        <mxCell id="5" value="AWS ALB" style="rounded=1;fillColor=#FF9800;strokeColor=#E65100;fontSize=14;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="620" y="240" width="200" height="60" as="geometry"/>
+        </mxCell>
+        
+        <!-- K8s Service -->
+        <mxCell id="6" value="Kubernetes Service (LoadBalancer)" style="rounded=1;fillColor=#4CAF50;strokeColor=#2E7D32;fontSize=12;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="620" y="340" width="200" height="60" as="geometry"/>
+        </mxCell>
+        
+        <!-- EKS Cluster -->
+        <mxCell id="7" value="EKS Cluster - chat-system" style="rounded=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontSize=14;fontStyle=1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="80" y="440" width="880" height="380" as="geometry"/>
+        </mxCell>
+        
+        <!-- ConfigMap -->
+        <mxCell id="8" value="ConfigMap" style="rounded=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="120" y="480" width="140" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Secret -->
+        <mxCell id="9" value="Secret" style="rounded=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="120" y="580" width="140" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- HPA -->
+        <mxCell id="10" value="HPA (3-10 Pods)" style="rounded=1;fillColor=#E1BEE7;strokeColor=#7B1FA2;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="120" y="700" width="140" height="60" as="geometry"/>
+        </mxCell>
+        
+        <!-- Pod 1 -->
+        <mxCell id="11" value="Pod 1" style="rounded=1;fillColor=#2196F3;strokeColor=#0D47A1;fontSize=12;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="340" y="500" width="140" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Pod 2 -->
+        <mxCell id="12" value="Pod 2" style="rounded=1;fillColor=#2196F3;strokeColor=#0D47A1;fontSize=12;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="540" y="500" width="140" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Pod 3 -->
+        <mxCell id="13" value="Pod 3" style="rounded=1;fillColor=#2196F3;strokeColor=#0D47A1;fontSize=12;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="740" y="500" width="140" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- MySQL -->
+        <mxCell id="14" value="MySQL 8.0" style="shape=cylinder3;fillColor=#00897B;strokeColor=#004D40;fontSize=12;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="480" width="140" height="100" as="geometry"/>
+        </mxCell>
+        
+        <!-- Redis -->
+        <mxCell id="15" value="Redis 7" style="shape=cylinder3;fillColor=#D32F2F;strokeColor=#B71C1C;fontSize=12;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="640" width="140" height="100" as="geometry"/>
+        </mxCell>
+        
+        <!-- Connections -->
+        <mxCell id="16" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=3;strokeColor=#FF5722;" edge="1" parent="1" source="3" target="5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="17" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=3;strokeColor=#FF5722;" edge="1" parent="1" source="5" target="6">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="18" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#4CAF50;" edge="1" parent="1" source="6" target="11">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="19" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#4CAF50;" edge="1" parent="1" source="6" target="12">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="20" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#4CAF50;" edge="1" parent="1" source="6" target="13">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#00897B;" edge="1" parent="1" source="11" target="14">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="22" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#00897B;" edge="1" parent="1" source="12" target="14">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="23" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#00897B;" edge="1" parent="1" source="13" target="14">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="24" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#D32F2F;dashed=1;" edge="1" parent="1" source="11" target="15">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="25" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#D32F2F;dashed=1;" edge="1" parent="1" source="12" target="15">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="26" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeWidth=2;strokeColor=#D32F2F;dashed=1;" edge="1" parent="1" source="13" target="15">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- Info Box -->
+        <mxCell id="27" value="시스템 정보" style="rounded=1;fillColor=#E8EAF6;strokeColor=#3F51B5;fontSize=14;fontStyle=1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="240" width="280" height="200" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="28" value="처리 용량: 500-3,000명 동시 접속" style="text;fontSize=11;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="280" width="240" height="30" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="29" value="Pod 리소스: 100m-500m CPU" style="text;fontSize=11;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="310" width="240" height="30" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="30" value="자동 확장: 3-10 Pods (HPA)" style="text;fontSize=11;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="340" width="240" height="30" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="31" value="DB 연결 풀: 30 connections" style="text;fontSize=11;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="370" width="240" height="30" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="32" value="무중단 배포 지원 (PDB)" style="text;fontSize=11;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="400" width="240" height="30" as="geometry"/>
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
+

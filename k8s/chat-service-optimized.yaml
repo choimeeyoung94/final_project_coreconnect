@@ -1,0 +1,373 @@
+# Chat Service - Optimized for 100k Connections
+# Redis + Kafka + Auto Scaling
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chat-config
+  namespace: chat-system
+data:
+  # ⭐ 데이터베이스 설정
+  DB_HOST: "mysql.chat-system.svc.cluster.local"
+  DB_PORT: "3306"
+  DB_NAME: "db_coreconnect"
+  
+  # ⭐ Redis 설정
+  REDIS_HOST: "redis-cluster.chat-system.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_CLUSTER_ENABLED: "true"
+  REDIS_MAX_CONNECTIONS: "100"
+  
+  # ⭐ Kafka 설정
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-0.kafka:9092,kafka-1.kafka:9092,kafka-2.kafka:9092"
+  KAFKA_CONSUMER_GROUP: "chat-consumer-group"
+  KAFKA_TOPIC_MESSAGES: "chat-messages"
+  KAFKA_TOPIC_ANALYTICS: "chat-analytics"
+  
+  # ⭐ WebSocket 설정
+  WEBSOCKET_MAX_CONNECTIONS: "10000"
+  WEBSOCKET_HEARTBEAT_INTERVAL: "10000"
+  WEBSOCKET_MESSAGE_SIZE_LIMIT: "102400"
+  
+  # ⭐ 성능 설정
+  THREAD_POOL_SIZE: "200"
+  ASYNC_EXECUTOR_POOL_SIZE: "500"
+  BATCH_SIZE: "100"
+  BATCH_INTERVAL_MS: "10"
+  
+  # ⭐ 모니터링
+  METRICS_ENABLED: "true"
+  ACTUATOR_ENABLED: "true"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: chat-secret
+  namespace: chat-system
+type: Opaque
+stringData:
+  DB_USERNAME: "root"
+  DB_PASSWORD: "Chat@2024!Secure"
+  REDIS_PASSWORD: ""
+  JWT_SECRET: "your-jwt-secret-key-here"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-service
+  namespace: chat-system
+  labels:
+    app: chat-service
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+spec:
+  type: LoadBalancer
+  sessionAffinity: ClientIP  # ⭐ WebSocket 연결 유지
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600  # 1시간
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  - name: actuator
+    port: 8081
+    targetPort: 8080
+    protocol: TCP
+  selector:
+    app: chat-service
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-service
+  namespace: chat-system
+  labels:
+    app: chat-service
+    version: v1
+spec:
+  replicas: 10  # ⭐ 초기 10개 (HPA로 자동 조정)
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 5        # ⭐ 한 번에 5개씩 증설
+      maxUnavailable: 2  # ⭐ 최대 2개까지 중단 허용
+  selector:
+    matchLabels:
+      app: chat-service
+  template:
+    metadata:
+      labels:
+        app: chat-service
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      # ⭐ Pod Anti-Affinity (서로 다른 노드에 분산)
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - chat-service
+              topologyKey: kubernetes.io/hostname
+      
+      # ⭐ 우선순위 (중요한 Pod)
+      priorityClassName: high-priority
+      
+      containers:
+      - name: chat-service
+        image: your-registry/chat-service:latest
+        imagePullPolicy: Always
+        
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        
+        # ⭐ 환경 변수
+        env:
+        # Server ID (Pod 이름)
+        - name: SERVER_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        
+        # ConfigMap에서
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: DB_HOST
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: DB_PORT
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: DB_NAME
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: REDIS_HOST
+        - name: REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: REDIS_PORT
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: KAFKA_BOOTSTRAP_SERVERS
+        
+        # Secret에서
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: DB_USERNAME
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: DB_PASSWORD
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: JWT_SECRET
+        
+        # ⭐ JVM 설정
+        - name: JAVA_OPTS
+          value: >-
+            -Xms4g -Xmx8g
+            -XX:+UseG1GC
+            -XX:MaxGCPauseMillis=200
+            -XX:G1HeapRegionSize=16m
+            -XX:InitiatingHeapOccupancyPercent=45
+            -XX:+ParallelRefProcEnabled
+            -XX:+UseStringDeduplication
+            -XX:+HeapDumpOnOutOfMemoryError
+            -XX:HeapDumpPath=/tmp/heapdump.hprof
+            -Dspring.profiles.active=prod
+            -Djava.security.egd=file:/dev/./urandom
+        
+        # ⭐ 리소스 할당
+        resources:
+          requests:
+            cpu: 2000m     # ⭐ 2 cores (최소)
+            memory: 4Gi    # ⭐ 4GB (최소)
+          limits:
+            cpu: 8000m     # ⭐ 8 cores (최대)
+            memory: 16Gi   # ⭐ 16GB (최대)
+        
+        # ⭐ Startup Probe (초기 기동)
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30  # 최대 5분 대기
+        
+        # ⭐ Liveness Probe (재시작 여부)
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # ⭐ Readiness Probe (트래픽 수신 여부)
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        
+        # ⭐ 볼륨 마운트
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: logs
+          mountPath: /logs
+        
+        # ⭐ 보안 컨텍스트
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+      
+      # ⭐ 볼륨
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: logs
+        emptyDir: {}
+      
+      # ⭐ Graceful Shutdown
+      terminationGracePeriodSeconds: 60
+
+---
+# ⭐ Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: chat-service-hpa
+  namespace: chat-system
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: chat-service
+  minReplicas: 10
+  maxReplicas: 50
+  metrics:
+  # CPU 기반
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  # 메모리 기반
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  # 커스텀 메트릭 (WebSocket 연결 수)
+  - type: Pods
+    pods:
+      metric:
+        name: websocket_connections_active
+      target:
+        type: AverageValue
+        averageValue: "8000"
+  
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+      - type: Pods
+        value: 5
+        periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Min
+
+---
+# ⭐ Pod Disruption Budget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: chat-service-pdb
+  namespace: chat-system
+spec:
+  minAvailable: 8  # 최소 8개는 항상 실행
+  selector:
+    matchLabels:
+      app: chat-service
+
+---
+# ⭐ Priority Class
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority
+value: 1000
+globalDefault: false
+description: "High priority for chat service pods"
+
+
+
+
+
+
+
+
+
+
