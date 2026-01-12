@@ -1,0 +1,379 @@
+# ================================================================
+# MySQL Master-Slave 복제 구성 (Kubernetes)
+# ================================================================
+# 구조:
+# - mysql-master: Write 전용 (StatefulSet, 1 replica)
+# - mysql-slave: Read 전용 (StatefulSet, 2 replicas)
+# ================================================================
+
+---
+# ================================================================
+# 1️⃣ MySQL Master (Write)
+# ================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-master
+  namespace: chat-system
+  labels:
+    app: mysql-master
+spec:
+  ports:
+    - port: 3306
+      targetPort: 3306
+      name: mysql
+  selector:
+    app: mysql-master
+  clusterIP: None  # Headless service for StatefulSet
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-master-config
+  namespace: chat-system
+data:
+  master.cnf: |
+    [mysqld]
+    # Master 서버 설정
+    server-id=1
+    log-bin=mysql-bin
+    binlog-format=ROW
+    binlog-do-db=db_coreconnect
+    
+    # 성능 최적화
+    max-connections=1000
+    innodb-buffer-pool-size=2G
+    innodb-log-file-size=512M
+    innodb-flush-log-at-trx-commit=2
+    innodb-flush-method=O_DIRECT
+    
+    # 문자셋
+    character-set-server=utf8mb4
+    collation-server=utf8mb4_unicode_ci
+    
+    # 기타
+    max-allowed-packet=256M
+    tmp-table-size=64M
+    max-heap-table-size=64M
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-master
+  namespace: chat-system
+spec:
+  serviceName: mysql-master
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-master
+  template:
+    metadata:
+      labels:
+        app: mysql-master
+        role: master
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: root-password
+        - name: MYSQL_DATABASE
+          value: "db_coreconnect"
+        - name: MYSQL_REPLICATION_MODE
+          value: "master"
+        - name: MYSQL_REPLICATION_USER
+          value: "repl_user"
+        - name: MYSQL_REPLICATION_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: replication-password
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: mysql-data
+          mountPath: /var/lib/mysql
+        - name: mysql-config
+          mountPath: /etc/mysql/conf.d
+        - name: init-scripts
+          mountPath: /docker-entrypoint-initdb.d
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - mysql
+            - -h
+            - localhost
+            - -u
+            - root
+            - -p$(MYSQL_ROOT_PASSWORD)
+            - -e
+            - "SELECT 1"
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 2
+      volumes:
+      - name: mysql-config
+        configMap:
+          name: mysql-master-config
+      - name: init-scripts
+        configMap:
+          name: mysql-init-scripts
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 50Gi
+      # storageClassName: fast-ssd  # 프로덕션 환경에서는 SSD 스토리지 사용 권장
+
+---
+# ================================================================
+# 2️⃣ MySQL Slave (Read)
+# ================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-slave
+  namespace: chat-system
+  labels:
+    app: mysql-slave
+spec:
+  ports:
+    - port: 3306
+      targetPort: 3306
+      name: mysql
+  selector:
+    app: mysql-slave
+  clusterIP: None  # Headless service for StatefulSet
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-slave-config
+  namespace: chat-system
+data:
+  slave.cnf: |
+    [mysqld]
+    # Slave 서버 설정 (server-id는 Pod별로 다르게 설정됨)
+    relay-log=mysql-relay-bin
+    log-bin=mysql-bin
+    binlog-format=ROW
+    binlog-do-db=db_coreconnect
+    read-only=1
+    
+    # 성능 최적화
+    max-connections=1000
+    innodb-buffer-pool-size=2G
+    innodb-flush-log-at-trx-commit=2
+    innodb-flush-method=O_DIRECT
+    
+    # 문자셋
+    character-set-server=utf8mb4
+    collation-server=utf8mb4_unicode_ci
+    
+    # 기타
+    max-allowed-packet=256M
+    tmp-table-size=64M
+    max-heap-table-size=64M
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-slave
+  namespace: chat-system
+spec:
+  serviceName: mysql-slave
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mysql-slave
+  template:
+    metadata:
+      labels:
+        app: mysql-slave
+        role: slave
+    spec:
+      initContainers:
+      # Init Container: Master 대기
+      - name: wait-for-master
+        image: busybox:1.35
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for MySQL Master to be ready..."
+          until nc -z mysql-master-0.mysql-master.chat-system.svc.cluster.local 3306; do
+            echo "Master not ready yet, waiting..."
+            sleep 5
+          done
+          echo "Master is ready!"
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: root-password
+        - name: MYSQL_DATABASE
+          value: "db_coreconnect"
+        - name: MYSQL_REPLICATION_MODE
+          value: "slave"
+        - name: MYSQL_MASTER_HOST
+          value: "mysql-master-0.mysql-master.chat-system.svc.cluster.local"
+        - name: MYSQL_MASTER_PORT
+          value: "3306"
+        - name: MYSQL_REPLICATION_USER
+          value: "repl_user"
+        - name: MYSQL_REPLICATION_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: replication-password
+        # Pod Ordinal을 이용한 고유 server-id 설정
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        command:
+        - bash
+        - -c
+        - |
+          # Pod 이름에서 ordinal 추출 (mysql-slave-0 → 0, mysql-slave-1 → 1)
+          ORDINAL=${POD_NAME##*-}
+          # server-id는 2부터 시작 (1은 Master)
+          SERVER_ID=$((ORDINAL + 2))
+          
+          echo "Starting MySQL Slave with server-id=$SERVER_ID"
+          
+          # server-id 설정 파일 생성
+          echo "[mysqld]" > /etc/mysql/conf.d/server-id.cnf
+          echo "server-id=$SERVER_ID" >> /etc/mysql/conf.d/server-id.cnf
+          
+          # MySQL 시작
+          docker-entrypoint.sh mysqld
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: mysql-data
+          mountPath: /var/lib/mysql
+        - name: mysql-config
+          mountPath: /etc/mysql/conf.d/slave.cnf
+          subPath: slave.cnf
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - mysql
+            - -h
+            - localhost
+            - -u
+            - root
+            - -p$(MYSQL_ROOT_PASSWORD)
+            - -e
+            - "SELECT 1"
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 2
+      volumes:
+      - name: mysql-config
+        configMap:
+          name: mysql-slave-config
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 50Gi
+      # storageClassName: fast-ssd
+
+---
+# ================================================================
+# 3️⃣ MySQL Secrets
+# ================================================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-secret
+  namespace: chat-system
+type: Opaque
+data:
+  # Base64 encoded values
+  # root-password: "Chat@2024!Secure" → Q2hhdEAyMDI0IVNlY3VyZQ==
+  # replication-password: "Repl@2024!Pass" → UmVwbEAyMDI0IVBhc3M=
+  root-password: Q2hhdEAyMDI0IVNlY3VyZQ==
+  replication-password: UmVwbEAyMDI0IVBhc3M=
+
+---
+# ================================================================
+# 4️⃣ MySQL 초기화 스크립트
+# ================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-init-scripts
+  namespace: chat-system
+data:
+  01-init-replication.sql: |
+    -- Master에서 실행되는 초기화 스크립트
+    -- Replication 사용자 생성
+    CREATE USER IF NOT EXISTS 'repl_user'@'%' IDENTIFIED BY 'Repl@2024!Pass';
+    GRANT REPLICATION SLAVE ON *.* TO 'repl_user'@'%';
+    
+    -- 데이터베이스 생성
+    CREATE DATABASE IF NOT EXISTS db_coreconnect CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    
+    -- 권한 새로고침
+    FLUSH PRIVILEGES;
+    
+    -- Master 상태 확인 (로그 확인용)
+    SHOW MASTER STATUS;
+
+
+
+

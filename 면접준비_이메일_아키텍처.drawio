@@ -1,0 +1,132 @@
+<mxfile host="app.diagrams.net" modified="2025-12-11T00:00:00.000Z" version="24.0.0">
+  <diagram name="이메일 기능 아키텍처" id="email-architecture">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        
+        <!-- 제목 -->
+        <mxCell id="title" value="이메일 기능 아키텍처 흐름도" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=24;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="400" y="20" width="400" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Frontend Layer -->
+        <mxCell id="frontend-label" value="Frontend (React)" style="text;html=1;strokeColor=none;fillColor=#dae8fc;align=center;verticalAlign=middle;fontSize=16;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="50" y="80" width="200" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- 1. 이메일 작성 -->
+        <mxCell id="step1" value="1. 사용자 이메일 작성&#xa;(EmailCompose.jsx)&#xa;수신자, 제목, 내용, 첨부파일" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="50" y="130" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- 2. API 요청 -->
+        <mxCell id="step2" value="2. POST /api/v1/email/send&#xa;FormData (multipart)&#xa;• emailTitle&#xa;• emailContent&#xa;• recipientAddress&#xa;• 첨부파일" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="50" y="230" width="200" height="110" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrow 1 to 2 -->
+        <mxCell id="arrow1-2" value="발송 버튼 클릭" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" edge="1" parent="1" source="step1" target="step2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Backend Layer -->
+        <mxCell id="backend-label" value="Backend (Spring Boot)" style="text;html=1;strokeColor=none;fillColor=#f8cecc;align=center;verticalAlign=middle;fontSize=16;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="300" y="80" width="250" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- 3. Controller -->
+        <mxCell id="step3" value="3. EmailController.sendEmail()&#xa;@PostMapping('/send')&#xa;요청 검증 및 파싱" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="300" y="130" width="250" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrow 2 to 3 -->
+        <mxCell id="arrow2-3" value="HTTP POST" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#f8cecc;strokeColor=#b85450;" edge="1" parent="1" source="step2" target="step3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- 4. EmailService -->
+        <mxCell id="step4" value="4. EmailService.sendEmail()&#xa;• 첨부파일 S3 업로드&#xa;• Email 엔티티 생성&#xa;• DB 저장" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="300" y="220" width="250" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrow 3 to 4 -->
+        <mxCell id="arrow3-4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#f8cecc;strokeColor=#b85450;" edge="1" parent="1" source="step3" target="step4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Database -->
+        <mxCell id="database" value="MySQL&#xa;email 테이블" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="600" y="220" width="100" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrow 4 to DB -->
+        <mxCell id="arrow4-db" value="INSERT" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#e1d5e7;strokeColor=#9673a6;" edge="1" parent="1" source="step4" target="database">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- AWS S3 -->
+        <mxCell id="s3" value="AWS S3&#xa;첨부파일 저장" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#fff4e6;strokeColor=#d79b00;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="600" y="320" width="120" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrow 4 to S3 -->
+        <mxCell id="arrow4-s3" value="파일 업로드" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#d79b00;dashed=1;" edge="1" parent="1" source="step4" target="s3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- 5. SendGrid API 호출 -->
+        <mxCell id="step5" value="5. SendGridEmailSender.send()&#xa;• SendGrid API 호출&#xa;• 이메일 실제 발송&#xa;• 첨부파일 Base64 인코딩" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="300" y="320" width="250" height="90" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrow 4 to 5 -->
+        <mxCell id="arrow4-5b" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#f8cecc;strokeColor=#b85450;" edge="1" parent="1" source="step4" target="step5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- SendGrid -->
+        <mxCell id="sendgrid" value="SendGrid&#xa;메일 발송 서비스" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#d5f4e6;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="365" y="430" width="120" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrow 5 to SendGrid -->
+        <mxCell id="arrow5-sendgrid" value="API 호출" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#d5f4e6;strokeColor=#82b366;" edge="1" parent="1" source="step5" target="sendgrid">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- 6. 알림 발송 -->
+        <mxCell id="step6" value="6. 수신자에게 알림 발송&#xa;NotificationService.sendNotification()&#xa;WebSocket으로 실시간 알림" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="300" y="430" width="250" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrow 5 to 6 -->
+        <mxCell id="arrow5-6b" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#f8cecc;strokeColor=#b85450;" edge="1" parent="1" source="step5" target="step6">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- 7. 프론트엔드 알림 수신 -->
+        <mxCell id="step7b" value="7. 이메일 발송 완료 알림 수신&#xa;• '새 이메일 도착' 알림&#xa;• 알림 목록 갱신" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="50" y="510" width="200" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrow 6 to 7b -->
+        <mxCell id="arrow6-7b" value="WebSocket" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#6c8ebf;dashed=1;" edge="1" parent="1" source="step6" target="step7b">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- 예약 발송 -->
+        <mxCell id="scheduler" value="예약 발송 기능&#xa;EmailReservationScheduler&#xa;• 1분마다 체크 (@Scheduled)&#xa;• reservedAt 시간 도래 시 자동 발송" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff4e6;strokeColor=#d79b00;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="300" y="530" width="250" height="90" as="geometry"/>
+        </mxCell>
+
+        <!-- 기술 스택 -->
+        <mxCell id="tech-details" value="이메일 주요 기능&#xa;✓ SendGrid API 연동 (실제 발송)&#xa;✓ 첨부파일 지원 (AWS S3 저장)&#xa;✓ 예약 발송 (스케줄러)&#xa;✓ 수신/발신 이메일 관리&#xa;✓ 실시간 알림 연동 (WebSocket)&#xa;✓ 이메일 읽음/삭제 처리" style="text;html=1;strokeColor=#b85450;fillColor=#f8cecc;align=left;verticalAlign=top;fontSize=12;fontStyle=0" vertex="1" parent="1">
+          <mxGeometry x="850" y="100" width="280" height="160" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
+

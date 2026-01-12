@@ -1,0 +1,191 @@
+<mxfile host="app.diagrams.net" modified="2026-01-09T00:00:00.000Z" agent="5.0 (Windows)" version="22.1.16" type="device">
+  <diagram name="CoreConnect K8s Architecture" id="coreconnect-architecture">
+    <mxGraphModel dx="1434" dy="844" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1200" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- 사용자 (외부) -->
+        <mxCell id="users" value="👥 사용자&#10;(웹/모바일)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="50" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- LoadBalancer Service -->
+        <mxCell id="loadbalancer" value="⚖️ LoadBalancer Service&#10;chat-service&#10;Port 80 → 8080" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="570" y="160" width="240" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Edge: users -> loadbalancer -->
+        <mxCell id="edge1" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#0066CC;" edge="1" parent="1" source="users" target="loadbalancer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Namespace: chat-system -->
+        <mxCell id="namespace" value="🏗️ Namespace: chat-system" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=16;fontStyle=1;verticalAlign=top;align=left;spacingLeft=20;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="290" width="1240" height="850" as="geometry" />
+        </mxCell>
+
+        <!-- HPA -->
+        <mxCell id="hpa" value="📊 HorizontalPodAutoscaler (HPA)&#10;Min: 3 Pods | Max: 20 Pods&#10;CPU &gt; 70% or Memory &gt; 80% → Scale Up&#10;자동 확장/축소" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="520" y="330" width="360" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Deployment -->
+        <mxCell id="deployment" value="📦 Deployment: chat-server&#10;Replicas: 10 (기본)&#10;Image: chat-server:latest&#10;Strategy: RollingUpdate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="520" y="460" width="360" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Pods Container -->
+        <mxCell id="pods-container" value="Spring Boot Chat Server Pods" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="180" y="600" width="1020" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- Pod 1 -->
+        <mxCell id="pod1" value="Pod 1&#10;Spring Boot&#10;:8080" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="220" y="650" width="90" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Pod 2 -->
+        <mxCell id="pod2" value="Pod 2&#10;Spring Boot&#10;:8080" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="650" width="90" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Pod 3 -->
+        <mxCell id="pod3" value="Pod 3&#10;Spring Boot&#10;:8080" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="460" y="650" width="90" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Pod 4 -->
+        <mxCell id="pod4" value="Pod 4&#10;Spring Boot&#10;:8080" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="580" y="650" width="90" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Pod ... (중간 생략 표시) -->
+        <mxCell id="pod-dots" value="..." style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=24;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="675" width="60" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Pod 10 -->
+        <mxCell id="pod10" value="Pod 10&#10;Spring Boot&#10;:8080" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="790" y="650" width="90" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- More Pods (HPA) -->
+        <mxCell id="pod-hpa" value="Pod 11~20&#10;(HPA)&#10;필요시&#10;추가" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;dashed=1;dashPattern=5 5;" vertex="1" parent="1">
+          <mxGeometry x="910" y="650" width="90" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Redis Deployment -->
+        <mxCell id="redis-deployment" value="🔴 Redis Deployment&#10;redis-pubsub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;fontStyle=1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="180" y="850" width="280" height="240" as="geometry" />
+        </mxCell>
+
+        <!-- Redis Pod -->
+        <mxCell id="redis-pod" value="Redis Pod&#10;Port: 6379&#10;&#10;Redis 7.2-alpine&#10;Max Memory: 2GB&#10;Policy: allkeys-lru&#10;&#10;📡 Pub/Sub&#10;(서버간 메시지 전달)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6e6;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="200" y="900" width="240" height="170" as="geometry" />
+        </mxCell>
+
+        <!-- MySQL StatefulSet -->
+        <mxCell id="mysql-statefulset" value="🗄️ MySQL StatefulSet&#10;mysql" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="920" y="850" width="280" height="240" as="geometry" />
+        </mxCell>
+
+        <!-- MySQL Pod -->
+        <mxCell id="mysql-pod" value="MySQL Pod&#10;Port: 3306&#10;&#10;MySQL 8.0&#10;DB: db_coreconnect&#10;&#10;Resources:&#10;CPU: 500m-1000m&#10;Memory: 1Gi-2Gi" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="940" y="900" width="240" height="130" as="geometry" />
+        </mxCell>
+
+        <!-- PersistentVolume -->
+        <mxCell id="pv" value="💾 PersistentVolume&#10;20GB Storage&#10;(영구 저장)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="940" y="1040" width="240" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Service Labels -->
+        <mxCell id="redis-service" value="Service: redis-pubsub&#10;Port: 6379" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcccc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="500" y="930" width="140" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mysql-service" value="Service: mysql&#10;Port: 3306&#10;(Headless)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3d9ff;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="760" y="930" width="140" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Edges: LoadBalancer -> HPA -->
+        <mxCell id="edge2" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#0066CC;" edge="1" parent="1" source="loadbalancer" target="hpa">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Edge: HPA -> Deployment -->
+        <mxCell id="edge3" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#9673A6;dashed=1;dashPattern=5 5;" edge="1" parent="1" source="hpa" target="deployment">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Edge: Deployment -> Pods (multiple) -->
+        <mxCell id="edge4" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="deployment" target="pod1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge5" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="deployment" target="pod3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge6" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="deployment" target="pod10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Edges: Pods -> Redis (Pub/Sub) -->
+        <mxCell id="edge7" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#B85450;startArrow=classic;startFill=1;" edge="1" parent="1" source="pod1" target="redis-service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge8" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#B85450;startArrow=classic;startFill=1;" edge="1" parent="1" source="pod4" target="redis-service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge9" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#B85450;startArrow=classic;startFill=1;" edge="1" parent="1" source="pod10" target="redis-service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Edge: Redis Service -> Redis Pod -->
+        <mxCell id="edge10" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#B85450;" edge="1" parent="1" source="redis-service" target="redis-pod">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Edges: Pods -> MySQL -->
+        <mxCell id="edge11" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#6C8EBF;" edge="1" parent="1" source="pod3" target="mysql-service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge12" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#6C8EBF;" edge="1" parent="1" source="pod4" target="mysql-service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge13" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#6C8EBF;" edge="1" parent="1" source="pod10" target="mysql-service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Edge: MySQL Service -> MySQL Pod -->
+        <mxCell id="edge14" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#6C8EBF;" edge="1" parent="1" source="mysql-service" target="mysql-pod">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Edge: MySQL Pod -> PV -->
+        <mxCell id="edge15" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#9673A6;dashed=1;" edge="1" parent="1" source="mysql-pod" target="pv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend" value="📋 범례&#10;━━━ 트래픽 흐름&#10;- - - 관리/제어&#10;⬌ 양방향 통신" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;" vertex="1" parent="1">
+          <mxGeometry x="520" y="850" width="360" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Key Features Box -->
+        <mxCell id="features" value="✨ 핵심 특징&#10;• Auto Scaling (HPA): 3~20 Pods&#10;• Redis Pub/Sub: 서버간 실시간 메시징&#10;• StatefulSet: 영구 데이터 보존&#10;• Resource Limits: CPU/Memory 제한&#10;• Health Checks: Liveness/Readiness Probes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;" vertex="1" parent="1">
+          <mxGeometry x="520" y="970" width="360" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- Title -->
+        <mxCell id="title" value="CoreConnect - Kubernetes 배포 아키텍처" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=24;fontStyle=1;fontColor=#0066CC;" vertex="1" parent="1">
+          <mxGeometry x="440" y="10" width="520" height="30" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
+
+
+
