@@ -70,7 +70,7 @@ jobs:
     name: Build & Push Docker Images
     runs-on: ubuntu-latest
     needs: test-and-validate
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature_scale-out-10-servers')
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature_scale-out-10-servers'
     
     outputs:
       backend-image: ${{ steps.build-backend.outputs.image }}
