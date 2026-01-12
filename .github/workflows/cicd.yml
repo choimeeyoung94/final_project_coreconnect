@@ -172,10 +172,31 @@ jobs:
           echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
           chmod 600 $HOME/.kube/config
       
+      # 4-0. Login to ECR
+      - name: Login to Amazon ECR
+        id: login-ecr-deploy
+        uses: aws-actions/amazon-ecr-login@v2
+      
       # 4-1. Namespace 생성
       - name: Create namespace if not exists
         run: |
           kubectl create namespace ${{ env.K8S_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+      
+      # 4-2. ECR Pull Secret 생성
+      - name: Create ECR pull secret
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr-deploy.outputs.registry }}
+        run: |
+          # ECR 인증 토큰 가져오기
+          ECR_PASSWORD=$(aws ecr get-login-password --region ${{ env.AWS_REGION }})
+          
+          # imagePullSecret 생성
+          kubectl create secret docker-registry ecr-registry-secret \
+            --docker-server=$ECR_REGISTRY \
+            --docker-username=AWS \
+            --docker-password=$ECR_PASSWORD \
+            --namespace=${{ env.K8S_NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       # 5. ConfigMap 업데이트
       - name: Update ConfigMap
@@ -233,7 +254,7 @@ jobs:
       # 8. Rollout 상태 확인
       - name: Wait for rollout to complete
         run: |
-          kubectl rollout status deployment/chat-service -n ${{ env.K8S_NAMESPACE }} --timeout=5m
+          kubectl rollout status deployment/chat-service -n ${{ env.K8S_NAMESPACE }} --timeout=10m
           # kubectl rollout status deployment/chat-frontend -n ${{ env.K8S_NAMESPACE }} --timeout=5m
 
       # 9. 배포 확인
@@ -252,6 +273,12 @@ jobs:
       - name: Rollback on failure
         if: failure()
         run: |
-          echo "Deployment failed. Rolling back..."
-          kubectl rollout undo deployment/chat-service -n ${{ env.K8S_NAMESPACE }}
-          kubectl rollout status deployment/chat-service -n ${{ env.K8S_NAMESPACE }}
+          echo "Deployment failed. Checking rollback history..."
+          if kubectl rollout history deployment/chat-service -n ${{ env.K8S_NAMESPACE }} --revision=1 &> /dev/null; then
+            echo "Rollback history found. Rolling back..."
+            kubectl rollout undo deployment/chat-service -n ${{ env.K8S_NAMESPACE }}
+            kubectl rollout status deployment/chat-service -n ${{ env.K8S_NAMESPACE }}
+          else
+            echo "No rollback history (first deployment). Deleting failed deployment..."
+            kubectl delete deployment chat-service -n ${{ env.K8S_NAMESPACE }}
+          fi
