@@ -211,7 +211,7 @@ jobs:
             DB_HOST: "${{ secrets.MYSQL_HOST }}"
             DB_PORT: "${{ secrets.MYSQL_PORT }}"
             DB_NAME: "${{ secrets.MYSQL_DATABASE }}"
-            REDIS_HOST: "redis-service.${{ env.K8S_NAMESPACE }}.svc.cluster.local"
+            REDIS_HOST: "redis-pubsub.${{ env.K8S_NAMESPACE }}.svc.cluster.local"
             REDIS_PORT: "6379"
             AWS_REGION: "${{ env.AWS_REGION }}"
             WEBSOCKET_ORIGINS: "${{ secrets.WEBSOCKET_ALLOWED_ORIGINS }}"
