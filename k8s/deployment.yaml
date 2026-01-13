@@ -92,6 +92,16 @@ spec:
             configMapKeyRef:
               name: chat-config
               key: JWT_EXPIRATION
+        - name: SPRING_DATASOURCE_MASTER_URL
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: SPRING_DATASOURCE_MASTER_URL
+        - name: SPRING_DATASOURCE_SLAVE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: SPRING_DATASOURCE_SLAVE_URL
         
         # Secret에서
         - name: DB_USERNAME
@@ -100,6 +110,16 @@ spec:
               name: chat-secret
               key: DB_USERNAME
         - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: DB_PASSWORD
+        - name: MYSQL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: DB_USERNAME
+        - name: MYSQL_PASSWORD
           valueFrom:
             secretKeyRef:
               name: chat-secret
