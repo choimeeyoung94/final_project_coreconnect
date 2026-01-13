@@ -234,6 +234,8 @@ jobs:
             --from-literal=AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
             --from-literal=AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
             --from-literal=SENDGRID_API_KEY="${{ secrets.SENDGRID_API_KEY }}" \
+            --from-literal=MAIL_USERNAME="yoochun8128@gmail.com" \
+            --from-literal=MAIL_PASSWORD="bgmydykgzrjftohv" \
             --namespace=${{ env.K8S_NAMESPACE }} \
             --dry-run=client -o yaml | kubectl apply -f -
 

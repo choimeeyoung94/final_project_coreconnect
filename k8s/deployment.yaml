@@ -134,6 +134,11 @@ spec:
             secretKeyRef:
               name: chat-secret
               key: JWT_SECRET
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: JWT_SECRET
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
@@ -149,6 +154,16 @@ spec:
             secretKeyRef:
               name: chat-secret
               key: SENDGRID_API_KEY
+        - name: MAIL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: MAIL_USERNAME
+        - name: MAIL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: MAIL_PASSWORD
         
         # 리소스 요청/제한
         resources:
