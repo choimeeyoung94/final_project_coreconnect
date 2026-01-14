@@ -1,0 +1,252 @@
+<mxfile host="app.diagrams.net" modified="2026-01-13T00:00:00.000Z" agent="5.0" version="22.1.0" etag="draw-io-diagram" type="device">
+  <diagram name="Kubernetes CI/CD Architecture" id="kubernetes-cicd">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- Title -->
+        <mxCell id="title" value="Kubernetes 기반 CI/CD 파이프라인 아키텍처" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="450" y="20" width="700" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- AS-IS Section -->
+        <mxCell id="asis-title" value="AS-IS (기존 구조)" style="text;html=1;strokeColor=none;fillColor=#f8cecc;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=16;fontStyle=1;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="700" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- AS-IS: GitHub -->
+        <mxCell id="asis-github" value="GitHub&lt;br&gt;Code Repository" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="140" width="100" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- AS-IS: GitHub Actions -->
+        <mxCell id="asis-actions" value="GitHub Actions&lt;br&gt;Docker Compose Build" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="220" y="150" width="120" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- AS-IS: SCP/SSH -->
+        <mxCell id="asis-deploy" value="SCP/SSH&lt;br&gt;파일 전송 + 배포" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="400" y="150" width="120" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- AS-IS: EC2 -->
+        <mxCell id="asis-ec2" value="EC2 단일 서버&lt;br&gt;Docker Compose" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="580" y="150" width="120" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- AS-IS: Downtime -->
+        <mxCell id="asis-downtime" value="⚠️ 서비스 중단 발생&lt;br&gt;(1-2분)" style="text;html=1;strokeColor=#b85450;fillColor=#f8cecc;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="565" y="240" width="150" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- AS-IS Arrows -->
+        <mxCell id="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="asis-github" target="asis-actions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="asis-actions" target="asis-deploy">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="asis-deploy" target="asis-ec2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#b85450;dashed=1;" edge="1" parent="1" source="asis-ec2" target="asis-downtime">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- TO-BE Section -->
+        <mxCell id="tobe-title" value="TO-BE (개선 구조)" style="text;html=1;strokeColor=none;fillColor=#d5e8d4;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=16;fontStyle=1;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="340" width="1500" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- TO-BE: GitHub -->
+        <mxCell id="tobe-github" value="GitHub&lt;br&gt;Code Repository" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="400" width="100" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- TO-BE: GitHub Actions Container -->
+        <mxCell id="tobe-actions-container" value="GitHub Actions CI/CD Pipeline" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="220" y="390" width="240" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="tobe-step1" value="1️⃣ Code Validation &amp; Testing" style="text;strokeColor=#6c8ebf;fillColor=#dae8fc;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;fontSize=11;" vertex="1" parent="tobe-actions-container">
+          <mxGeometry y="30" width="240" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="tobe-step2" value="2️⃣ Build Docker Images" style="text;strokeColor=#6c8ebf;fillColor=#dae8fc;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;fontSize=11;" vertex="1" parent="tobe-actions-container">
+          <mxGeometry y="60" width="240" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="tobe-step3" value="3️⃣ Push to ECR" style="text;strokeColor=#6c8ebf;fillColor=#dae8fc;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;fontSize=11;" vertex="1" parent="tobe-actions-container">
+          <mxGeometry y="90" width="240" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="tobe-step4" value="4️⃣ Update K8s ConfigMap/Secret" style="text;strokeColor=#6c8ebf;fillColor=#dae8fc;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;fontSize=11;" vertex="1" parent="tobe-actions-container">
+          <mxGeometry y="120" width="240" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="tobe-step5" value="5️⃣ Rolling Update Deployment" style="text;strokeColor=#82b366;fillColor=#d5e8d4;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1" vertex="1" parent="tobe-actions-container">
+          <mxGeometry y="150" width="240" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="tobe-step6" value="6️⃣ Verify &amp; Auto Rollback" style="text;strokeColor=#82b366;fillColor=#d5e8d4;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1" vertex="1" parent="tobe-actions-container">
+          <mxGeometry y="180" width="240" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- TO-BE: ECR -->
+        <mxCell id="tobe-ecr" value="AWS ECR&lt;br&gt;Container Registry&lt;br&gt;(이미지 저장소)" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="530" y="420" width="120" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- TO-BE: Kubernetes Cluster -->
+        <mxCell id="tobe-k8s-container" value="Kubernetes Cluster (K3s)" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="720" y="390" width="800" height="420" as="geometry" />
+        </mxCell>
+
+        <!-- Kubernetes Components -->
+        <mxCell id="k8s-namespace" value="Namespace: chat-system" style="text;strokeColor=#666666;fillColor=#f5f5f5;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fontColor=#333333;" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry y="30" width="800" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="k8s-config" value="ConfigMap (chat-config)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;align=left;spacingLeft=10;" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="20" y="60" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="k8s-config-detail" value="• DB_HOST, DB_PORT&lt;br&gt;• DATASOURCE URLs&lt;br&gt;• CORS, WEBSOCKET" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="25" y="70" width="170" height="35" as="geometry" />
+        </mxCell>
+
+        <mxCell id="k8s-secret" value="Secret (chat-secret)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;align=left;spacingLeft=10;" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="220" y="60" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="k8s-secret-detail" value="• DB_PASSWORD&lt;br&gt;• JWT_SECRET_KEY&lt;br&gt;• MAIL_PASSWORD" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="225" y="70" width="170" height="35" as="geometry" />
+        </mxCell>
+
+        <mxCell id="k8s-pullsecret" value="imagePullSecret" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;align=center;" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="420" y="60" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="k8s-pullsecret-detail" value="ECR 인증 정보" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="420" y="85" width="120" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Deployment -->
+        <mxCell id="k8s-deployment" value="Deployment: chat-service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;align=center;" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="20" y="130" width="760" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="k8s-deployment-detail" value="Rolling Update Strategy: maxSurge=3, maxUnavailable=1 | Health Checks: Startup/Liveness/Readiness" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="20" y="145" width="760" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Pods -->
+        <mxCell id="k8s-pod1" value="Pod 1&lt;br&gt;chat-service&lt;br&gt;✅ Running&lt;br&gt;(1/1 Ready)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="40" y="200" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="k8s-pod1-detail" value="CPU: 200m&lt;br&gt;Memory: 512Mi&lt;br&gt;Image: ECR:SHA" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=8;" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="40" y="235" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="k8s-pod2" value="Pod 2&lt;br&gt;chat-service&lt;br&gt;✅ Running&lt;br&gt;(1/1 Ready)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="200" y="200" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="k8s-pod2-detail" value="CPU: 200m&lt;br&gt;Memory: 512Mi&lt;br&gt;Image: ECR:SHA" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=8;" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="200" y="235" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="k8s-pod3" value="Pod 3&lt;br&gt;chat-service&lt;br&gt;✅ Running&lt;br&gt;(1/1 Ready)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="360" y="200" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="k8s-pod3-detail" value="CPU: 200m&lt;br&gt;Memory: 512Mi&lt;br&gt;Image: ECR:SHA" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=8;" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="360" y="235" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Service -->
+        <mxCell id="k8s-service" value="Service (ClusterIP)&lt;br&gt;Port: 80 → 8080&lt;br&gt;Load Balancing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;fontStyle=1" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="520" y="200" width="240" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Health Checks -->
+        <mxCell id="k8s-health" value="Health Check Endpoints" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;align=left;spacingLeft=10;fontStyle=1" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="40" y="300" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="k8s-health-detail" value="• Startup: /actuator/health (30초*10회=5분)&lt;br&gt;• Liveness: /actuator/health/liveness (10초마다)&lt;br&gt;• Readiness: /actuator/health/readiness (5초마다)&lt;br&gt;→ Ready되지 않은 Pod는 트래픽 차단" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="45" y="315" width="270" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Auto Healing -->
+        <mxCell id="k8s-healing" value="Auto Healing &amp; Rollback" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;align=left;spacingLeft=10;fontStyle=1" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="360" y="300" width="400" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="k8s-healing-detail" value="• Pod Crash → 자동 재시작 (최대 3번 재시도)&lt;br&gt;• Health Check 실패 → Pod 재생성&lt;br&gt;• Deployment 실패 → 자동 Rollback (이전 버전으로)&lt;br&gt;• MTTR (평균 복구 시간): 30초" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;" vertex="1" parent="tobe-k8s-container">
+          <mxGeometry x="365" y="315" width="390" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- TO-BE Arrows -->
+        <mxCell id="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=3;strokeColor=#666666;" edge="1" parent="1" source="tobe-github" target="tobe-actions-container">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="" value="Git Push" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontStyle=1" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="180" y="420" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryDx=0;entryDy=0;strokeWidth=3;strokeColor=#d6b656;" edge="1" parent="1" source="tobe-actions-container" target="tobe-ecr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="" value="Push Images" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontStyle=1" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="480" y="460" as="geometry" />
+        </mxCell>
+
+        <mxCell id="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=3;strokeColor=#82b366;" edge="1" parent="1" source="tobe-ecr" target="tobe-k8s-container">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="" value="Rolling Update" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontStyle=1" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="660" y="580" as="geometry" />
+        </mxCell>
+
+        <!-- Benefits Section -->
+        <mxCell id="benefits-title" value="✅ 개선 효과" style="text;html=1;strokeColor=none;fillColor=#d5e8d4;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=16;fontStyle=1;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="860" width="1500" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="benefit1" value="무중단 배포 (Zero Downtime)&lt;br&gt;AS-IS: 1-2분 다운타임&lt;br&gt;TO-BE: 0초 (100% 개선)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;align=left;spacingLeft=10;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="60" y="910" width="280" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="benefit2" value="고가용성 확보&lt;br&gt;AS-IS: 단일 서버 (SPOF)&lt;br&gt;TO-BE: 3개 Pod (300% 증가)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;align=left;spacingLeft=10;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="380" y="910" width="280" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="benefit3" value="자동 복구 (Auto Healing)&lt;br&gt;AS-IS: 수동 재시작 (5분)&lt;br&gt;TO-BE: 자동 재시작 (30초, 90% 단축)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;align=left;spacingLeft=10;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="700" y="910" width="280" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="benefit4" value="자동 배포 및 롤백&lt;br&gt;AS-IS: 수동 배포 (50% 자동화)&lt;br&gt;TO-BE: 완전 자동화 (95% 자동화)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;align=left;spacingLeft=10;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1020" y="910" width="280" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Key Technologies -->
+        <mxCell id="tech-title" value="🔧 핵심 기술" style="text;html=1;strokeColor=none;fillColor=#dae8fc;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=16;fontStyle=1;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1020" width="1500" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tech1" value="Kubernetes (K3s)&lt;br&gt;컨테이너 오케스트레이션" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="60" y="1070" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tech2" value="GitHub Actions&lt;br&gt;CI/CD 자동화" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="290" y="1070" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tech3" value="AWS ECR&lt;br&gt;컨테이너 레지스트리" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="520" y="1070" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tech4" value="Rolling Update&lt;br&gt;무중단 배포 전략" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="750" y="1070" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tech5" value="Health Checks&lt;br&gt;자동 장애 감지" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="980" y="1070" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tech6" value="ConfigMap/Secret&lt;br&gt;설정 관리" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1210" y="1070" width="200" height="50" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
