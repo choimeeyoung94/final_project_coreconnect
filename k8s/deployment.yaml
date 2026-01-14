@@ -92,6 +92,11 @@ spec:
             configMapKeyRef:
               name: chat-config
               key: JWT_EXPIRATION
+        - name: SECURITY_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: SECURITY_MODE
         - name: SPRING_DATASOURCE_MASTER_URL
           valueFrom:
             configMapKeyRef:
