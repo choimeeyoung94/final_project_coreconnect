@@ -99,7 +99,8 @@ public class SecurityConfig {
                     "/ws/chat-ws/**",                     // WebSocket 채팅 (부하 테스트/자동화용 Raw WebSocket, 실제 연결은 WebSocketAuthInterceptor에서 검증)
                     "/ws/chat-raw/**",                    // WebSocket 부하 테스트용 (인증 없음)
                     "/ws/notification/**",                // WebSocket 알림
-                    "/api/v1/auth/**",                    // 인증 관련 API
+                    "/api/v1/auth/**",                    // 인증 관련 API (v1)
+                    "/api/auth/**",                       // 인증 관련 API (로그인/회원가입 등)
                     "/api/v1/password-reset/requests",    // 비밀번호 초기화 요청
                     "/api/health",                        // AWS ELB 헬스체크 (기본)
                     "/api/health/**",                     // AWS ELB 헬스체크 (상세, liveness, readiness)

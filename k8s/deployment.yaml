@@ -7,7 +7,7 @@ metadata:
     app: chat-service
     version: v1
 spec:
-  replicas: 10  # 10개 파드로 시작
+  replicas: 3  # 3개 파드로 시작 (CPU 제한으로 인해 축소)
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -35,6 +35,10 @@ spec:
                   values:
                   - chat-service
               topologyKey: kubernetes.io/hostname
+      
+      # ECR 이미지 Pull을 위한 Secret
+      imagePullSecrets:
+      - name: ecr-registry-secret
       
       containers:
       - name: chat-service
@@ -88,6 +92,16 @@ spec:
             configMapKeyRef:
               name: chat-config
               key: JWT_EXPIRATION
+        - name: SPRING_DATASOURCE_MASTER_URL
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: SPRING_DATASOURCE_MASTER_URL
+        - name: SPRING_DATASOURCE_SLAVE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: chat-config
+              key: SPRING_DATASOURCE_SLAVE_URL
         
         # Secret에서
         - name: DB_USERNAME
@@ -100,12 +114,27 @@ spec:
             secretKeyRef:
               name: chat-secret
               key: DB_PASSWORD
+        - name: MYSQL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: DB_USERNAME
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: DB_PASSWORD
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
               name: chat-secret
               key: REDIS_PASSWORD
         - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: JWT_SECRET
+        - name: JWT_SECRET_KEY
           valueFrom:
             secretKeyRef:
               name: chat-secret
@@ -125,15 +154,25 @@ spec:
             secretKeyRef:
               name: chat-secret
               key: SENDGRID_API_KEY
+        - name: MAIL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: MAIL_USERNAME
+        - name: MAIL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: chat-secret
+              key: MAIL_PASSWORD
         
         # 리소스 요청/제한
         resources:
           requests:
-            cpu: 500m
-            memory: 1Gi
+            cpu: 200m
+            memory: 512Mi
           limits:
-            cpu: 2000m
-            memory: 2Gi
+            cpu: 1000m
+            memory: 1Gi
         
         # Liveness Probe (컨테이너 살아있는지)
         livenessProbe:

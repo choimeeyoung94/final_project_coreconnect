@@ -70,7 +70,9 @@ jobs:
     name: Build & Push Docker Images
     runs-on: ubuntu-latest
     needs: test-and-validate
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature_scale-out-10-servers')
+    if: |
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature_scale-out-10-servers')) ||
+      (github.event_name == 'pull_request' && github.base_ref == 'main')
     
     outputs:
       backend-image: ${{ steps.build-backend.outputs.image }}
@@ -163,10 +165,38 @@ jobs:
         with:
           version: 'v1.28.0'
 
-      # 4. Kubeconfig 설정 (EKS)
-      - name: Update kubeconfig for EKS
+      # 4. Kubeconfig 설정 (K3s)
+      - name: Setup kubeconfig for K3s
         run: |
-          aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+      
+      # 4-0. Login to ECR
+      - name: Login to Amazon ECR
+        id: login-ecr-deploy
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      # 4-1. Namespace 생성
+      - name: Create namespace if not exists
+        run: |
+          kubectl create namespace ${{ env.K8S_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+      
+      # 4-2. ECR Pull Secret 생성
+      - name: Create ECR pull secret
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr-deploy.outputs.registry }}
+        run: |
+          # ECR 인증 토큰 가져오기
+          ECR_PASSWORD=$(aws ecr get-login-password --region ${{ env.AWS_REGION }})
+          
+          # imagePullSecret 생성
+          kubectl create secret docker-registry ecr-registry-secret \
+            --docker-server=$ECR_REGISTRY \
+            --docker-username=AWS \
+            --docker-password=$ECR_PASSWORD \
+            --namespace=${{ env.K8S_NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       # 5. ConfigMap 업데이트
       - name: Update ConfigMap
@@ -181,7 +211,7 @@ jobs:
             DB_HOST: "${{ secrets.MYSQL_HOST }}"
             DB_PORT: "${{ secrets.MYSQL_PORT }}"
             DB_NAME: "${{ secrets.MYSQL_DATABASE }}"
-            REDIS_HOST: "redis-service.${{ env.K8S_NAMESPACE }}.svc.cluster.local"
+            REDIS_HOST: "redis-pubsub.${{ env.K8S_NAMESPACE }}.svc.cluster.local"
             REDIS_PORT: "6379"
             AWS_REGION: "${{ env.AWS_REGION }}"
             WEBSOCKET_ORIGINS: "${{ secrets.WEBSOCKET_ALLOWED_ORIGINS }}"
@@ -189,6 +219,8 @@ jobs:
             SECURITY_MODE: "secure"
             SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
             CORS_ALLOWED_ORIGINS: "${{ secrets.CORS_ALLOWED_ORIGINS }}"
+            SPRING_DATASOURCE_MASTER_URL: "jdbc:mysql://${{ secrets.MYSQL_HOST }}:${{ secrets.MYSQL_PORT }}/${{ secrets.MYSQL_DATABASE }}?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true"
+            SPRING_DATASOURCE_SLAVE_URL: "jdbc:mysql://${{ secrets.MYSQL_HOST }}:${{ secrets.MYSQL_PORT }}/${{ secrets.MYSQL_DATABASE }}?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true"
           EOF
 
       # 6. Secret 업데이트
@@ -202,25 +234,31 @@ jobs:
             --from-literal=AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
             --from-literal=AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
             --from-literal=SENDGRID_API_KEY="${{ secrets.SENDGRID_API_KEY }}" \
+            --from-literal=MAIL_USERNAME="yoochun8128@gmail.com" \
+            --from-literal=MAIL_PASSWORD="bgmydykgzrjftohv" \
             --namespace=${{ env.K8S_NAMESPACE }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      # 7. Deployment 이미지 업데이트
+      # 7. Deployment 생성/업데이트
       - name: Update Deployment image
         run: |
-          kubectl set image deployment/chat-service \
-            chat-service=${{ needs.build-and-push.outputs.backend-image }} \
-            -n ${{ env.K8S_NAMESPACE }}
-          
-          # Frontend가 있다면
-          # kubectl set image deployment/chat-frontend \
-          #   chat-frontend=${{ needs.build-and-push.outputs.frontend-image }} \
-          #   -n ${{ env.K8S_NAMESPACE }}
+          # Deployment가 없으면 생성, 있으면 이미지 업데이트
+          if kubectl get deployment chat-service -n ${{ env.K8S_NAMESPACE }} &> /dev/null; then
+            echo "Deployment exists. Updating image..."
+            kubectl set image deployment/chat-service \
+              chat-service=${{ needs.build-and-push.outputs.backend-image }} \
+              -n ${{ env.K8S_NAMESPACE }}
+          else
+            echo "Deployment not found. Creating from manifest..."
+            # Deployment 매니페스트에서 이미지 URL 업데이트하여 적용
+            sed "s|image:.*chat-service.*|image: ${{ needs.build-and-push.outputs.backend-image }}|g" k8s/deployment.yaml | kubectl apply -f -
+            kubectl apply -f k8s/service.yaml
+          fi
 
       # 8. Rollout 상태 확인
       - name: Wait for rollout to complete
         run: |
-          kubectl rollout status deployment/chat-service -n ${{ env.K8S_NAMESPACE }} --timeout=5m
+          kubectl rollout status deployment/chat-service -n ${{ env.K8S_NAMESPACE }} --timeout=10m
           # kubectl rollout status deployment/chat-frontend -n ${{ env.K8S_NAMESPACE }} --timeout=5m
 
       # 9. 배포 확인
@@ -239,6 +277,12 @@ jobs:
       - name: Rollback on failure
         if: failure()
         run: |
-          echo "Deployment failed. Rolling back..."
-          kubectl rollout undo deployment/chat-service -n ${{ env.K8S_NAMESPACE }}
-          kubectl rollout status deployment/chat-service -n ${{ env.K8S_NAMESPACE }}
+          echo "Deployment failed. Checking rollback history..."
+          if kubectl rollout history deployment/chat-service -n ${{ env.K8S_NAMESPACE }} --revision=1 &> /dev/null; then
+            echo "Rollback history found. Rolling back..."
+            kubectl rollout undo deployment/chat-service -n ${{ env.K8S_NAMESPACE }}
+            kubectl rollout status deployment/chat-service -n ${{ env.K8S_NAMESPACE }}
+          else
+            echo "No rollback history (first deployment). Deleting failed deployment..."
+            kubectl delete deployment chat-service -n ${{ env.K8S_NAMESPACE }}
+          fi
