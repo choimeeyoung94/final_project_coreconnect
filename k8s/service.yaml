@@ -6,13 +6,14 @@ metadata:
   labels:
     app: chat-service
 spec:
-  type: ClusterIP
+  type: NodePort
   selector:
     app: chat-service
   ports:
   - name: http
     port: 80
     targetPort: 8080
+    nodePort: 30080  # k6 Cloud 접근용
     protocol: TCP
   sessionAffinity: None  # Redis 세션 사용하므로 불필요
 
