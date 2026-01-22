@@ -41,16 +41,16 @@
         </mxCell>
 
         <!-- AS-IS Arrows -->
-        <mxCell id="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="asis-github" target="asis-actions">
+        <mxCell id="asis-arrow1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="asis-github" target="asis-actions">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="asis-actions" target="asis-deploy">
+        <mxCell id="asis-arrow2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="asis-actions" target="asis-deploy">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="asis-deploy" target="asis-ec2">
+        <mxCell id="asis-arrow3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="asis-deploy" target="asis-ec2">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#b85450;dashed=1;" edge="1" parent="1" source="asis-ec2" target="asis-downtime">
+        <mxCell id="asis-arrow4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#b85450;dashed=1;" edge="1" parent="1" source="asis-ec2" target="asis-downtime">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
@@ -97,103 +97,124 @@
           <mxGeometry x="720" y="390" width="800" height="420" as="geometry" />
         </mxCell>
 
-        <!-- Kubernetes Components -->
-        <mxCell id="k8s-namespace" value="Namespace: chat-system" style="text;strokeColor=#666666;fillColor=#f5f5f5;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fontColor=#333333;" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry y="30" width="800" height="20" as="geometry" />
+        <!-- Kubernetes Components (inside cluster) -->
+        <mxCell id="k8s-namespace" value="📦 Namespace: chat-system" style="text;strokeColor=#666666;fillColor=#f5f5f5;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;whiteSpace=wrap;rounded=1;fontSize=11;fontStyle=1;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="740" y="430" width="760" height="25" as="geometry" />
         </mxCell>
 
-        <mxCell id="k8s-config" value="ConfigMap (chat-config)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;align=left;spacingLeft=10;" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="20" y="60" width="180" height="50" as="geometry" />
+        <!-- ConfigMap and Secret row -->
+        <mxCell id="k8s-configmap" value="ConfigMap&lt;br&gt;(chat-config)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="750" y="470" width="140" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="k8s-config-detail" value="• DB_HOST, DB_PORT&lt;br&gt;• DATASOURCE URLs&lt;br&gt;• CORS, WEBSOCKET" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="25" y="70" width="170" height="35" as="geometry" />
-        </mxCell>
-
-        <mxCell id="k8s-secret" value="Secret (chat-secret)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;align=left;spacingLeft=10;" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="220" y="60" width="180" height="50" as="geometry" />
-        </mxCell>
-        <mxCell id="k8s-secret-detail" value="• DB_PASSWORD&lt;br&gt;• JWT_SECRET_KEY&lt;br&gt;• MAIL_PASSWORD" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="225" y="70" width="170" height="35" as="geometry" />
+        <mxCell id="k8s-configmap-detail" value="DB_HOST, REDIS_HOST&lt;br&gt;DATASOURCE URLs" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="750" y="490" width="140" height="25" as="geometry" />
         </mxCell>
 
-        <mxCell id="k8s-pullsecret" value="imagePullSecret" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;align=center;" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="420" y="60" width="120" height="50" as="geometry" />
+        <mxCell id="k8s-secret" value="Secret&lt;br&gt;(chat-secret)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="910" y="470" width="140" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="k8s-pullsecret-detail" value="ECR 인증 정보" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="420" y="85" width="120" height="20" as="geometry" />
+        <mxCell id="k8s-secret-detail" value="DB_PASSWORD&lt;br&gt;JWT_SECRET_KEY" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="910" y="490" width="140" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="k8s-pullsecret" value="imagePullSecret" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="470" width="140" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="k8s-pullsecret-detail" value="ECR 인증 정보" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="495" width="140" height="20" as="geometry" />
         </mxCell>
 
         <!-- Deployment -->
-        <mxCell id="k8s-deployment" value="Deployment: chat-service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;align=center;" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="20" y="130" width="760" height="40" as="geometry" />
+        <mxCell id="k8s-deployment" value="🚀 Deployment: chat-service (Rolling Update)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="750" y="540" width="450" height="35" as="geometry" />
         </mxCell>
-        <mxCell id="k8s-deployment-detail" value="Rolling Update Strategy: maxSurge=3, maxUnavailable=1 | Health Checks: Startup/Liveness/Readiness" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="20" y="145" width="760" height="20" as="geometry" />
-        </mxCell>
-
-        <!-- Pods -->
-        <mxCell id="k8s-pod1" value="Pod 1&lt;br&gt;chat-service&lt;br&gt;✅ Running&lt;br&gt;(1/1 Ready)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="40" y="200" width="120" height="80" as="geometry" />
-        </mxCell>
-        <mxCell id="k8s-pod1-detail" value="CPU: 200m&lt;br&gt;Memory: 512Mi&lt;br&gt;Image: ECR:SHA" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=8;" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="40" y="235" width="120" height="40" as="geometry" />
+        <mxCell id="k8s-deployment-detail" value="maxSurge: 3, maxUnavailable: 1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="750" y="555" width="450" height="15" as="geometry" />
         </mxCell>
 
-        <mxCell id="k8s-pod2" value="Pod 2&lt;br&gt;chat-service&lt;br&gt;✅ Running&lt;br&gt;(1/1 Ready)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="200" y="200" width="120" height="80" as="geometry" />
+        <!-- 3 Pods -->
+        <mxCell id="k8s-pod1" value="Pod 1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="760" y="595" width="110" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="k8s-pod2-detail" value="CPU: 200m&lt;br&gt;Memory: 512Mi&lt;br&gt;Image: ECR:SHA" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=8;" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="200" y="235" width="120" height="40" as="geometry" />
+        <mxCell id="k8s-pod1-detail" value="✅ Running&lt;br&gt;(1/1 Ready)&lt;br&gt;CPU: 200m&lt;br&gt;Mem: 512Mi" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="760" y="610" width="110" height="50" as="geometry" />
         </mxCell>
 
-        <mxCell id="k8s-pod3" value="Pod 3&lt;br&gt;chat-service&lt;br&gt;✅ Running&lt;br&gt;(1/1 Ready)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="360" y="200" width="120" height="80" as="geometry" />
+        <mxCell id="k8s-pod2" value="Pod 2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="900" y="595" width="110" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="k8s-pod3-detail" value="CPU: 200m&lt;br&gt;Memory: 512Mi&lt;br&gt;Image: ECR:SHA" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=8;" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="360" y="235" width="120" height="40" as="geometry" />
+        <mxCell id="k8s-pod2-detail" value="✅ Running&lt;br&gt;(1/1 Ready)&lt;br&gt;CPU: 200m&lt;br&gt;Mem: 512Mi" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="900" y="610" width="110" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="k8s-pod3" value="Pod 3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="595" width="110" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="k8s-pod3-detail" value="✅ Running&lt;br&gt;(1/1 Ready)&lt;br&gt;CPU: 200m&lt;br&gt;Mem: 512Mi" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="610" width="110" height="50" as="geometry" />
         </mxCell>
 
         <!-- Service -->
-        <mxCell id="k8s-service" value="Service (ClusterIP)&lt;br&gt;Port: 80 → 8080&lt;br&gt;Load Balancing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;fontStyle=1" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="520" y="200" width="240" height="80" as="geometry" />
+        <mxCell id="k8s-service" value="Service (ClusterIP)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="595" width="260" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="k8s-service-detail" value="Port: 80 → 8080&lt;br&gt;Load Balancing&lt;br&gt;3개 Pod에 트래픽 분산" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="610" width="260" height="50" as="geometry" />
         </mxCell>
 
         <!-- Health Checks -->
-        <mxCell id="k8s-health" value="Health Check Endpoints" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;align=left;spacingLeft=10;fontStyle=1" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="40" y="300" width="280" height="90" as="geometry" />
+        <mxCell id="k8s-health" value="🏥 Health Check Endpoints" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;align=center;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="750" y="690" width="300" height="100" as="geometry" />
         </mxCell>
-        <mxCell id="k8s-health-detail" value="• Startup: /actuator/health (30초*10회=5분)&lt;br&gt;• Liveness: /actuator/health/liveness (10초마다)&lt;br&gt;• Readiness: /actuator/health/readiness (5초마다)&lt;br&gt;→ Ready되지 않은 Pod는 트래픽 차단" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="45" y="315" width="270" height="70" as="geometry" />
+        <mxCell id="k8s-health-detail" value="• Startup: /actuator/health (30초×10=5분)&lt;br&gt;• Liveness: /actuator/health/liveness (10초)&lt;br&gt;• Readiness: /actuator/health/readiness (5초)&lt;br&gt;→ Ready 안된 Pod는 트래픽 차단" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=8;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="755" y="710" width="290" height="75" as="geometry" />
         </mxCell>
 
         <!-- Auto Healing -->
-        <mxCell id="k8s-healing" value="Auto Healing &amp; Rollback" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;align=left;spacingLeft=10;fontStyle=1" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="360" y="300" width="400" height="90" as="geometry" />
+        <mxCell id="k8s-healing" value="🔄 Auto Healing &amp; Rollback" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;align=center;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="690" width="420" height="100" as="geometry" />
         </mxCell>
-        <mxCell id="k8s-healing-detail" value="• Pod Crash → 자동 재시작 (최대 3번 재시도)&lt;br&gt;• Health Check 실패 → Pod 재생성&lt;br&gt;• Deployment 실패 → 자동 Rollback (이전 버전으로)&lt;br&gt;• MTTR (평균 복구 시간): 30초" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;" vertex="1" parent="tobe-k8s-container">
-          <mxGeometry x="365" y="315" width="390" height="70" as="geometry" />
+        <mxCell id="k8s-healing-detail" value="• Pod Crash → 자동 재시작 (최대 3번)&lt;br&gt;• Health Check 실패 → Pod 재생성&lt;br&gt;• Deployment 실패 → 자동 Rollback&lt;br&gt;• MTTR (평균 복구 시간): 30초" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=8;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="1075" y="710" width="410" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- Pod to Service arrows -->
+        <mxCell id="pod1-to-service" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=1;strokeColor=#9673a6;dashed=1;" edge="1" parent="1" source="k8s-pod1" target="k8s-service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pod2-to-service" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=1;strokeColor=#9673a6;dashed=1;" edge="1" parent="1" source="k8s-pod2" target="k8s-service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pod3-to-service" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=1;strokeColor=#9673a6;dashed=1;" edge="1" parent="1" source="k8s-pod3" target="k8s-service">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
         <!-- TO-BE Arrows -->
-        <mxCell id="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=3;strokeColor=#666666;" edge="1" parent="1" source="tobe-github" target="tobe-actions-container">
+        <mxCell id="tobe-arrow1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=3;strokeColor=#666666;" edge="1" parent="1" source="tobe-github" target="tobe-actions-container">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="" value="Git Push" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontStyle=1" vertex="1" connectable="0" parent="1">
-          <mxGeometry x="180" y="420" as="geometry" />
+        <mxCell id="tobe-label1" value="Git Push" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontStyle=1" vertex="1" connectable="0" parent="tobe-arrow1">
+          <mxGeometry x="-0.2" y="2" relative="1" as="geometry">
+            <mxPoint x="5" y="-8" as="offset" />
+          </mxGeometry>
         </mxCell>
         
-        <mxCell id="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryDx=0;entryDy=0;strokeWidth=3;strokeColor=#d6b656;" edge="1" parent="1" source="tobe-actions-container" target="tobe-ecr">
+        <mxCell id="tobe-arrow2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryDx=0;entryDy=0;strokeWidth=3;strokeColor=#d6b656;" edge="1" parent="1" source="tobe-actions-container" target="tobe-ecr">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="" value="Push Images" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontStyle=1" vertex="1" connectable="0" parent="1">
-          <mxGeometry x="480" y="460" as="geometry" />
+        <mxCell id="tobe-label2" value="Push Images" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontStyle=1" vertex="1" connectable="0" parent="tobe-arrow2">
+          <mxGeometry x="-0.1" y="1" relative="1" as="geometry">
+            <mxPoint x="5" y="-9" as="offset" />
+          </mxGeometry>
         </mxCell>
 
-        <mxCell id="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=3;strokeColor=#82b366;" edge="1" parent="1" source="tobe-ecr" target="tobe-k8s-container">
+        <mxCell id="tobe-arrow3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=3;strokeColor=#82b366;" edge="1" parent="1" source="tobe-ecr" target="tobe-k8s-container">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="" value="Rolling Update" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontStyle=1" vertex="1" connectable="0" parent="1">
-          <mxGeometry x="660" y="580" as="geometry" />
+        <mxCell id="tobe-label3" value="Rolling Update" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontStyle=1" vertex="1" connectable="0" parent="tobe-arrow3">
+          <mxGeometry x="-0.05" y="2" relative="1" as="geometry">
+            <mxPoint x="5" y="-8" as="offset" />
+          </mxGeometry>
         </mxCell>
 
         <!-- Benefits Section -->
