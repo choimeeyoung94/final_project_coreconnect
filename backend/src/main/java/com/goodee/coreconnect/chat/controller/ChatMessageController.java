@@ -22,7 +22,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -62,6 +61,7 @@ import com.goodee.coreconnect.chat.repository.ChatRepository;
 import com.goodee.coreconnect.chat.repository.ChatRoomUserRepository;
 import com.goodee.coreconnect.chat.repository.MessageFileRepository;
 import com.goodee.coreconnect.chat.repository.NotificationRepository;
+import com.goodee.coreconnect.chat.pubsub.ChatPubSubService;
 import com.goodee.coreconnect.chat.service.ChatRoomService;
 import com.goodee.coreconnect.chat.service.ChatService;
 import com.goodee.coreconnect.common.dto.response.ResponseDTO;
@@ -97,7 +97,7 @@ public class ChatMessageController {
     private final NotificationService notificationService;
     private final WebSocketDeliveryService webSocketDeliveryService;
     private final S3Service s3Service;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final ChatPubSubService chatPubSubService;
 	
 	@Operation(summary = "채팅방 생성", description = "새로운 채팅방을 생성합니다.")
 	@PostMapping
@@ -301,7 +301,7 @@ public class ChatMessageController {
 	    
 	    try {
 	        // ⭐ 1. 메시지 브로드캐스트 (ChatResponseDTO)
-	        messagingTemplate.convertAndSend(topic, responseDto);
+        chatPubSubService.publish(topic, responseDto);
 	        log.info("[sendMessage] 메시지 브로드캐스트 완료 - topic: {}, responseDto.id: {}, unreadCount: {}", 
 	                topic, responseDto.getId(), responseDto.getUnreadCount());
 	        
@@ -343,7 +343,7 @@ public class ChatMessageController {
 	            log.info("[sendMessage] ⭐⭐⭐ UNREAD_COUNT_UPDATE 메시지 생성 및 브로드캐스트 시작 ⭐⭐⭐ - chatId: {}, unreadCount: {}, topic: {}", 
 	                    saved.getId(), confirmedUnreadCount, topic);
 	            
-	            messagingTemplate.convertAndSend(topic, unreadCountUpdate);
+            chatPubSubService.publish(topic, unreadCountUpdate);
 	            
 	            log.info("[sendMessage] ⭐⭐⭐ UNREAD_COUNT_UPDATE 브로드캐스트 완료 ⭐⭐⭐ - chatId: {}, unreadCount: {}, topic: {}", 
 	                    saved.getId(), confirmedUnreadCount, topic);
@@ -361,7 +361,7 @@ public class ChatMessageController {
 	            
 	            // ⭐ 채팅방 topic으로 브로드캐스트 (모든 참여자가 받음)
 	            // ⭐ 프론트엔드에서 자신의 unreadCount를 계산하거나, 백엔드 API를 호출하여 가져옴
-	            messagingTemplate.convertAndSend(topic, roomUnreadCountUpdate);
+            chatPubSubService.publish(topic, roomUnreadCountUpdate);
 	            
 	            log.info("[sendMessage] ⭐⭐⭐ ROOM_UNREAD_COUNT_UPDATE 브로드캐스트 완료 ⭐⭐⭐ - roomId: {}, topic: {}", 
 	                    req.getRoomId(), topic);
@@ -450,7 +450,7 @@ public class ChatMessageController {
 	                Map<String, Object> errorMessage = new HashMap<>();
 	                errorMessage.put("type", "ERROR");
 	                errorMessage.put("message", "메시지 전송 중 오류가 발생했습니다: " + e.getMessage());
-	                messagingTemplate.convertAndSend(errorTopic, errorMessage);
+                chatPubSubService.publish(errorTopic, errorMessage);
 	                log.info("[sendMessage] 에러 메시지 브로드캐스트 완료 - topic: {}", errorTopic);
 	            }
 	        } catch (Exception broadcastError) {
@@ -1071,7 +1071,7 @@ public class ChatMessageController {
 		log.info("[uploadMultipleFileMessage] ⭐ WebSocket 브로드캐스트 시작 - topic: {}", topic);
 		log.info("[uploadMultipleFileMessage] ⭐ 브로드캐스트할 DTO의 fileUrls: {}", dto.getFileUrls());
 		log.info("[uploadMultipleFileMessage] ⭐ 브로드캐스트할 DTO의 fileUrls.size(): {}", dto.getFileUrls() != null ? dto.getFileUrls().size() : 0);
-		messagingTemplate.convertAndSend(topic, dto);
+		chatPubSubService.publish(topic, dto);
 		log.info("[uploadMultipleFileMessage] ⭐ WebSocket 브로드캐스트 완료");
 		
 		// ⭐ 채팅방 참여자들에게 알림 전송 (발신자 및 접속 중인 사용자 제외)
@@ -1988,7 +1988,7 @@ public class ChatMessageController {
     	        updateMessage.put("viewerEmail", email); // ⭐ 읽은 사람 이메일 추가 (디버깅용)
     	        
     	        // ⭐ 모든 참여자에게 전송 (모든 참여자가 실시간으로 unreadCount 업데이트)
-    	        messagingTemplate.convertAndSend("/topic/chat.room." + roomId, updateMessage);
+	        chatPubSubService.publish("/topic/chat.room." + roomId, updateMessage);
     	        log.info("[markRoomMessagesAsRead] unreadCount 업데이트 알림 전송 - chatId: {}, unreadCount: {} (실시간 계산), senderId: {}, senderEmail: {}", 
     	                chatId, realUnreadCount, senderId, senderEmail);
     	    }

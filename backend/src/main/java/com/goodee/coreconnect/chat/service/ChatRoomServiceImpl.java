@@ -11,7 +11,6 @@ import java.util.stream.Collectors;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.socket.WebSocketSession;
@@ -42,6 +41,7 @@ import com.goodee.coreconnect.chat.repository.ChatRoomRepository;
 import com.goodee.coreconnect.chat.repository.ChatRoomUserRepository;
 import com.goodee.coreconnect.chat.repository.MessageFileRepository;
 import com.goodee.coreconnect.chat.handler.ChatWebSocketHandler;
+import com.goodee.coreconnect.chat.pubsub.ChatPubSubService;
 import com.goodee.coreconnect.user.entity.User;
 import com.goodee.coreconnect.user.repository.UserRepository;
 
@@ -65,7 +65,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	private final MessageFileRepository messageFileRepository;
     private final ChatMessageReadStatusRepository chatMessageReadStatusRepository;
     private final ApplicationEventPublisher eventPublisher;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final ChatPubSubService chatPubSubService;
     
 	@Transactional(readOnly = true)
 	@Override
@@ -993,7 +993,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 			responseDto.setUnreadCount(0); // 나가기 메시지는 읽음 처리
 			
 			// 모든 참여자에게 브로드캐스트
-			messagingTemplate.convertAndSend("/topic/chat.room." + roomId, responseDto);
+			chatPubSubService.publish("/topic/chat.room." + roomId, responseDto);
 			log.info("[leaveChatRoom] 나가기 메시지 브로드캐스트 완료 - roomId: {}, userId: {}, chatId: {}", 
 					roomId, user.getId(), leaveChat.getId());
 		}
