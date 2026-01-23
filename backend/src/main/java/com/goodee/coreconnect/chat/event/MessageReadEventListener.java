@@ -3,7 +3,6 @@ package com.goodee.coreconnect.chat.event;
 import java.time.LocalDateTime;
 
 import org.springframework.context.event.EventListener;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +12,7 @@ import com.goodee.coreconnect.chat.repository.ChatRepository;
 import com.goodee.coreconnect.chat.entity.Chat;
 import com.goodee.coreconnect.common.notification.enums.NotificationType;
 import com.goodee.coreconnect.common.notification.service.NotificationService;
+import com.goodee.coreconnect.chat.pubsub.ChatPubSubService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +29,7 @@ public class MessageReadEventListener {
     private final ChatMessageReadStatusRepository readStatusRepo;
     private final ChatRepository chatRepository;
     private final NotificationService notificationService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final ChatPubSubService chatPubSubService;
 
     /**
      * 메시지 읽음 이벤트 처리 (비동기)
@@ -71,7 +71,7 @@ public class MessageReadEventListener {
 
                 // 4. 실시간으로 unreadCount 변경 사항 브로드캐스트
                 String topic = "/topic/chat.room." + event.getRoomId() + ".unreadCount";
-                messagingTemplate.convertAndSend(topic, java.util.Map.of(
+                chatPubSubService.publish(topic, java.util.Map.of(
                         "messageId", event.getMessageId(),
                         "unreadCount", newUnreadCount,
                         "readBy", event.getUserId()

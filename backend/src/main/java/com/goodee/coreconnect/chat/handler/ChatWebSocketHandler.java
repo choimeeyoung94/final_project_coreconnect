@@ -22,13 +22,13 @@ import com.goodee.coreconnect.chat.entity.Chat;
 import com.goodee.coreconnect.chat.entity.ChatMessageReadStatus;
 import com.goodee.coreconnect.chat.repository.ChatMessageReadStatusRepository;
 import com.goodee.coreconnect.chat.repository.ChatRepository;
+import com.goodee.coreconnect.chat.pubsub.ChatPubSubService;
 import com.goodee.coreconnect.chat.service.ChatRoomService;
 import com.goodee.coreconnect.common.notification.service.WebSocketDeliveryService;
 import com.goodee.coreconnect.security.jwt.JwtProvider;
 import com.goodee.coreconnect.user.entity.User;
 import com.goodee.coreconnect.user.repository.UserRepository;
 
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import java.util.HashMap;
 import java.util.Optional;
 
@@ -60,8 +60,8 @@ public class ChatWebSocketHandler extends TextWebSocketHandler{
     // 실시간 메시지 전송을 위한 공통 서비스
     private final WebSocketDeliveryService webSocketDeliveryService;
     
-    // WebSocket 메시징을 위한 템플릿 (unreadCount 업데이트 알림용)
-    private final SimpMessagingTemplate messagingTemplate;
+    // Redis pub/sub 기반 브로드캐스트 서비스
+    private final ChatPubSubService chatPubSubService;
 
     // JSON 파싱을 위한 ObjectMapper (JavaTimeModule 등록)
     private final ObjectMapper objectMapper = new ObjectMapper()
@@ -150,7 +150,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler{
                             updateMessage.put("chatId", chat.getId());
                             updateMessage.put("messageContent", joinMsg);
                             updateMessage.put("roomId", roomId);
-                            messagingTemplate.convertAndSend("/topic/chat.room." + roomId, updateMessage);
+                            chatPubSubService.publish("/topic/chat.room." + roomId, updateMessage);
                             
                             log.info("🔥 [afterConnectionEstablished] 초대 메시지를 입장 메시지로 변경 - chatId: {}, userId: {}", chat.getId(), userId);
                             break;
@@ -187,7 +187,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler{
                         updateMessage.put("viewerId", userId); // ⭐ 읽은 사람 ID 추가 (디버깅용)
                         
                         // ⭐ 모든 참여자에게 전송 (모든 참여자가 실시간으로 unreadCount 업데이트)
-                        messagingTemplate.convertAndSend("/topic/chat.room." + roomId, updateMessage);
+                        chatPubSubService.publish("/topic/chat.room." + roomId, updateMessage);
                         log.info("🔥 [afterConnectionEstablished] unreadCount 업데이트 알림 전송 - chatId: {}, unreadCount: {} (실시간 계산), senderId: {}, senderEmail: {}, viewerId: {}", 
                                 chatId, realUnreadCount, senderId, senderEmail, userId);
                     }
@@ -214,7 +214,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler{
                     roomUpdateMessage.put("participantEmail", participantEmail); // ⭐ 대상 참여자 이메일
                     
                     // ⭐ 모든 참여자에게 전송 (각 참여자가 자신의 unreadCount만 적용)
-                    messagingTemplate.convertAndSend("/topic/chat.room." + roomId, roomUpdateMessage);
+                    chatPubSubService.publish("/topic/chat.room." + roomId, roomUpdateMessage);
                     log.info("🔥 [afterConnectionEstablished] ⭐⭐⭐ ROOM_UNREAD_COUNT_UPDATE 전송 ⭐⭐⭐ - roomId: {}, participantId: {}, participantEmail: {}, totalUnreadCount: {}", 
                             roomId, participantId, participantEmail, totalUnreadCount);
                 }
@@ -344,7 +344,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler{
 	        unreadCountUpdate.put("senderEmail", dto.getSenderEmail());
 	        
 	        String topic = "/topic/chat.room." + roomId;
-	        messagingTemplate.convertAndSend(topic, unreadCountUpdate);
+	        chatPubSubService.publish(topic, unreadCountUpdate);
 	        
         log.info("[handleTextMessage] ⭐ UNREAD_COUNT_UPDATE 브로드캐스트 완료 - chatId: {}, unreadCount: {}, topic: {}", 
                 dto.getId(), latestUnreadCount, topic);
@@ -369,7 +369,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler{
             roomUpdateMessage.put("participantEmail", participantEmail); // ⭐ 대상 참여자 이메일
             
             // ⭐ 모든 참여자에게 전송 (각 참여자가 자신의 unreadCount만 적용)
-            messagingTemplate.convertAndSend(topic, roomUpdateMessage);
+            chatPubSubService.publish(topic, roomUpdateMessage);
             log.info("[handleTextMessage] ⭐⭐⭐ ROOM_UNREAD_COUNT_UPDATE 전송 ⭐⭐⭐ - roomId: {}, participantId: {}, participantEmail: {}, totalUnreadCount: {}, topic: {}", 
                     roomId, participantId, participantEmail, totalUnreadCount, topic);
         }
