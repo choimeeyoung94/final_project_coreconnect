@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -46,7 +47,7 @@ import com.goodee.coreconnect.chat.repository.NotificationRepository;
 import com.goodee.coreconnect.common.entity.Notification;
 import com.goodee.coreconnect.common.notification.dto.NotificationPayload;
 import com.goodee.coreconnect.common.notification.enums.NotificationType;
-import com.goodee.coreconnect.common.notification.service.WebSocketDeliveryService;
+import com.goodee.coreconnect.common.notification.event.NotificationPushEvent;
 import com.goodee.coreconnect.common.service.S3Service;
 import com.goodee.coreconnect.leave.enums.LeaveType;
 import com.goodee.coreconnect.leave.service.LeaveService;
@@ -71,7 +72,7 @@ public class ApprovalServiceImpl implements ApprovalService {
   private final UserRepository userRepository;
   private final ApprovalLineRepository approvalLineRepository;
   private final S3Service s3Service;
-  private final WebSocketDeliveryService webSocketDeliveryService;
+  private final ApplicationEventPublisher eventPublisher;
   private final NotificationRepository notificationRepository;
   private final SpringTemplateEngine templateEngine;
   private final ObjectMapper objectMapper;
@@ -212,7 +213,7 @@ public class ApprovalServiceImpl implements ApprovalService {
       log.info("[ApprovalServiceImpl] 첫 번째 결재자 알림 DB 저장 완료");
 
       // 7-3. 실시간 알림 전송
-      webSocketDeliveryService.sendToUser(firstApprover.getId(), payload);
+      eventPublisher.publishEvent(new NotificationPushEvent(firstApprover.getId(), payload));
       log.info("[ApprovalServiceImpl] 첫 번째 결재자 WebSocket 전송 완료: firstApproverId={}", firstApprover.getId());
     } else {
       log.warn("[ApprovalServiceImpl] ⚠️ 첫 번째 결재자를 찾을 수 없습니다. 알림이 전송되지 않습니다. documentId={}", savedDocument.getId());
@@ -236,7 +237,7 @@ public class ApprovalServiceImpl implements ApprovalService {
     saveNotificationToDB(drafterPayload, drafter, savedDocument);
     log.info("[ApprovalServiceImpl] 기안자 본인 알림 DB 저장 완료");
     
-    webSocketDeliveryService.sendToUser(drafter.getId(), drafterPayload);
+    eventPublisher.publishEvent(new NotificationPushEvent(drafter.getId(), drafterPayload));
     log.info("[ApprovalServiceImpl] 기안자 본인 WebSocket 전송 완료: drafterId={}", drafter.getId());
     
     log.info("[ApprovalServiceImpl] ===== 알림 전송 로직 완료 ===== documentId={}", savedDocument.getId());
@@ -636,7 +637,7 @@ public class ApprovalServiceImpl implements ApprovalService {
           );
 
       saveNotificationToDB(payload, drafter, document);
-      webSocketDeliveryService.sendToUser(drafter.getId(), payload);
+      eventPublisher.publishEvent(new NotificationPushEvent(drafter.getId(), payload));
 
     } 
     // CASE 2: 아직 진행 중인 경우 (다음 결재자에게 알림)
@@ -661,7 +662,7 @@ public class ApprovalServiceImpl implements ApprovalService {
             );
 
         saveNotificationToDB(payload, nextApprover, document);
-        webSocketDeliveryService.sendToUser(nextApprover.getId(), payload);
+        eventPublisher.publishEvent(new NotificationPushEvent(nextApprover.getId(), payload));
       }
     }
   }
@@ -723,7 +724,7 @@ public class ApprovalServiceImpl implements ApprovalService {
           );
 
       saveNotificationToDB(payload, drafter, document);
-      webSocketDeliveryService.sendToUser(drafter.getId(), payload);
+      eventPublisher.publishEvent(new NotificationPushEvent(drafter.getId(), payload));
     } else if (currentType == ApprovalLineType.AGREE) {
       // === '합의' 반려(비합의) 로직 ===
       // '합의'자가 반려(비합의)해도 문서는 중단되지 않고 계속 진행됩니다.
@@ -750,7 +751,7 @@ public class ApprovalServiceImpl implements ApprovalService {
             );
 
         saveNotificationToDB(payload, drafter, document);
-        webSocketDeliveryService.sendToUser(drafter.getId(), payload);
+        eventPublisher.publishEvent(new NotificationPushEvent(drafter.getId(), payload));
       } else if (document.getDocumentStatus() == DocumentStatus.IN_PROGRESS) {
         // 다음 결재자 찾기
         ApprovalLine nextLine = document.getApprovalLines().stream()
@@ -772,7 +773,7 @@ public class ApprovalServiceImpl implements ApprovalService {
               );
 
           saveNotificationToDB(payload, nextApprover, document);
-          webSocketDeliveryService.sendToUser(nextApprover.getId(), payload);
+          eventPublisher.publishEvent(new NotificationPushEvent(nextApprover.getId(), payload));
         }
       } 
     }
@@ -873,7 +874,7 @@ public class ApprovalServiceImpl implements ApprovalService {
       String message = drafter.getName() + "님으로부터 새로운 결재 요청이 도착했습니다";
       NotificationPayload payload = createNotificationPayload(firstApprover.getId(), drafter.getId(), drafter.getName(), message, savedDocument.getId());
       saveNotificationToDB(payload, firstApprover, savedDocument);
-      webSocketDeliveryService.sendToUser(firstApprover.getId(), payload);
+      eventPublisher.publishEvent(new NotificationPushEvent(firstApprover.getId(), payload));
     }
   }
 

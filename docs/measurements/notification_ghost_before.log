@@ -1,0 +1,29 @@
+# 유령 알림 측정 원본 로그 (수정 전)
+# 측정일: 2026-10-27
+# 환경: Intel i7-8550U(4코어 8스레드), RAM 16GB, Windows 11 / MySQL 8.0 + Redis 7 (Testcontainers 1.21.4, Docker Desktop 29.0.1)
+# 방법: GhostNotificationMeasurementTest(MEASURE=true), 시나리오마다 100회 반복, 한 번에 요청 1개(순차). 수정 코드를 잠시 되돌려 측정
+# 열: scenario(시나리오),repeat(반복),expectedNotifications(기대 알림 행),actualNotifications(실제 알림 행),expectedPushes(기대 전송),actualPushes(실제 전송),avgMs(평균ms),p95Ms(p95 ms)
+# 롤백 시나리오는 기대값 0 — actual이 0보다 크면 유령 알림/전송
+MEASURE_RESULT scenario,repeat,expectedNotifications,actualNotifications,expectedPushes,actualPushes,avgMs,p95Ms
+MEASURE_RESULT schedule_rollback,100,0,100,0,100,,
+MEASURE_RESULT chat_rollback,100,0,100,0,100,,
+MEASURE_RESULT approval_rollback,100,0,0,0,200,,
+MEASURE_RESULT schedule_success,100,200,200,200,200,179.2,379.9
+MEASURE_RESULT chat_success,100,100,100,100,100,451.4,784.7
+MEASURE_RESULT approval_success,100,200,200,200,200,93.8,190.2
+#
+# 추가 반복 측정 (2026-10-27, gradlew cleanTest로 캐시 없이 재실행, 같은 조건)
+before_run2 exit=0
+MEASURE_RESULT schedule_rollback,100,0,100,0,100,,
+MEASURE_RESULT chat_rollback,100,0,100,0,100,,
+MEASURE_RESULT approval_rollback,100,0,0,0,200,,
+MEASURE_RESULT schedule_success,100,200,200,200,200,163.9,284.7
+MEASURE_RESULT chat_success,100,100,100,100,100,398.1,680.9
+MEASURE_RESULT approval_success,100,200,200,200,200,90.2,181.5
+before_run3 exit=0
+MEASURE_RESULT schedule_rollback,100,0,100,0,100,,
+MEASURE_RESULT chat_rollback,100,0,100,0,100,,
+MEASURE_RESULT approval_rollback,100,0,0,0,200,,
+MEASURE_RESULT schedule_success,100,200,200,200,200,160.8,307.7
+MEASURE_RESULT chat_success,100,100,100,100,100,312.1,726.8
+MEASURE_RESULT approval_success,100,200,200,200,200,102.2,194.9

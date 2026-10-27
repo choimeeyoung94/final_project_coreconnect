@@ -9,16 +9,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.socket.WebSocketSession;
 
-import com.goodee.coreconnect.chat.event.NotificationCreatedEvent;
 import com.goodee.coreconnect.common.dto.request.NotificationRequestDTO;
 import com.goodee.coreconnect.common.entity.Notification;
-import com.goodee.coreconnect.common.notification.dto.NotificationPayload; // DTO import 추가
 import com.goodee.coreconnect.common.notification.enums.NotificationType;
 import com.goodee.coreconnect.account.repository.AccountLogRepository;
 import com.goodee.coreconnect.approval.entity.Document;
@@ -64,7 +61,6 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	private final DocumentRepository documentRepository;
 	private final MessageFileRepository messageFileRepository;
     private final ChatMessageReadStatusRepository chatMessageReadStatusRepository;
-    private final ApplicationEventPublisher eventPublisher;
     private final ChatPubSubService chatPubSubService;
     
 	@Transactional(readOnly = true)
@@ -234,40 +230,6 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	    }
 	    
 
-	    // [수정] Notification 엔티티 → NotificationPayload DTO 리스트로 변환
-	    try {
-	    	// Notification 엔티티 리스트를 NotificationPayload DTO 리스트로 변환
-	        List<NotificationPayload> payloads = notifications.stream().map(n -> {
-	        	// DTO 인스턴스 생성
-	            NotificationPayload p = new NotificationPayload();
-	            // 알림의 고유 ID 설정
-	            p.setNotificationId(n.getId());
-	            // 알림 수신자 ID 설정 (수신자 정보가 있으면 그 ID, 없으면 null)
-	            p.setRecipientId(n.getUser() != null ? n.getUser().getId() : null);
-	            // 채팅 알림일 경우 Chat 엔티티의 ID 설정, 아니면 null
-	            p.setChatId(n.getChat() != null ? n.getChat().getId() : null);
-	            // 채팅 알림일 경우 ChatRoom의 ID 설정, 아니면 null
-	            p.setRoomId((n.getChat() != null && n.getChat().getChatRoom() != null) ? n.getChat().getChatRoom().getId() : null);
-	            // 발신자 정보가 있으면 그 ID, 없으면 null
-	            p.setSenderId((n.getChat() != null && n.getChat().getSender() != null) ? n.getChat().getSender().getId() : null);
-	            // 발신자 정보가 있으면 그 이름, 없으면 null
-	            p.setSenderName((n.getChat() != null && n.getChat().getSender() != null) ? n.getChat().getSender().getName() : null);
-	            // 알림 메시지 내용 설정
-	            p.setMessage(n.getNotificationMessage());
-	            // 알림 타입(EMAIL, NOTICE, APPROVAL, SCHEDULE 등) 설정
-	            p.setNotificationType(n.getNotificationType() != null ? n.getNotificationType().name() : null);
-	            // 알림 전송 시각 설정 (값이 없으면 현재 시각으로 대체)
-	            p.setCreatedAt(n.getNotificationSentAt() != null ? n.getNotificationSentAt() : LocalDateTime.now());
-	            return p;
-	        }).collect(Collectors.toList());
-
-	        // 알림 생성 이벤트 발행 (리스너가 실시간 푸시 등 처리 가능)
-	        eventPublisher.publishEvent(new NotificationCreatedEvent(this, payloads));
-	    } catch (Exception e) {
-	    	
-	    	// 이벤트 발행 또는 변환 실패 시 경고 로그 출력
-	        log.warn("NotificationCreatedEvent publish failed: {}", e.getMessage(), e);
-	    }
 
 	    return notifications;
 	}

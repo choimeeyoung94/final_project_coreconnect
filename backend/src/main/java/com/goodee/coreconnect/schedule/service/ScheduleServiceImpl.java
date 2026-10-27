@@ -9,11 +9,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.goodee.coreconnect.common.notification.enums.NotificationType;
-import com.goodee.coreconnect.common.notification.service.NotificationService;
+import com.goodee.coreconnect.common.notification.event.NotificationRequestedEvent;
 import com.goodee.coreconnect.leave.entity.LeaveRequest;
 import com.goodee.coreconnect.leave.repository.LeaveRequestRepository;
 import com.goodee.coreconnect.schedule.dto.request.RequestScheduleDTO;
@@ -47,7 +48,7 @@ public class ScheduleServiceImpl implements ScheduleService {
   private final MeetingRoomRepository meetingRoomRepository;
   private final ScheduleCategoryRepository categoryRepository;
   private final ScheduleParticipantRepository scheduleParticipantRepository;
-  private final NotificationService notificationService;
+  private final ApplicationEventPublisher eventPublisher;
   private final LeaveRequestRepository leaveRequestRepository;
 
 
@@ -141,7 +142,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         scheduleParticipantRepository.save(member);
         
         // 알림 발송 (참여자)
-        notificationService.sendNotification(
+        eventPublisher.publishEvent(NotificationRequestedEvent.single(
                 participantUser.getId(),
                 NotificationType.SCHEDULE,
                 "[일정 등록] '" + savedSchedule.getTitle() + "' 일정에 초대되었습니다.",
@@ -149,13 +150,13 @@ public class ScheduleServiceImpl implements ScheduleService {
                 user.getId(),
                 user.getName(),
                 savedSchedule.getId()
-        );
+        ));
       }
     }
     
     // 본인(OWNER)에게도 알림 (휴가 일정은 제외)
     if (leaveRequest == null) {  
-      notificationService.sendNotification(
+      eventPublisher.publishEvent(NotificationRequestedEvent.single(
               user.getId(),
               NotificationType.SCHEDULE,
               "[일정 등록 완료] '" + savedSchedule.getTitle() + "' 일정이 생성되었습니다.",
@@ -163,7 +164,7 @@ public class ScheduleServiceImpl implements ScheduleService {
               user.getId(),
               user.getName(),
               savedSchedule.getId()
-      );
+      ));
     }
 
     return ResponseScheduleDTO.toDTO(savedSchedule);
@@ -299,7 +300,7 @@ public class ScheduleServiceImpl implements ScheduleService {
           scheduleParticipantRepository.save(newMember);
           
           // 새로 추가된 참여자에게 알림
-          notificationService.sendNotification(
+          eventPublisher.publishEvent(NotificationRequestedEvent.single(
                   newUser.getId(),
                   NotificationType.SCHEDULE,
                   "[일정 수정] '" + schedule.getTitle() + "' 일정에 새로 추가되었습니다.",
@@ -307,7 +308,7 @@ public class ScheduleServiceImpl implements ScheduleService {
                   schedule.getUser().getId(),
                   schedule.getUser().getName(),
                   schedule.getId()
-          );  
+          ));  
         }
       }
     }
@@ -316,7 +317,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     List<ScheduleParticipant> allParticipants = scheduleParticipantRepository.findByScheduleAndDeletedYnFalse(schedule);
     
     for (ScheduleParticipant p : allParticipants) {  
-      notificationService.sendNotification(
+      eventPublisher.publishEvent(NotificationRequestedEvent.single(
               p.getUser().getId(),
               NotificationType.SCHEDULE,
               "[일정 수정] '" + schedule.getTitle() + "' 일정이 변경되었습니다.",
@@ -324,7 +325,7 @@ public class ScheduleServiceImpl implements ScheduleService {
               schedule.getUser().getId(),
               schedule.getUser().getName(),
               schedule.getId()
-      );
+      ));
     }
         
     return ResponseScheduleDTO.toDTO(schedule);
