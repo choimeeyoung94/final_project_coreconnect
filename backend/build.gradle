@@ -14,6 +14,9 @@ java {
 	}
 }
 
+// Docker 29 이상과 호환되는 Testcontainers 버전 (Spring Boot 3.3.5 기본값 1.19.8은 Docker 29에서 연결 실패)
+ext['testcontainers.version'] = '1.21.4'
+
 configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
@@ -52,7 +55,11 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-	
+
+	// Testcontainers: 테스트 실행 시 Docker로 실제 MySQL·Redis를 띄워서 검증
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.testcontainers:mysql'
+
 	// JWT 설정 추가
 	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
   runtimeOnly  'io.jsonwebtoken:jjwt-impl:0.11.5'
