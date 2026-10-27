@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +42,8 @@ public class AttendanceServiceImpl implements AttendanceService {
   private final UserRepository userRepository;
   private final LeaveRequestRepository leaveRequestRepository;
   
+  private static final String CHECK_IN_UNIQUE_CONSTRAINT = "uk_attendance_user_work_date";
+  
   /** 출근 처리 */
   public void checkIn(String email) {
     LocalDate today = LocalDate.now();
@@ -70,7 +73,22 @@ public class AttendanceServiceImpl implements AttendanceService {
     attendance.setCreatedAt(now);
     attendance.setUpdatedAt(now);
     
-    attendanceRepository.save(attendance);
+    // 사전 조회를 동시에 통과한 요청은 DB 유니크 제약(uk_attendance_user_work_date)이 막음
+    // saveAndFlush로 INSERT를 즉시 실행해야 제약 위반을 이 메서드 안에서 잡을 수 있음
+    try {
+      attendanceRepository.saveAndFlush(attendance);
+    } catch (DataIntegrityViolationException e) {
+      if (isDuplicateCheckIn(e)) {
+        throw new IllegalStateException("이미 오늘 출근 기록이 있습니다.", e);
+      }
+      throw e; // 다른 제약 위반은 출근 중복으로 오해하지 않도록 그대로 던짐
+    }
+  }
+  
+  /** 출근 중복 유니크 제약(uk_attendance_user_work_date) 위반인지 확인 */
+  private boolean isDuplicateCheckIn(DataIntegrityViolationException e) {
+    String message = e.getMostSpecificCause().getMessage();
+    return message != null && message.contains(CHECK_IN_UNIQUE_CONSTRAINT);
   }
   
   /** 퇴근 처리 */

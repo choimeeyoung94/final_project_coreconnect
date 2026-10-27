@@ -1,0 +1,22 @@
+# 출근 기록 동시성 측정 원본 로그 (수정 전)
+# 측정일: 2026-10-27
+# 환경: Intel i7-8550U(4코어 8스레드), RAM 16GB, Windows 11 / MySQL 8.0 (Testcontainers 1.21.4, Docker Desktop 29.0.1)
+# 방법: AttendanceCheckInMeasurementTest(MEASURE=true), 같은 사용자로 동시 요청 10·50·100개 × 5회
+# 참고: 코드 리뷰 수정 3번(제약 이름 확인 후에만 예외 변환) 적용 전에 측정한 값
+# 열: threads(동시요청),round(회차),saved(저장건수),success(성공),alreadyCheckedIn(이미출근),incorrectResultSize(결과여러건 오류),other(기타오류),avgMs(평균ms),maxMs(최대ms)
+MEASURE_RESULT threads,round,saved,success,alreadyCheckedIn,incorrectResultSize,other,avgMs,maxMs
+MEASURE_RESULT 10,1,4,4,0,6,0,345.1,430.2
+MEASURE_RESULT 10,2,6,6,0,4,0,267.5,331.2
+MEASURE_RESULT 10,3,10,10,0,0,0,427.2,430.5
+MEASURE_RESULT 10,4,10,10,0,0,0,138.3,158.4
+MEASURE_RESULT 10,5,10,10,0,0,0,283.5,316.7
+MEASURE_RESULT 50,1,11,11,0,39,0,325.6,553.2
+MEASURE_RESULT 50,2,14,14,0,36,0,615.0,968.9
+MEASURE_RESULT 50,3,17,17,0,33,0,493.5,673.5
+MEASURE_RESULT 50,4,18,18,1,31,0,287.7,381.4
+MEASURE_RESULT 50,5,20,20,0,30,0,304.4,421.1
+MEASURE_RESULT 100,1,23,23,0,77,0,842.3,1428.1
+MEASURE_RESULT 100,2,25,25,0,75,0,457.3,563.6
+MEASURE_RESULT 100,3,27,27,0,73,0,561.3,905.1
+MEASURE_RESULT 100,4,30,30,0,70,0,333.4,574.4
+MEASURE_RESULT 100,5,30,30,1,69,0,453.7,532.5

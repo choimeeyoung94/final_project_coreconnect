@@ -16,7 +16,14 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED) 
-@Table(name = "attendance")
+@Table(
+    name = "attendance",
+    // 같은 사용자의 같은 날 출근 기록은 1건만 허용 (동시 요청이 와도 DB가 중복 저장을 막음)
+    uniqueConstraints = @UniqueConstraint(
+        name = "uk_attendance_user_work_date",
+        columnNames = {"user_id", "att_work_date"}
+    )
+)
 public class Attendance {
 
     @Id
@@ -42,7 +49,7 @@ public class Attendance {
     @JoinColumn(name = "dash_id")
     private Dashboard dashboard;
     
-    @Column(name = "att_work_date")
+    @Column(name = "att_work_date", nullable = false)
     private LocalDate workDate;
     
     @Column(name = "att_created_at")
