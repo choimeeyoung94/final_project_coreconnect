@@ -48,7 +48,7 @@ metadata:
 type: Opaque
 stringData:
   DB_USERNAME: "root"
-  DB_PASSWORD: "Chat@2024!Secure"
+  DB_PASSWORD: "<DB_PASSWORD>"
   REDIS_PASSWORD: ""
   JWT_SECRET: "your-jwt-secret-key-here"
 

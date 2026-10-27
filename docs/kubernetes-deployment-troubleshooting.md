@@ -189,8 +189,8 @@ metadata:
   namespace: chat-system
 type: Opaque
 stringData:
-  username: "yoochun8128@gmail.com"
-  password: "bgmydykazrjtohv"  # Gmail 앱 비밀번호
+  username: "<MAIL_USERNAME>"
+  password: "<MAIL_PASSWORD>"
 
 ---
 # Deployment에서 사용
