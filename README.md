@@ -7,6 +7,41 @@ Spring Boot 기반 백엔드로 핵심 기능을 구현했고, 성능 병목을 
 
 ---
 
+## 폴더 구조
+
+```
+final_project_coreconnect/
+├── backend/             Spring Boot 서버 (API, WebSocket, DB 접근)
+├── frontend/            React + Vite 화면
+├── docs/                설계·문제 해결·성능 분석 문서
+├── performance-tests/   k6 부하 테스트 (채팅·이메일·알림·N+1 측정)
+├── tests/k6/            k6 부하·스트레스 테스트 (k6 Cloud 포함)
+├── k8s/                 Kubernetes(K3s) 배포 설정
+├── monitoring/          Prometheus 수집 설정 + Grafana 연결 설정
+├── grafana/             부하 테스트용 Grafana 대시보드
+├── mysql/               MySQL Master-Slave 복제 설정 스크립트
+├── nginx/               로컬 테스트용 Nginx 로드밸런서 설정
+├── scripts/             배포·테스트 사용자 생성 스크립트
+└── .github/workflows/   GitHub Actions CI/CD
+```
+
+| 폴더 | 내용 | 주요 파일 |
+|---|---|---|
+| `backend/` | Spring Boot 3.3 + JPA 서버. 채팅·이메일·전자결재·일정·근태·알림 기능 | `build.gradle`, `src/`, `Dockerfile`, `로컬_실행_가이드.md` |
+| `frontend/` | React 19 + Vite로 만든 화면 | `package.json`, `vite.config.js`, `src/`, `Dockerfile` |
+| `docs/` | 아키텍처 설계, N+1·Redis 캐싱·Kubernetes CI/CD 정리, 부하 테스트 계획·분석, 면접 대비 문서 | `N+1_문제_해결_상세_가이드.md`, `Redis_캐싱_전략_채팅.md`, `PERFORMANCE_ANALYSIS.md`, `KUBERNETES_CICD_완성.md` |
+| `performance-tests/` | k6 부하 테스트 스크립트와 결과 분석. 채팅방 목록 N+1, 대량 채팅, STOMP 팬아웃, 이메일, 알림 | `chatroom-list-n-plus-1-test.js`, `massive-chat-load-test.js`, `k6-stomp-fanout-test.js`, `run-all-tests.sh` |
+| `tests/k6/` | k6 부하·스트레스·스파이크 테스트 (k6 Cloud 실행 포함)와 실행 가이드 | `chat-stress-test-cloud.js`, `integrated-stress-test-cloud.js`, `common/`, `QUICK_START.md` |
+| `k8s/` | Kubernetes(K3s) 배포 매니페스트: 네임스페이스, MySQL·Redis, 채팅 서버, HPA, PDB, Ingress, Secret 템플릿 ⚠️ AWS EC2 기반 배포용 — **현재 비활성화, GCP로 이전 예정** | `00-namespace.yaml`, `03-chat-server.yaml`, `04-hpa.yaml`, `ingress.yaml`, `secret-template.yaml`, `README.md` |
+| `monitoring/` | Prometheus 메트릭 수집 설정과 Grafana 데이터소스·대시보드 연결 설정 | `prometheus.yml`, `grafana/datasource.yml`, `grafana/dashboard.yml` |
+| `grafana/` | 부하 테스트 결과를 보는 Grafana 대시보드(InfluxDB 연동) | `dashboards/k6-massive-chat-dashboard.json`, `provisioning/influxdb.yml` |
+| `mysql/` | MySQL Master-Slave 복제 계정 생성·설정·확인 스크립트 | `init/01-create-replication-user.sql`, `scripts/setup-replication.sh`, `scripts/check-replication.sh` |
+| `nginx/` | 로컬에서 서버 여러 대(3대)를 띄워 시험할 때 쓰는 로드밸런서 설정 | `nginx-3servers.conf`, `nginx.conf` |
+| `scripts/` | 무중단(Rolling Update) 배포 스크립트, K8s CI/CD 초기 설정, 부하 테스트용 사용자 생성 SQL | `deploy.sh`, `setup-k8s-cicd.sh`, `create-test-users.sql` |
+| `.github/workflows/` | GitHub Actions CI/CD: 빌드 검사 → Docker 이미지 빌드·푸시(AWS ECR) → Kubernetes 배포 ⚠️ AWS 이미지 빌드·배포 단계는 **현재 비활성화, GCP로 이전 예정** (빌드 검사만 동작) | `cicd.yml` (`cicd.yml.backup`은 이전 버전 백업) |
+
+---
+
 ## 문제-해결-성과 TOP10
 
 ### 1) 채팅방 목록 조회 N+1 문제
