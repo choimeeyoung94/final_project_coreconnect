@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -69,6 +70,7 @@ import com.goodee.coreconnect.common.entity.Notification;
 import com.goodee.coreconnect.common.exception.ChatNotFoundException;
 import com.goodee.coreconnect.common.notification.dto.NotificationDTO;
 import com.goodee.coreconnect.common.notification.enums.NotificationType;
+import com.goodee.coreconnect.common.notification.event.NotificationRequestedEvent;
 import com.goodee.coreconnect.common.notification.service.NotificationService;
 import com.goodee.coreconnect.common.notification.service.WebSocketDeliveryService;
 import com.goodee.coreconnect.common.service.S3Service;
@@ -95,6 +97,7 @@ public class ChatMessageController {
     private final NotificationRepository notificationRepository;
     private final ChatMessageReadStatusRepository chatMessageReadStatusRepository;
     private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
     private final WebSocketDeliveryService webSocketDeliveryService;
     private final S3Service s3Service;
     private final ChatPubSubService chatPubSubService;
@@ -414,7 +417,7 @@ public class ChatMessageController {
 	                            recipientIds.size(), connectedUserIds.size(), notificationMessage);
 	                    
 	                    // 여러 참여자에게 알림 전송 (접속 중인 사용자 제외)
-	                    notificationService.sendNotificationToUsers(
+	                    eventPublisher.publishEvent(NotificationRequestedEvent.toUsers(
 	                        recipientIds,
 	                        NotificationType.CHAT,
 	                        notificationMessage,
@@ -424,7 +427,7 @@ public class ChatMessageController {
 	                        authUser.getName(),  // senderName
 	                        null,  // boardId
 	                        null   // scheduleId
-	                    );
+	                    ));
 	                    
 	                    log.info("[sendMessage] 알림 전송 완료 - recipientCount: {} (접속 중인 사용자 제외)", recipientIds.size());
 	                }
@@ -871,7 +874,7 @@ public class ChatMessageController {
 							recipientIds.size(), connectedUserIds.size(), notificationMessage);
 					
 					// 여러 참여자에게 알림 전송 (접속 중인 사용자 제외)
-					notificationService.sendNotificationToUsers(
+					eventPublisher.publishEvent(NotificationRequestedEvent.toUsers(
 						recipientIds,
 						NotificationType.CHAT,
 						notificationMessage,
@@ -881,7 +884,7 @@ public class ChatMessageController {
 						sender.getName(),  // senderName
 						null,  // boardId
 						null   // scheduleId
-					);
+					));
 					
 					log.info("[uploadFileMessage] 알림 전송 완료 - recipientCount: {} (접속 중인 사용자 제외)", recipientIds.size());
 				}
@@ -1116,7 +1119,7 @@ public class ChatMessageController {
 							recipientIds.size(), connectedUserIds.size(), notificationMessage);
 					
 					// 여러 참여자에게 알림 전송 (접속 중인 사용자 제외)
-					notificationService.sendNotificationToUsers(
+					eventPublisher.publishEvent(NotificationRequestedEvent.toUsers(
 						recipientIds,
 						NotificationType.CHAT,
 						notificationMessage,
@@ -1126,7 +1129,7 @@ public class ChatMessageController {
 						sender.getName(),  // senderName
 						null,  // boardId
 						null   // scheduleId
-					);
+					));
 					
 					log.info("[uploadMultipleFileMessage] 알림 전송 완료 - recipientCount: {} (접속 중인 사용자 제외)", recipientIds.size());
 				}
@@ -1341,7 +1344,7 @@ public class ChatMessageController {
                     // 초대 알림 전송
                     try {
                         String notificationMsg = chatRoom.getRoomName() + " 채팅방에 " + invited.getName() + "님이 초대되었습니다";
-                        notificationService.sendNotification(
+                        eventPublisher.publishEvent(NotificationRequestedEvent.single(
                             invited.getId(),
                             NotificationType.CHAT,
                             notificationMsg,
@@ -1350,7 +1353,7 @@ public class ChatMessageController {
                             inviter.getId(),
                             inviter.getName(),
                             null
-                        );
+                        ));
                         log.info("[inviteUsersToChatRoom] 초대 알림 전송 성공 - userId: {}", invited.getId());
                     } catch (Exception notifException) {
                         log.error("[inviteUsersToChatRoom] 초대 알림 전송 중 오류 - userId: {}, error: {}", 

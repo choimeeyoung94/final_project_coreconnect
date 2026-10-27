@@ -40,6 +40,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -47,7 +48,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.goodee.coreconnect.common.notification.enums.NotificationType;
-import com.goodee.coreconnect.common.notification.service.NotificationService;
+import com.goodee.coreconnect.common.notification.event.NotificationRequestedEvent;
 import com.goodee.coreconnect.common.service.S3Service;
 import com.goodee.coreconnect.email.dto.request.DeleteMailsRequest;
 import com.goodee.coreconnect.email.dto.request.EmailAttachmentRequestDTO;
@@ -103,7 +104,7 @@ public class EmailServiceImpl implements EmailService {
 	private final MailRepository mailRepository;
 	// SendGridEmailSender bean 주입 (생성자 주입 위해 final)
 	private final SendGridEmailSender sendGridEmailSender;
-	private final NotificationService notificationService;
+	private final ApplicationEventPublisher eventPublisher;
 	private final MailUserVisibilityRepository mailUserVisibilityRepository; // 추가
 	
 	private String normalizeSearchType(String searchType) {
@@ -633,7 +634,7 @@ public class EmailServiceImpl implements EmailService {
                         if (message.length() > 255) {
                             message = message.substring(0, 252) + "...";
                         }
-                        notificationService.sendNotification(
+                        eventPublisher.publishEvent(NotificationRequestedEvent.single(
                                 rec.getUserId(),
                                 NotificationType.EMAIL,
                                 message,
@@ -642,7 +643,7 @@ public class EmailServiceImpl implements EmailService {
                                 savedEmail.getSenderId(),
                                 senderName,
                                 null
-                        );
+                        ));
 
                         // mark emailIsAlarmSent true to avoid duplicate alarms
                         rec.setEmailIsAlarmSent(true);
@@ -669,7 +670,7 @@ public class EmailServiceImpl implements EmailService {
                     if (senderMsg.length() > 255) {
                         senderMsg = senderMsg.substring(0, 252) + "...";
                     }
-                    notificationService.sendNotification(
+                    eventPublisher.publishEvent(NotificationRequestedEvent.single(
                             savedEmail.getSenderId(),
                             NotificationType.EMAIL,
                             senderMsg,
@@ -678,7 +679,7 @@ public class EmailServiceImpl implements EmailService {
                             savedEmail.getSenderId(),
                             senderName,
                             null
-                    );
+                    ));
                 } catch (Exception ex) {
                     log.warn("[sendEmail] failed to notify sender id={}, err={}", savedEmail.getSenderId(), ex.getMessage(), ex);
                 }

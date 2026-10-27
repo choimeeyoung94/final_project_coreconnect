@@ -1,0 +1,33 @@
+# 유령 알림 측정 원본 로그 (수정 후)
+# 측정일: 2026-10-27
+# 환경: Intel i7-8550U(4코어 8스레드), RAM 16GB, Windows 11 / MySQL 8.0 + Redis 7 (Testcontainers 1.21.4, Docker Desktop 29.0.1)
+# 방법: GhostNotificationMeasurementTest(MEASURE=true)만 단독 실행 (수정 전과 같은 조건), 시나리오마다 100회 반복, 한 번에 요청 1개(순차)
+# 열: scenario(시나리오),repeat(반복),expectedNotifications(기대 알림 행),actualNotifications(실제 알림 행),expectedPushes(기대 전송),actualPushes(실제 전송),avgMs(평균ms),p95Ms(p95 ms)
+# 롤백 시나리오는 기대값 0 — actual이 0보다 크면 유령 알림/전송
+MEASURE_RESULT scenario,repeat,expectedNotifications,actualNotifications,expectedPushes,actualPushes,avgMs,p95Ms
+MEASURE_RESULT schedule_rollback,100,0,0,0,0,,
+MEASURE_RESULT chat_rollback,100,0,0,0,0,,
+MEASURE_RESULT approval_rollback,100,0,0,0,0,,
+MEASURE_RESULT schedule_success,100,200,200,200,200,144.4,258.5
+MEASURE_RESULT chat_success,100,100,100,100,100,233.4,435.1
+MEASURE_RESULT approval_success,100,200,200,200,200,74.7,152.8
+#
+# 참고(비교에서 제외): 첫 번째 수정 후 측정은 출근·유령 알림 테스트와 같은 실행에서 함께 돌려(스프링 컨텍스트 2개 동시 실행) 조건이 달랐음.
+# 그때 값: 건수는 위와 동일(롤백 0/0, 정상 200/200·100/100·200/200), 시간은 schedule_success 657.1/2091.0ms, chat_success 417.3/879.6ms, approval_success 105.3/200.9ms
+#
+# 추가 반복 측정 (2026-10-27, gradlew cleanTest로 캐시 없이 재실행, 같은 조건)
+# (중간에 Gradle 캐시로 실제 실행되지 않은 2회는 값이 1회차와 완전히 같아서 제외함)
+after_run2 exit=0
+MEASURE_RESULT schedule_rollback,100,0,0,0,0,,
+MEASURE_RESULT chat_rollback,100,0,0,0,0,,
+MEASURE_RESULT approval_rollback,100,0,0,0,0,,
+MEASURE_RESULT schedule_success,100,200,200,200,200,279.8,564.1
+MEASURE_RESULT chat_success,100,100,100,100,100,263.7,548.5
+MEASURE_RESULT approval_success,100,200,200,200,200,95.8,200.5
+after_run3 exit=0
+MEASURE_RESULT schedule_rollback,100,0,0,0,0,,
+MEASURE_RESULT chat_rollback,100,0,0,0,0,,
+MEASURE_RESULT approval_rollback,100,0,0,0,0,,
+MEASURE_RESULT schedule_success,100,200,200,200,200,223.9,406.4
+MEASURE_RESULT chat_success,100,100,100,100,100,398.3,769.5
+MEASURE_RESULT approval_success,100,200,200,200,200,178.1,525.5
