@@ -370,8 +370,8 @@ public class ChatRoomCacheService {
 
 ```bash
 # 1. 환경변수 설정
-export MYSQL_ROOT_PASSWORD="Chat@2024!Secure"
-export MYSQL_REPLICATION_PASSWORD="Repl@2024!Pass"
+export MYSQL_ROOT_PASSWORD="<DB_ROOT_PASSWORD>"
+export MYSQL_REPLICATION_PASSWORD="<DB_REPLICATION_PASSWORD>"
 
 # 2. 컨테이너 시작
 docker-compose up -d mysql-master mysql-slave-1 mysql-slave-2

@@ -55,7 +55,7 @@ spec:
         - name: MYSQL_USERNAME
           value: "root"
         - name: MYSQL_PASSWORD
-          value: "Chat@2024!Secure"
+          value: "<DB_ROOT_PASSWORD>"
         - name: JAVA_OPTS
           value: "-Xms1g -Xmx2g -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
         ports:

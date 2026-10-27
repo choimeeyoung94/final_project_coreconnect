@@ -344,10 +344,10 @@ metadata:
 type: Opaque
 data:
   # Base64 encoded values
-  # root-password: "Chat@2024!Secure" → Q2hhdEAyMDI0IVNlY3VyZQ==
-  # replication-password: "Repl@2024!Pass" → UmVwbEAyMDI0IVBhc3M=
-  root-password: Q2hhdEAyMDI0IVNlY3VyZQ==
-  replication-password: UmVwbEAyMDI0IVBhc3M=
+  # root-password: "<DB_ROOT_PASSWORD>" → (base64 인코딩 값)
+  # replication-password: "<DB_REPLICATION_PASSWORD>" → (base64 인코딩 값)
+  root-password: <BASE64_DB_ROOT_PASSWORD>
+  replication-password: <BASE64_DB_REPLICATION_PASSWORD>
 
 ---
 # ================================================================
@@ -362,7 +362,7 @@ data:
   01-init-replication.sql: |
     -- Master에서 실행되는 초기화 스크립트
     -- Replication 사용자 생성
-    CREATE USER IF NOT EXISTS 'repl_user'@'%' IDENTIFIED BY 'Repl@2024!Pass';
+    CREATE USER IF NOT EXISTS 'repl_user'@'%' IDENTIFIED BY '<DB_REPLICATION_PASSWORD>';
     GRANT REPLICATION SLAVE ON *.* TO 'repl_user'@'%';
     
     -- 데이터베이스 생성

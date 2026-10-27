@@ -295,7 +295,7 @@ The key must be at least 256 bits (32 bytes) long for HMAC-SHA256.
 **해결 방법:**
 ```yaml
 # 64자 JWT_SECRET_KEY 생성
-JWT_SECRET_KEY=PTI6BhDdXJzKjL3Z6RWZvQ9Fe31kTv6lgxPlDN/Zu10nOM+fZ7tBMpMae4u9qkrhYgWerrOvLpbQleEjGTFN2Q==
+JWT_SECRET_KEY=<JWT_SECRET>
 
 # Secret 업데이트
 kubectl create secret generic chat-secret \
@@ -324,8 +324,8 @@ Error: jakarta.mail.AuthenticationFailedException:
 ```yaml
 # Secret에 메일 정보 추가
 kubectl create secret generic chat-secret \
-  --from-literal=MAIL_USERNAME=yoochun8128@gmail.com \
-  --from-literal=MAIL_PASSWORD=bgmydykgzrjftohv \
+  --from-literal=MAIL_USERNAME=<MAIL_USERNAME> \
+  --from-literal=MAIL_PASSWORD=<MAIL_PASSWORD> \
   ...
 
 # Deployment에 환경 변수 매핑

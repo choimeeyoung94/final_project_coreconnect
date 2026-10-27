@@ -8,7 +8,7 @@
 
 set -e
 
-ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-"Chat@2024!Secure"}
+ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-"<DB_ROOT_PASSWORD>"}
 
 echo "================================================================"
 echo "🔍 MySQL Replication 상태 모니터링"

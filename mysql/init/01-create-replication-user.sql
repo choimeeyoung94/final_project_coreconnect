@@ -5,7 +5,7 @@
 -- ================================================================
 
 -- Replication 전용 사용자 생성
-CREATE USER IF NOT EXISTS 'repl_user'@'%' IDENTIFIED BY 'Repl@2024!Pass';
+CREATE USER IF NOT EXISTS 'repl_user'@'%' IDENTIFIED BY '<DB_REPLICATION_PASSWORD>';
 
 -- Replication 권한 부여
 GRANT REPLICATION SLAVE ON *.* TO 'repl_user'@'%';
