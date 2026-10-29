@@ -149,7 +149,8 @@ public class EmailController {
     // 이메일 상세조회
     @Operation(summary = "발송된 이메일 상세조회", description = "발송된 이메일을 상세조회 합니다.")
     @GetMapping("/{emailId}")
-    public ResponseEntity<ResponseDTO<EmailResponseDTO>> getEmailDetail(@PathVariable("emailId") Integer emailId,  @RequestParam("userEmail") String userEmail ) {
+    public ResponseEntity<ResponseDTO<EmailResponseDTO>> getEmailDetail(@PathVariable("emailId") Integer emailId,  @AuthenticationPrincipal CustomUserDetails loginUser ) {
+        String userEmail = loginUser.getEmail(); // 요청 값이 아닌 로그인 사용자 기준
         EmailResponseDTO result = emailService.getEmailDetail(emailId, userEmail);
         return ResponseEntity.ok(ResponseDTO.success(result, "이메일 상세조회 성공"));
     }
@@ -158,13 +159,14 @@ public class EmailController {
     @Operation(summary = "수신된 이메일 조회", description = "수신된 이메일을 조회합니다.")
     @GetMapping("/inbox")
     public ResponseEntity<ResponseDTO<Page<EmailResponseDTO>>> getInbox(
-    		@RequestParam("userEmail") String userEmail, /* 이름 명확히 */
+    		@AuthenticationPrincipal CustomUserDetails loginUser,
     	    @RequestParam(value = "page", defaultValue = "0") int page,
     	    @RequestParam(value = "size", defaultValue = "10") int size,
     	    @RequestParam(value = "filter", required = false) String filter,
     	    @RequestParam(value = "searchType", required = false) String searchType,
     	    @RequestParam(value = "keyword", required = false) String keyword
     ) {
+        String userEmail = loginUser.getEmail(); // 요청 값이 아닌 로그인 사용자 기준
     	log.info("[EmailController] getInbox 호출 - userEmail: {}, page: {}, size: {}, filter: {}, searchType: {}, keyword: {}", 
     			userEmail, page, size, filter, searchType, keyword);
     	// filter: null or "today"/"unread"
@@ -179,12 +181,13 @@ public class EmailController {
     @Operation(summary = "발신된 이메일 조회", description = "발신된 이메일을 조회합니다.")
     @GetMapping("/sentbox")
     public ResponseEntity<ResponseDTO<Page<EmailResponseDTO>>> getSentbox(
-    	@RequestParam("userEmail") String userEmail,
+    	@AuthenticationPrincipal CustomUserDetails loginUser,
         @RequestParam(value = "page", defaultValue = "0") int page,
         @RequestParam(value = "size", defaultValue = "1") int size,
         @RequestParam(value = "searchType", required = false) String searchType,
         @RequestParam(value = "keyword", required = false) String keyword
     ) {
+        String userEmail = loginUser.getEmail(); // 요청 값이 아닌 로그인 사용자 기준
     	log.info("userEmail: {}", userEmail);
         Page<EmailResponseDTO> result = emailService.getSentbox(userEmail, page, size, searchType, keyword);
         return ResponseEntity.ok(ResponseDTO.success(result, "보낸메일함 조회 성공"));
@@ -194,18 +197,19 @@ public class EmailController {
     @Operation(summary = "반송된 이메일 조회", description = "반송된 이메일을 조회합니다.")
     @GetMapping("/bounce")
     public ResponseEntity<ResponseDTO<Page<EmailResponseDTO>>> getBounceBox(
-            @RequestParam Integer userId,
+            @AuthenticationPrincipal CustomUserDetails loginUser,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "1") int size
     ) {
-        Page<EmailResponseDTO> result = emailService.getBounceBox(userId, page, size);
+        Page<EmailResponseDTO> result = emailService.getBounceBox(loginUser.getId(), page, size);
         return ResponseEntity.ok(ResponseDTO.success(result, "반송함 조회 성공"));
     }
     
     // 받은메일함 전체 개수만 반환 (프론트 뱃지 Badge 표시용)
     @Operation(summary = "받은메일함 전체 개수", description = "받은메일함 전체 메일 개수를 반환합니다.")
     @GetMapping("/inbox/count")
-    public ResponseEntity<ResponseDTO<Integer>> getInboxCount(@RequestParam("userEmail") String userEmail) {
+    public ResponseEntity<ResponseDTO<Integer>> getInboxCount(@AuthenticationPrincipal CustomUserDetails loginUser) {
+        String userEmail = loginUser.getEmail(); // 요청 값이 아닌 로그인 사용자 기준
         int inboxCount = emailRecipientRepository.countInboxMails(userEmail);
         return ResponseEntity.ok(ResponseDTO.success(inboxCount, "받은메일함 전체 개수 조회 성공"));
     }
@@ -213,7 +217,8 @@ public class EmailController {
     // 받은메일함 '안읽은 메일' 개수만 반환 (프론트 뱃지 Badge 표시용)
     @Operation(summary = "받은메일함 안읽은 메일 개수", description = "받은메일함 중 안읽은 메일 개수를 반환합니다.")
     @GetMapping("/inbox/unread-count")
-    public ResponseEntity<ResponseDTO<Integer>> getUnreadInboxCount(@RequestParam("userEmail") String userEmail) {
+    public ResponseEntity<ResponseDTO<Integer>> getUnreadInboxCount(@AuthenticationPrincipal CustomUserDetails loginUser) {
+        String userEmail = loginUser.getEmail(); // 요청 값이 아닌 로그인 사용자 기준
         int unreadCount = emailRecipientRepository.countUnreadInboxMails(userEmail);
         return ResponseEntity.ok(ResponseDTO.success(unreadCount, "안읽은 메일 개수 조회 성공"));
     }
@@ -221,7 +226,8 @@ public class EmailController {
     // 중요 메일 개수만 반환 (프론트 뱃지 Badge 표시용) - 수신한 중요 메일 + 발신한 중요 메일
     @Operation(summary = "중요 메일 개수", description = "중요 메일 개수를 반환합니다 (수신 + 발신).")
     @GetMapping("/favorite/count")
-    public ResponseEntity<ResponseDTO<Integer>> getFavoriteCount(@RequestParam("userEmail") String userEmail) {
+    public ResponseEntity<ResponseDTO<Integer>> getFavoriteCount(@AuthenticationPrincipal CustomUserDetails loginUser) {
+        String userEmail = loginUser.getEmail(); // 요청 값이 아닌 로그인 사용자 기준
         // 수신한 중요 메일 개수
         int receivedFavoriteCount = emailRecipientRepository.countFavoriteInboxMails(userEmail);
         
@@ -244,9 +250,10 @@ public class EmailController {
     @PatchMapping("/{emailId}/read")
     public ResponseEntity<ResponseDTO<Boolean>> markMailAsRead(
             @PathVariable("emailId") Integer emailId,
-            @RequestBody(required = true) MarkMailReadRequestDTO request
+            @RequestBody(required = true) MarkMailReadRequestDTO request,
+            @AuthenticationPrincipal CustomUserDetails loginUser
     ) {
-        boolean updated = emailService.markMailAsRead(emailId, request.getUserEmail());
+        boolean updated = emailService.markMailAsRead(emailId, loginUser.getEmail());
         return ResponseEntity.ok(ResponseDTO.success(updated, updated ? "메일 읽음 처리 성공" : "이미 읽은 메일"));
     }
 
@@ -255,9 +262,10 @@ public class EmailController {
     @PatchMapping("/{emailId}/favorite")
     public ResponseEntity<ResponseDTO<Boolean>> toggleFavoriteStatus(
             @PathVariable("emailId") Integer emailId,
-            @RequestBody(required = true) ToggleFavoriteRequestDTO request
+            @RequestBody(required = true) ToggleFavoriteRequestDTO request,
+            @AuthenticationPrincipal CustomUserDetails loginUser
     ) {
-        boolean newStatus = emailService.toggleFavoriteStatus(emailId, request.getUserEmail());
+        boolean newStatus = emailService.toggleFavoriteStatus(emailId, loginUser.getEmail());
         return ResponseEntity.ok(ResponseDTO.success(newStatus, newStatus ? "중요 메일로 설정되었습니다." : "중요 메일 해제되었습니다."));
     }
     
@@ -274,10 +282,14 @@ public class EmailController {
 //    }
     
     @GetMapping("/file/download/{fileId}")
-    public ResponseEntity<InputStreamResource> downloadAttachment(@PathVariable("fileId") Integer fileId, HttpServletResponse response) {
+    public ResponseEntity<InputStreamResource> downloadAttachment(@PathVariable("fileId") Integer fileId,
+            @AuthenticationPrincipal CustomUserDetails loginUser, HttpServletResponse response) {
         // 1. DB에서 첨부파일 엔티티 조회
         EmailFile file = emailFileRepository.findById(fileId)
             .orElseThrow(() -> new RuntimeException("첨부파일 정보를 찾을 수 없습니다."));
+
+        // 1-1. 첨부가 달린 메일의 발신자·수신자만 다운로드 가능 (아니면 403)
+        emailService.assertCanView(file.getEmail(), loginUser.getEmail());
 
         // 2. 실파일(InputStream 등) 읽기 (S3스토리지/로컬 구현에 따라 분기)
         InputStream inputStream = emFileStorageService.loadFileAsInputStream(file);
@@ -423,10 +435,11 @@ public class EmailController {
  // 임시보관함 목록
     @GetMapping("/draftbox")
     public ResponseEntity<ResponseDTO<Page<EmailResponseDTO>>> getDraftbox(
-        @RequestParam("userEmail") String userEmail,
+        @AuthenticationPrincipal CustomUserDetails loginUser,
         @RequestParam(value="page", defaultValue="0") int page,
         @RequestParam(value="size", defaultValue="10") int size
     ) {
+        String userEmail = loginUser.getEmail(); // 요청 값이 아닌 로그인 사용자 기준
         log.info("[EmailController] getDraftbox 호출 - userEmail: {}, page: {}, size: {}", userEmail, page, size);
         Page<EmailResponseDTO> result = emailService.getDraftbox(userEmail, page, size);
         log.info("[EmailController] getDraftbox 결과 - totalElements: {}, content size: {}", 
@@ -436,7 +449,8 @@ public class EmailController {
 
     // 임시보관함 개수 (Redis 활용)
     @GetMapping("/draftbox/count")
-    public ResponseEntity<ResponseDTO<Long>> getDraftCount(@RequestParam String userEmail) {
+    public ResponseEntity<ResponseDTO<Long>> getDraftCount(@AuthenticationPrincipal CustomUserDetails loginUser) {
+        String userEmail = loginUser.getEmail(); // 요청 값이 아닌 로그인 사용자 기준
     	 log.debug("userEmail = {}", userEmail); 
         long count = emailService.getDraftCount(userEmail); // 내부에 Redis/caching 사용
         return ResponseEntity.ok(ResponseDTO.success(count, "임시보관함 개수 조회 성공"));
@@ -449,8 +463,9 @@ public class EmailController {
     @GetMapping("/draft/{draftId}")
     public ResponseEntity<ResponseDTO<EmailResponseDTO>> getDraftDetail(
             @PathVariable("draftId") Integer draftId,
-            @RequestParam("userEmail") String userEmail
+            @AuthenticationPrincipal CustomUserDetails loginUser
     ) {
+        String userEmail = loginUser.getEmail(); // 요청 값이 아닌 로그인 사용자 기준
         // 서비스에서 상세 데이터 조회 (소유자 검증 포함)
         EmailResponseDTO dto = emailService.getDraftMailDetail(draftId, userEmail);
         // 프론트에서 바로 사용 가능하도록 응답
@@ -462,9 +477,10 @@ public class EmailController {
      * [프론트에서 deleteDraftMail 호출시 실행됨]
      */
     @DeleteMapping("/draft/delete/{draftId}")
-    public ResponseEntity<Void> deleteDraftMail(@PathVariable("draftId") Integer draftId) {
+    public ResponseEntity<Void> deleteDraftMail(@PathVariable("draftId") Integer draftId,
+            @AuthenticationPrincipal CustomUserDetails loginUser) {
     	log.info("draftId: {}", draftId);
-        emailService.deleteDraftMail(draftId);
+        emailService.deleteDraftMail(draftId, loginUser.getId());
         return ResponseEntity.noContent().build();
     }
     
@@ -556,10 +572,11 @@ public class EmailController {
     //  휴지통 목록 (페이징)
     @GetMapping("/trash")
     public ResponseEntity<ResponseDTO<Page<EmailResponseDTO>>> getTrash(
-            @RequestParam("userEmail") String userEmail,
+            @AuthenticationPrincipal CustomUserDetails loginUser,
             @RequestParam(value="page", defaultValue="0") int page,
             @RequestParam(value="size", defaultValue="10") int size
     ) {
+        String userEmail = loginUser.getEmail(); // 요청 값이 아닌 로그인 사용자 기준
     	
         Page<EmailResponseDTO> result = emailService.getTrashMails(userEmail, page, size);
         return ResponseEntity.ok(ResponseDTO.success(result, "휴지통 조회 성공"));
@@ -568,10 +585,11 @@ public class EmailController {
     //  예약 메일 목록 (페이징) - scheduled mails where scheduledAt > now and status = SCHEDULED
     @GetMapping("/reserved")
     public ResponseEntity<ResponseDTO<Page<EmailResponseDTO>>> getScheduled(
-            @RequestParam("userEmail") String userEmail,
+            @AuthenticationPrincipal CustomUserDetails loginUser,
             @RequestParam(value="page", defaultValue="0") int page,
             @RequestParam(value="size", defaultValue="10") int size
     ) {
+        String userEmail = loginUser.getEmail(); // 요청 값이 아닌 로그인 사용자 기준
         Page<EmailResponseDTO> result = emailService.getScheduledMails(userEmail, page, size);
         return ResponseEntity.ok(ResponseDTO.success(result, "예약메일 조회 성공"));
     }
@@ -579,12 +597,13 @@ public class EmailController {
     // 중요 메일 목록 조회
     @GetMapping("/favorite")
     public ResponseEntity<ResponseDTO<Page<EmailResponseDTO>>> getFavoriteMails(
-            @RequestParam("userEmail") String userEmail,
+            @AuthenticationPrincipal CustomUserDetails loginUser,
             @RequestParam(value="page", defaultValue="0") int page,
             @RequestParam(value="size", defaultValue="10") int size,
             @RequestParam(value="searchType", required=false) String searchType,
             @RequestParam(value="keyword", required=false) String keyword
     ) {
+        String userEmail = loginUser.getEmail(); // 요청 값이 아닌 로그인 사용자 기준
         Page<EmailResponseDTO> result = emailService.getFavoriteMails(userEmail, page, size, searchType, keyword);
         return ResponseEntity.ok(ResponseDTO.success(result, "중요 메일 조회 성공"));
     }

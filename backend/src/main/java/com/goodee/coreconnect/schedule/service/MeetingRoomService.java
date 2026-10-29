@@ -27,7 +27,7 @@ public interface MeetingRoomService {
   List<MeetingRoomDTO> getAllRooms();
   
   /** 특정 회의실의 예약 일정 조회 */
-  List<ResponseScheduleDTO> getSchedulesByMeetingRoom(Integer meetingRoomId);
+  List<ResponseScheduleDTO> getSchedulesByMeetingRoom(Integer meetingRoomId, String viewerEmail);
   
   /** 특정 시간대에 단일 회의실 예약 가능 여부 검사 */
   boolean isMeetingRoomAvailable(Integer meetingRoomId, LocalDateTime start, LocalDateTime end, Integer scheduleId);

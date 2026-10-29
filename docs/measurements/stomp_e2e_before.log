@@ -1,0 +1,12 @@
+# StompSubscriptionE2ETest on pre-fix code d8cfdf35 (audit_wt), test file copied from fix/authz-idor
+# tests=5 failures=4 errors=0 time=9.193
+PASS 캐시가 채워진 뒤 다른 서버에서 초대된 것처럼 DB에만 참여자가 추가돼도, 새 참여자 D는 바로 메시지를 받는다 (유실 없음)
+FAIL [(나)] 남의 방 구독이 거부돼도 연결은 유지되고, 이미 구독한 내 방 메시지는 계속 받는다
+    org.opentest4j.AssertionFailedError: [남의 방 메시지 수신]  | expected: null |  but was: "남의방-2f5a134a-490e-4760-b262-f0d73a4d20bc"
+FAIL A가 SEND를 /topic/chat.room.{id}로 직접 보내도 방 구독자에게 전달되지 않는다 (서버 메시지는 전달됨)
+    org.opentest4j.AssertionFailedError: [B가 처음 받은 메시지 (위조가 막혔다면 서버 메시지)]  | expected: "서버-46344a8f-7639-4433-aec2-95b8e60c1a12" |  but was: "위조-81be1d54-03dd-4a3f-8c56-fb67b378b173"
+FAIL 참여자 캐시가 채워진 뒤에 B가 나가도, 같은 서버에서는 나간 직후 메시지부터 B에게 가지 않는다 (캐시 즉시 비움)
+    org.opentest4j.AssertionFailedError: [나간 B가 받은 메시지]  | expected: null |  but was: "나간직후-fbed8494-1bc4-472f-89ab-0cf4fc334928"
+FAIL 방에서 나간 B의 기존 구독으로는 그 방의 새 메시지가 더 이상 오지 않는다
+    org.opentest4j.AssertionFailedError: [나간 B가 받은 메시지]  | expected: null |  but was: "나간뒤-bc6c8aed-7279-420b-a65e-f87b476f1354"
+done

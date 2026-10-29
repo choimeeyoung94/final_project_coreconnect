@@ -8,6 +8,7 @@ import ChatDetailPane from "../components/ChatDetailPane";
 import ChatRoomCreateDialog from "../components/ChatRoomCreateDialog";
 import ToastList from "../components/ToastList";
 import { UserProfileContext } from "../../../App";
+import { useRealtimeNotifications } from "../../notification/RealtimeNotificationProvider";
 
 import {
   markRoomMessagesAsRead,
@@ -95,6 +96,7 @@ export default function ChatLayout() {
   const { userProfile } = useContext(UserProfileContext) || {};
   const [roomList, setRoomList] = useState([]); // 전체 채팅방 목록
   const [selectedRoomId, setSelectedRoomId] = useState(null); // 현재 선택된 방ID
+  const { removeRoomNotifications } = useRealtimeNotifications();
   const [messages, setMessages] = useState([]); // 현재 방 메시지 목록
   const [tabIdx, setTabIdx] = useState(0); // 탭 인덱스
   const [toastRooms, setToastRooms] = useState([]); // 토스트 알림 Rooms
@@ -1186,7 +1188,10 @@ export default function ChatLayout() {
       
       // 채팅방 목록에서 제거
       setRoomList(prev => prev.filter(room => room.roomId !== roomId));
-      
+
+      // 이 탭의 실시간 알림 목록에서 그 방 알림 제거 (서버 DB 알림은 나가기 API에서 삭제됨)
+      removeRoomNotifications(roomId);
+
       // 선택된 채팅방 해제
       if (selectedRoomId === roomId) {
         setSelectedRoomId(null);
@@ -1200,9 +1205,9 @@ export default function ChatLayout() {
     } catch (error) {
       console.error("[ChatLayout] 채팅방 나가기 처리 중 오류:", error);
     }
-  }, [selectedRoomId, loadRooms]);
+  }, [selectedRoomId, loadRooms, removeRoomNotifications]);
 
-  // ---------- 채팅방 선택 핸들러 (안읽은 메시지가 있으면 읽음 처리) ----------
+  // ---------- 채팅방 선택 핸들러(안읽은 메시지가 있으면 읽음 처리) ----------
   const handleRoomSelect = useCallback(async (roomId) => {
     // 먼저 채팅방 선택 (즉시 UI 반영)
     setSelectedRoomId(roomId);

@@ -69,16 +69,16 @@ public class ScheduleController {
   /** 일정 삭제 (Soft Delete) */
   @Operation(summary = "일정 삭제", description = "기존의 일정을 삭제합니다.")
   @DeleteMapping("/{id}")
-  public ResponseEntity<Void> delete(@PathVariable("id") Integer id) {
-    scheduleService.deleteSchedule(id);
+  public ResponseEntity<Void> delete(@PathVariable("id") Integer id, @AuthenticationPrincipal CustomUserDetails user) {
+    scheduleService.deleteSchedule(id, user.getEmail());
     return ResponseEntity.noContent().build();
   }
   
   /** 일정 단일 조회 */
   @Operation(summary = "일정 단일 조회", description = "일정 하나를 조회합니다.")
   @GetMapping(params = "id")
-  public ResponseEntity<ResponseScheduleDTO> getById(@RequestParam("id") Integer id) {
-    return ResponseEntity.ok(scheduleService.getScheduleById(id));
+  public ResponseEntity<ResponseScheduleDTO> getById(@RequestParam("id") Integer id, @AuthenticationPrincipal CustomUserDetails user) {
+    return ResponseEntity.ok(scheduleService.getScheduleById(id, user.getEmail()));
   }
   
   /**
@@ -96,8 +96,9 @@ public class ScheduleController {
   /** 특정 유저의 일정 목록 조회 */
   @Operation(summary = "유저의 일정 조회", description = "특정 유저의 일정을 조회합니다. (OWNER + MEMBER 포함)")
   @GetMapping(params = "userId")
-  public ResponseEntity<List<ResponseScheduleDTO>> getUserSchedules(@RequestParam("userId") Integer userId) {
-    return ResponseEntity.ok(scheduleService.getUserSchedules(userId));
+  public ResponseEntity<List<ResponseScheduleDTO>> getUserSchedules(@RequestParam("userId") Integer userId,
+      @AuthenticationPrincipal CustomUserDetails user) {
+    return ResponseEntity.ok(scheduleService.getUserSchedules(userId, user.getEmail()));
   }
   
   /** 로그인한 사용자의 '오늘 일정'만 조회 */
@@ -117,12 +118,13 @@ public class ScheduleController {
       @RequestParam(value = "date", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date,
       @RequestParam(value = "start", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime start,
       @RequestParam(value = "end", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime end,
-      @RequestParam(value = "scheduleId", required = false) Integer scheduleId
+      @RequestParam(value = "scheduleId", required = false) Integer scheduleId,
+      @AuthenticationPrincipal CustomUserDetails user
   ) {
       // start/end가 없으면 하루 단위 기본 조회
       LocalDate baseDate = (date != null) ? date : LocalDate.now();
       Map<Integer, List<ResponseScheduleDTO>> result =
-          scheduleService.getUsersAvailability(userIds, baseDate, start, end, scheduleId);
+          scheduleService.getUsersAvailability(userIds, baseDate, start, end, scheduleId, user.getEmail());
       return ResponseEntity.ok(result);
   }
 
@@ -130,9 +132,10 @@ public class ScheduleController {
   @Operation(summary = "회의실 일정 조회", description = "특정 회의실의 일정을 조회합니다.")
   @GetMapping(params = "meetingRoomId")
   public ResponseEntity<List<ResponseScheduleDTO>> getSchedulesByMeetingRoom(
-      @RequestParam("meetingRoomId") Integer meetingRoomId
+      @RequestParam("meetingRoomId") Integer meetingRoomId,
+      @AuthenticationPrincipal CustomUserDetails user
   ) {
-    return ResponseEntity.ok(scheduleService.getSchedulesByMeetingRoom(meetingRoomId));
+    return ResponseEntity.ok(scheduleService.getSchedulesByMeetingRoom(meetingRoomId, user.getEmail()));
   }
   
   @ExceptionHandler(IllegalArgumentException.class)

@@ -1,0 +1,42 @@
+# StompLogLeakTest on pre-fix code d8cfdf35 (audit_wt), 2026-10-28 22:35 run, gradle console (token values not included)
+OLD FAIL ë“¤ì–´ì˜¤ëŠ” STOMP í”„ë ˆìž„ ë¡œê·¸ì— ì„¸ì…˜ì˜ access_token ê°’ê³¼ ì±„íŒ… ë³¸ë¬¸ì´ ì°ížˆì§€ ì•ŠëŠ”ë‹¤ java.lang.AssertionError: [ë¡œê·¸ì— í† í° ê°’]  Expecting actual:   "22:35:17.048 [Test worker] INFO org.testcontainers.images.PullPolicy -- Image pull policy
+
+# gradle console excerpt
+> Task :cleanTest
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :compileTestJava
+> Task :processTestResources UP-TO-DATE
+> Task :testClasses
+> Task :test
+
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+
+> Task :test
+
+StompLogLeakTest > µé¾î¿À´Â STOMP ÇÁ·¹ÀÓ ·Î±×¿¡ ¼¼¼ÇÀÇ access_token °ª°ú Ã¤ÆÃ º»¹®ÀÌ ÂïÈ÷Áö ¾Ê´Â´Ù FAILED
+    java.lang.AssertionError at StompLogLeakTest.java:45
+
+2026-10-28T22:42:45.115+09:00  INFO 3088 --- [coreconnect] [ionShutdownHook] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-10-28T22:42:45.129+09:00  INFO 3088 --- [coreconnect] [ionShutdownHook] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@4e126b9f]]
+2026-10-28T22:42:45.129+09:00  INFO 3088 --- [coreconnect] [ionShutdownHook] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-10-28T22:42:45.809+09:00  INFO 3088 --- [coreconnect] [ionShutdownHook] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-28T22:43:29.765+09:00  INFO 3088 --- [coreconnect] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : MasterDB-Pool - Shutdown completed.
+
+> Task :test
+
+1 test completed, 1 failed
+
+> Task :test FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':test'.
+> There were failing tests. See the report at: file:///C:/Users/user/AppData/Local/Temp/claude/c--dev-final-project-coreconnect/d5d3e93c-e3b9-4c6c-b4c0-51273a89e300/scratchpad/audit_wt/backend/build/reports/tests/test/index.html
+
+* Try:
+> Run with --scan to get full insights.
+
+BUILD FAILED in 9m 7s

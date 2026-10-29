@@ -1,0 +1,28 @@
+# 정상 요청(본인 데이터) 처리 시간 - AuthorizationLatencyMeasurementTest
+# after = fix/authz-idor 작업본(코드 리뷰 수정 포함, STOMP·비공개 일정·알림 추가 수정 전), before = d8cfdf35 (별도 worktree)
+# 순서: after#1 → before#1 → after#2 → before#2 → after#3 → before#3 (번갈아 실행)
+# 환경: Windows 11, Testcontainers MySQL 8.0 + Redis 7, MockMvc + access_token 쿠키, API마다 워밍업 50회 후 300회, gradlew cleanTest test (MEASURE=true)
+after#1 [MEASURE] 메일 상세 avg=215.848ms p95=432.891ms n=300
+after#1 [MEASURE] 받은메일함 avg=155.808ms p95=348.803ms n=300
+after#1 [MEASURE] 채팅 메시지 목록 avg=291.377ms p95=656.190ms n=300
+after#1 [MEASURE] 일정 단건 avg=175.309ms p95=366.044ms n=300
+before#1 [MEASURE] 메일 상세 avg=152.630ms p95=289.330ms n=300
+before#1 [MEASURE] 받은메일함 avg=96.781ms p95=184.010ms n=300
+before#1 [MEASURE] 채팅 메시지 목록 avg=146.742ms p95=334.048ms n=300
+before#1 [MEASURE] 일정 단건 avg=127.523ms p95=276.736ms n=300
+after#2 [MEASURE] 메일 상세 avg=110.609ms p95=180.832ms n=300
+after#2 [MEASURE] 받은메일함 avg=105.753ms p95=186.377ms n=300
+after#2 [MEASURE] 채팅 메시지 목록 avg=136.178ms p95=229.337ms n=300
+after#2 [MEASURE] 일정 단건 avg=68.763ms p95=117.870ms n=300
+before#2 [MEASURE] 메일 상세 avg=126.496ms p95=211.039ms n=300
+before#2 [MEASURE] 받은메일함 avg=93.194ms p95=165.740ms n=300
+before#2 [MEASURE] 채팅 메시지 목록 avg=153.064ms p95=370.040ms n=300
+before#2 [MEASURE] 일정 단건 avg=100.850ms p95=196.788ms n=300
+after#3 [MEASURE] 메일 상세 avg=128.859ms p95=237.297ms n=300
+after#3 [MEASURE] 받은메일함 avg=99.243ms p95=166.634ms n=300
+after#3 [MEASURE] 채팅 메시지 목록 avg=78.372ms p95=131.645ms n=300
+after#3 [MEASURE] 일정 단건 avg=61.749ms p95=102.289ms n=300
+before#3 [MEASURE] 메일 상세 avg=117.688ms p95=213.361ms n=300
+before#3 [MEASURE] 받은메일함 avg=102.458ms p95=184.900ms n=300
+before#3 [MEASURE] 채팅 메시지 목록 avg=71.714ms p95=113.016ms n=300
+before#3 [MEASURE] 일정 단건 avg=56.659ms p95=91.691ms n=300

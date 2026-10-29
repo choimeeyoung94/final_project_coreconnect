@@ -6,6 +6,7 @@ import java.util.Map;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.goodee.coreconnect.security.userdetails.CustomUserDetails;
 import com.goodee.coreconnect.schedule.dto.MeetingRoomDTO;
 import com.goodee.coreconnect.schedule.dto.response.ResponseScheduleDTO;
 import com.goodee.coreconnect.schedule.service.MeetingRoomService;
@@ -76,8 +78,9 @@ public class MeetingRoomController {
   /** 특정 회의실의 예약 일정 목록 조회 */
   @Operation(summary = "회의실 예약 일정 조회", description = "특정 회의실에 예약된 일정을 조회합니다.")
   @GetMapping(params = "meetingRoomId")
-  public List<ResponseScheduleDTO> getSchedulesByRoom(@RequestParam("meetingRoomId") Integer meetingRoomId) {
-    return meetingRoomService.getSchedulesByMeetingRoom(meetingRoomId);
+  public List<ResponseScheduleDTO> getSchedulesByRoom(@RequestParam("meetingRoomId") Integer meetingRoomId,
+      @AuthenticationPrincipal CustomUserDetails user) {
+    return meetingRoomService.getSchedulesByMeetingRoom(meetingRoomId, user.getEmail());
   }
   
   /** 특정 시간대 해당 회의실 예약 가능 여부 조회  */

@@ -1,0 +1,4 @@
+# ChatSendErrorMessageTest on pre-fix code d8cfdf35 (audit_wt), 2026-10-29, test file copied from fix/authz-idor
+tests 1 failures 1
+FAIL 전송이 실패하면 ERROR에는 고정 문구만 담기고, 서버 내부 예외 문구는 담기지 않는다
+    expected: "메시지를 보내지 못했습니다"  but was: "메시지 전송 중 오류가 발생했습니다: SQL 오류: table chat_message column internal_col"

@@ -9,9 +9,11 @@ public interface ScheduleCategoryService {
 
   ResponseScheduleCategoryDTO createCategory(RequestScheduleCategoryDTO dto, String email);
 
-  ResponseScheduleCategoryDTO updateCategory(Integer id, RequestScheduleCategoryDTO dto);
+  /** 카테고리 주인만 수정 가능 (아니면 SecurityException → 403) */
+  ResponseScheduleCategoryDTO updateCategory(Integer id, RequestScheduleCategoryDTO dto, String email);
 
-  void deleteCategory(Integer id);
+  /** 카테고리 주인만 삭제 가능 (아니면 SecurityException → 403) */
+  void deleteCategory(Integer id, String email);
 
   List<ResponseScheduleCategoryDTO> getUserCategories(String email);
   

@@ -333,6 +333,20 @@ public class ScheduleServiceImpl implements ScheduleService {
 
   
   
+  /** 사용자 요청 일정 삭제 - 작성자 확인 후 삭제 */
+  @Override
+  public void deleteSchedule(Integer id, String email) {
+    Schedule schedule = scheduleRepository.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("일정을 찾을 수 없습니다."));
+    User user = userRepository.findByEmail(email)
+        .orElseThrow(() -> new IllegalArgumentException("유저가 존재하지 않습니다."));
+
+    if (!schedule.getUser().getId().equals(user.getId()) && user.getRole() != Role.ADMIN) {
+      throw new SecurityException("일정 작성자(또는 관리자)만 삭제할 수 있습니다.");
+    }
+    deleteSchedule(id);
+  }
+
   /** 일정 삭제 (Soft Delete + 회의실 해제 포함) */
   @Override
   public void deleteSchedule(Integer id) {
@@ -420,6 +434,33 @@ public class ScheduleServiceImpl implements ScheduleService {
                      .map(ResponseScheduleDTO::toDTO)
                      .collect(Collectors.toList());
   }
+
+  /** 다른 사람의 일정 목록 조회 - 본인이 아니면 PUBLIC 일정과 내가 작성·참여한 일정만 */
+  @Override
+  @Transactional(readOnly = true)
+  public List<ResponseScheduleDTO> getUserSchedules(Integer userId, String viewerEmail) {
+    User target = userRepository.findById(userId)
+        .orElseThrow(() -> new IllegalArgumentException("유저가 존재하지 않습니다."));
+    User viewer = userRepository.findByEmail(viewerEmail)
+        .orElseThrow(() -> new IllegalArgumentException("유저가 존재하지 않습니다."));
+
+    return scheduleRepository.findAccessibleSchedules(target).stream()
+        .filter(s -> target.getId().equals(viewer.getId()) || canView(s, viewer))
+        .map(ResponseScheduleDTO::toDTO)
+        .collect(Collectors.toList());
+  }
+
+  /** PUBLIC이거나, 보는 사람이 작성자·참여자인 일정인지 */
+  private boolean canView(Schedule schedule, User viewer) {
+    if (schedule.getVisibility() == ScheduleVisibility.PUBLIC) {
+      return true;
+    }
+    if (schedule.getUser().getId().equals(viewer.getId())) {
+      return true;
+    }
+    return scheduleParticipantRepository.findByScheduleAndDeletedYnFalse(schedule).stream()
+        .anyMatch(p -> p.getUser().getId().equals(viewer.getId()));
+  }
   
   
   
@@ -456,8 +497,10 @@ public class ScheduleServiceImpl implements ScheduleService {
       LocalDate date,
       LocalDateTime start,
       LocalDateTime end,
-      Integer scheduleId
+      Integer scheduleId,
+      String viewerEmail
   ) {
+    Integer viewerId = userRepository.findByEmail(viewerEmail).map(User::getId).orElse(null);
     LocalDateTime startTime = (start != null) ? start : date.atStartOfDay();
     LocalDateTime endTime = (end != null) ? end : date.atTime(23, 59, 59);
 
@@ -465,7 +508,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     for (Integer userId : userIds) {
         List<Schedule> schedules = scheduleRepository.findOverlappingSchedules(userId, startTime, endTime, scheduleId);
         result.put(userId, schedules.stream()
-            .map(ResponseScheduleDTO::toDTO)
+            .map(s -> ResponseScheduleDTO.toDTOFor(s, viewerId)) // 남의 비공개 일정은 "비공개 약속" + 시간만
             .toList());
     }
     return result;
@@ -483,18 +526,34 @@ public class ScheduleServiceImpl implements ScheduleService {
         .orElseThrow(() -> new IllegalArgumentException("해당 일정이 존재하지 않습니다."));
     return ResponseScheduleDTO.toDTO(schedule);
   }
+
+  /** 사용자 요청 단건 조회 - PUBLIC이거나 작성자·참여자일 때만 */
+  @Override
+  @Transactional(readOnly = true)
+  public ResponseScheduleDTO getScheduleById(Integer id, String email) {
+    Schedule schedule = scheduleRepository.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("해당 일정이 존재하지 않습니다."));
+    User user = userRepository.findByEmail(email)
+        .orElseThrow(() -> new IllegalArgumentException("유저가 존재하지 않습니다."));
+
+    if (!canView(schedule, user)) {
+      throw new SecurityException("비공개 일정은 작성자와 참여자만 볼 수 있습니다.");
+    }
+    return ResponseScheduleDTO.toDTO(schedule);
+  }
   
 
   /** 회의실별 일정 조회 (readOnly) */
   @Override
   @Transactional(readOnly = true)
-  public List<ResponseScheduleDTO> getSchedulesByMeetingRoom(Integer meetingRoomId) {
+  public List<ResponseScheduleDTO> getSchedulesByMeetingRoom(Integer meetingRoomId, String viewerEmail) {
     MeetingRoom meetingRoom = meetingRoomRepository.findById(meetingRoomId)
         .orElseThrow(() -> new IllegalArgumentException("회의실을 찾을 수 없습니다."));
+    Integer viewerId = userRepository.findByEmail(viewerEmail).map(User::getId).orElse(null);
 
     return scheduleRepository.findByMeetingRoomAndDeletedYnFalse(meetingRoom)
         .stream()
-        .map(ResponseScheduleDTO::toDTO)
+        .map(s -> ResponseScheduleDTO.toDTOFor(s, viewerId)) // 남의 비공개 일정은 "비공개 약속" + 시간만
         .collect(Collectors.toList());
   }
 

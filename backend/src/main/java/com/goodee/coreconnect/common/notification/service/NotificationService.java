@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.goodee.coreconnect.board.entity.Board;
 import com.goodee.coreconnect.board.repository.BoardRepository;
 import com.goodee.coreconnect.chat.dto.response.NotificationReadResponseDTO;
+import com.goodee.coreconnect.chat.entity.Chat;
+import com.goodee.coreconnect.chat.repository.ChatRepository;
 import com.goodee.coreconnect.chat.repository.NotificationRepository;
 import com.goodee.coreconnect.common.entity.Notification;
 import com.goodee.coreconnect.common.notification.dto.NotificationPayload;
@@ -42,7 +45,8 @@ import lombok.extern.slf4j.Slf4j;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
-    private final UserRepository userRepository;
+    private final ChatRepository chatRepository;
+private final UserRepository userRepository;
     private final BoardRepository boardRepository;
     private final ScheduleRepository scheduleRepository;
     private final WebSocketDeliveryService webSocketDeliveryService;
@@ -53,9 +57,25 @@ public class NotificationService {
     public NotificationReadResponseDTO markAsRead(Integer notificationId, String email) {
         Notification notification = notificationRepository.findById(notificationId)
             .orElseThrow(() -> new IllegalArgumentException("알림 없음: " + notificationId));
+        // 받는 사람 본인만 읽음 처리 가능
+        if (notification.getUser() == null || !notification.getUser().getEmail().equals(email)) {
+            throw new AccessDeniedException("본인 알림만 읽음 처리할 수 있습니다.");
+        }
         notification.markRead();
         notificationRepository.save(notification);
         return new NotificationReadResponseDTO(notification.getId(), notification.getNotificationReadYn());
+    }
+
+    /**
+     * 채팅 알림이면 어느 메시지(→ 방)의 알림인지 연결 (notification.chat_message_id)
+     * - 방을 나갈 때 그 방 알림을 찾아 지우고, 알림 목록 응답에 roomId를 채우는 데 씀
+     * - 다른 종류 알림이나 chatId가 없으면 연결하지 않음
+     */
+    private Chat chatOf(NotificationType type, Integer chatId) {
+        if (type != NotificationType.CHAT || chatId == null) {
+            return null;
+        }
+        return chatRepository.findById(chatId).orElse(null);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -113,7 +133,7 @@ public class NotificationService {
             }
 
             Notification notification = Notification.createNotification(
-                recipient, type, message, null, null, null, schedule, false, false, false,
+                recipient, type, message, chatOf(type, chatId), null, null, schedule, false, false, false,
                 LocalDateTime.now(), null, sender
             );
             notificationRepository.save(notification);
@@ -126,6 +146,8 @@ public class NotificationService {
             payload.setReceiverName(recipient.getName());
             payload.setMessage(notification.getNotificationMessage());
             payload.setNotificationType(type.name());
+            payload.setChatId(chatId);
+            payload.setRoomId(roomId); // 화면에서 알림을 누르면 이 방으로 이동
             payload.setCreatedAt(notification.getNotificationSentAt() != null
                 ? notification.getNotificationSentAt()
                 : LocalDateTime.now());
@@ -333,7 +355,7 @@ public class NotificationService {
                     log.info("[NotificationService] 수신자 조회 성공: recipientId={}, recipientName={}", rid, receiver.getName());
 
                     Notification notification = Notification.createNotification(
-                        receiver, type, message, null, null, board, schedule, false, false, false,
+                        receiver, type, message, chatOf(type, chatId), null, board, schedule, false, false, false,
                         LocalDateTime.now(), null, sender
                     );
                     
@@ -413,6 +435,8 @@ public class NotificationService {
                     payload.setReceiverName(receiver.getName());
                     payload.setMessage(message);
                     payload.setNotificationType(type.name());
+                    payload.setChatId(chatId);
+                    payload.setRoomId(roomId); // 화면에서 알림을 누르면 이 방으로 이동
                     payload.setCreatedAt(savedNotification.getNotificationSentAt());
 
 

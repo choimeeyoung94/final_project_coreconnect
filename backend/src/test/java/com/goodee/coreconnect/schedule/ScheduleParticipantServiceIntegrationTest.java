@@ -80,7 +80,7 @@ public class ScheduleParticipantServiceIntegrationTest {
   void testGetParticipantsBySchedule() {
     participantRepository.save(com.goodee.coreconnect.schedule.entity.ScheduleParticipant.createParticipant(testSchedule, testUser, ScheduleRole.MEMBER));
 
-    List<ResponseScheduleParticipantDTO> list = participantService.getParticipantsBySchedule(testSchedule.getId());
+    List<ResponseScheduleParticipantDTO> list = participantService.getParticipantsBySchedule(testSchedule.getId(), testSchedule.getUser().getEmail());
 
     assertThat(list).isNotEmpty();
     log.info("참여자 목록 조회 성공 (총 " + list.size() + "명)");
@@ -91,7 +91,7 @@ public class ScheduleParticipantServiceIntegrationTest {
   void testGetSchedulesByUser() {
     participantRepository.save(com.goodee.coreconnect.schedule.entity.ScheduleParticipant.createParticipant(testSchedule, testUser, ScheduleRole.MEMBER));
 
-    List<ResponseScheduleParticipantDTO> list = participantService.getSchedulesByUser(testUser.getId());
+    List<ResponseScheduleParticipantDTO> list = participantService.getSchedulesByUser(testUser.getId(), testUser.getEmail());
 
     assertThat(list).isNotEmpty();
     log.info("유저별 참여 일정 목록 조회 성공: " + list.size() + "건");
@@ -103,7 +103,7 @@ public class ScheduleParticipantServiceIntegrationTest {
     var saved = participantRepository.save(
             com.goodee.coreconnect.schedule.entity.ScheduleParticipant.createParticipant(testSchedule, testUser, ScheduleRole.MEMBER));
 
-    participantService.deleteParticipant(saved.getId());
+    participantService.deleteParticipant(saved.getId(), testUser.getEmail());
 
     var deleted = participantRepository.findById(saved.getId()).orElseThrow();
     assertThat(deleted.getDeletedYn()).isTrue();

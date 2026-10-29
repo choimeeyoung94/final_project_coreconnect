@@ -61,6 +61,8 @@ import lombok.extern.slf4j.Slf4j;
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
+    private final StompInboundAuthorizationInterceptor stompInboundAuthorizationInterceptor;
+    private final ChatRoomOutboundInterceptor chatRoomOutboundInterceptor;
     
     @Value("${app.websocket.allowed-origins:http://localhost:5173}")
     private String allowedOrigins;
@@ -124,29 +126,26 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void configureClientInboundChannel(ChannelRegistration registration) {
         log.info("🔥 [WebSocketConfig] 클라이언트 인바운드 채널 설정 시작");
         // STOMP 메시지가 서버로 들어올 때 인터셉터 추가 가능
+        // 들어오는 프레임 로그: 종류와 목적지만 DEBUG로 남김
+        // (이전에는 헤더 전체와 본문을 INFO로 남겨, 세션 속성의 access_token과 채팅 내용이 로그에 찍혔음)
         registration.interceptors(new ChannelInterceptor() {
             @Override
             public Message<?> preSend(Message<?> message, MessageChannel channel) {
-                Object destination = message.getHeaders().get("simpDestination");
-                String messageType = message.getHeaders().get("simpMessageType") != null ? 
-                        message.getHeaders().get("simpMessageType").toString() : "UNKNOWN";
-                
-                // ⭐ SEND 메시지 (메시지 전송)에 대한 특별 로그
-                if (destination != null && destination.toString().startsWith("/app/")) {
-                    log.info("🔥🔥🔥 [WebSocketConfig] ⭐⭐⭐ SEND 메시지 수신 (메시지 전송) ⭐⭐⭐ - destination: {}, messageType: {}, headers: {}", 
-                            destination, messageType, message.getHeaders());
-                    // ⭐ 메시지 본문도 로그 출력 (디버깅용)
-                    Object payload = message.getPayload();
-                    if (payload != null) {
-                        log.info("🔥🔥🔥 [WebSocketConfig] SEND 메시지 본문: {}", payload);
-                    }
-                } else {
-                    log.info("🔥 [WebSocketConfig] ========== STOMP 메시지 수신 ========== - destination: {}, messageType: {}, headers: {}", 
-                            destination, messageType, message.getHeaders());
+                if (log.isDebugEnabled()) {
+                    log.debug("[WebSocketConfig] STOMP 수신 - type: {}, destination: {}",
+                            message.getHeaders().get("simpMessageType"), message.getHeaders().get("simpDestination"));
                 }
                 return message;
             }
         });
+        // CONNECT 세션 등록, SUBSCRIBE는 방 참여자만, SEND는 /app 경로만 허용 (위 로깅 인터셉터 다음에 실행)
+        registration.interceptors(stompInboundAuthorizationInterceptor);
         log.info("🔥 [WebSocketConfig] 클라이언트 인바운드 채널 설정 완료");
+    }
+
+    // 서버가 구독자에게 채팅방 메시지를 내보낼 때, 받는 세션 사용자가 지금도 참여자인지 확인
+    @Override
+    public void configureClientOutboundChannel(ChannelRegistration registration) {
+        registration.interceptors(chatRoomOutboundInterceptor);
     }
 }
