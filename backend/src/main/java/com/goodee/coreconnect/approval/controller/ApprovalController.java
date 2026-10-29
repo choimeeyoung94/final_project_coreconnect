@@ -296,10 +296,14 @@ public class ApprovalController {
   }
   
   @GetMapping("/file/download/{fileId}")
-  public ResponseEntity<InputStreamResource> downloadAttachment(@PathVariable("fileId") Integer fileId, HttpServletResponse response) {
+  public ResponseEntity<InputStreamResource> downloadAttachment(@PathVariable("fileId") Integer fileId,
+      @AuthenticationPrincipal CustomUserDetails user, HttpServletResponse response) {
       // 1. DB에서 첨부파일 엔티티 조회
       File file = fileRepository.findById(fileId)
           .orElseThrow(() -> new RuntimeException("첨부파일 정보를 찾을 수 없습니다."));
+
+      // 1-1. 문서를 열람할 수 있는 사람(기안자·결재선)만 다운로드 가능 (아니면 403)
+      approvalService.assertCanViewDocument(file.getDocument().getId(), user.getEmail());
 
       // 2. 실파일(InputStream 등) 읽기 (S3스토리지/로컬 구현에 따라 분기)
       InputStream inputStream = fileStorageService.loadFileAsInputStream(file);

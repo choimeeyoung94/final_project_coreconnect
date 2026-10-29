@@ -92,6 +92,12 @@ public interface ApprovalService {
   DocumentDetailResponseDTO getDocumentDetail(Integer documentId, String email);
 
   /**
+   * 문서 열람 권한 확인 (첨부 다운로드처럼 문서 내용 없이 권한만 필요할 때)
+   * 기안자 또는 결재선에 포함된 사용자가 아니면 AccessDeniedException(403)
+   */
+  void assertCanViewDocument(Integer documentId, String email);
+
+  /**
    * 문서를 승인합니다.
    * @param documentId 승인할 문서 ID
    * @param requestDTO 결재 의견 DTO

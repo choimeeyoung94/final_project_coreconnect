@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -482,6 +483,23 @@ public class ApprovalServiceImpl implements ApprovalService {
    * 문서 상세 내용을 조회합니다.
    */
   @Override
+  public void assertCanViewDocument(Integer documentId, String email) {
+    Document document = documentRepository.findDocumentDetailById(documentId)
+        .orElseThrow(() -> new EntityNotFoundException("문서를 찾을 수 없습니다. ID: " + documentId));
+    if (!canView(document, findUserByEmail(email).getId())) {
+      throw new AccessDeniedException("문서를 열람할 권한이 없습니다.");
+    }
+  }
+
+  /** 기안자이거나 결재선(결재·참조)에 포함된 사용자인지 (findDocumentDetailById의 Fetch Join으로 결재선이 이미 로딩됨) */
+  private boolean canView(Document document, Integer userId) {
+    boolean isDrafter = document.getUser().getId().equals(userId);
+    boolean isApprover = document.getApprovalLines().stream()
+        .anyMatch(line -> line.getApprover().getId().equals(userId));
+    return isDrafter || isApprover;
+  }
+
+  @Override
   public DocumentDetailResponseDTO getDocumentDetail(Integer documentId, String email) {
 
     // (N+1이 해결된 findDocumentDetailById 쿼리를 사용)
@@ -497,13 +515,7 @@ public class ApprovalServiceImpl implements ApprovalService {
     Integer currentUserId = currentUser.getId();
 
     // 열람 권한 확인 (기안자 또는 결재선에 포함된 사용자인지)
-    boolean isDrafter = document.getUser().getId().equals(currentUserId);
-
-    // (Fetch Join이 적용되어 Lazy Loading 아님)
-    boolean isApprover = document.getApprovalLines().stream() 
-        .anyMatch(line -> line.getApprover().getId().equals(currentUserId));
-
-    if (!isDrafter && !isApprover) {
+    if (!canView(document, currentUserId)) {
       throw new IllegalStateException("문서를 열람할 권한이 없습니다.");
     }
     
