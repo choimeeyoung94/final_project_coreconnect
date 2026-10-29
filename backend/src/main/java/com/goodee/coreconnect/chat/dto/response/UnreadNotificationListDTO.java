@@ -29,6 +29,7 @@ public class UnreadNotificationListDTO {
     private Integer boardId; // NOTICE 타입 알림의 경우 게시글 ID
     private Integer scheduleId; // SCHEDULE 타입 알림의 경우 일정 ID
     private Integer roomId; // CHAT 타입 알림의 경우 채팅방 ID
+    private Boolean readYn; // 읽음 여부 ("전체 알림"에서 읽은 것 구분)
 
     // 엔티티 → DTO 변환
     public static UnreadNotificationListDTO from(Notification n) {
@@ -43,6 +44,7 @@ public class UnreadNotificationListDTO {
             .boardId(n.getBoard() != null ? n.getBoard().getId() : null)
             .scheduleId(n.getSchedule() != null ? n.getSchedule().getId() : null)
             .roomId(n.getChat() != null && n.getChat().getChatRoom() != null ? n.getChat().getChatRoom().getId() : null)
+            .readYn(Boolean.TRUE.equals(n.getNotificationReadYn()))
             .build();
     
 	}

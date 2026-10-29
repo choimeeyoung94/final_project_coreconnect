@@ -1,0 +1,10 @@
+# NotificationCleanupTest, 2026-10-29 (정리 기간 변경 전: 읽은 알림만 읽은 지 90일)
+# 기대: 읽은 알림 읽은 지 30일, 안 읽은 알림 온 지 90일
+
+FAIL 읽은 알림은 읽은 지 30일 지나면 지운다 (사람 상관없이), 29일 된 것은 남는다
+    org.opentest4j.AssertionFailedError: [읽은 지 31일]  Expecting value to be false but was true
+PASS 다른 서버가 잠금을 잡고 있으면 이 서버의 정리 작업은 실행하지 않는다 (서버 여러 대에서 한 번만)
+FAIL 지울 것이 많아도(읽은 2,500개 + 안 읽은 2,500개) 나눠서 전부 지운다
+    org.opentest4j.AssertionFailedError:  expected: 0  but was: 2500
+FAIL 안 읽은 알림은 온 지 90일 지나면 지운다, 89일 된 것은 남는다. 읽은 알림은 온 날이 아니라 읽은 날 기준
+    org.opentest4j.AssertionFailedError: [안 읽음, 온 지 91일]  Expecting value to be false but was true

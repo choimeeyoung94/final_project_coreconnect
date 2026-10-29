@@ -9,12 +9,16 @@ import {
   List,
   ListItem,
   Chip,
+  Tabs,
+  Tab,
+  Button,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { formatTime } from "../../../../utils/TimeUtils";
 import { getNotificationTypeLabel } from "../../../../utils/labelUtils";
 import {
   getAllUnreadNotifications,
+  getNotificationPage,
   markNotificationAsRead,
   markAllNotificationsAsRead,
 } from "../../../../features/notification/api/notificationAPI";
@@ -27,6 +31,26 @@ export default function NotificationPopover({
 }) {
   const navigate = useNavigate();
   const [unreadList, setUnreadList] = useState([]);
+  // "전체 알림" 탭: 읽은 것도 같이, 20개씩 더 보기
+  const [tab, setTab] = useState("unread");
+  const [allList, setAllList] = useState([]);
+  const [allPage, setAllPage] = useState(0);
+  const [allLast, setAllLast] = useState(true);
+  const [loadingAll, setLoadingAll] = useState(false);
+
+  const loadAllPage = useCallback(async (page) => {
+    try {
+      setLoadingAll(true);
+      const data = await getNotificationPage("all", page, 20);
+      setAllList(prev => (page === 0 ? data.content : [...prev, ...data.content]));
+      setAllPage(page);
+      setAllLast(data.last);
+    } catch (err) {
+      console.error("[NotificationPopover] 전체 알림 조회 실패:", err);
+    } finally {
+      setLoadingAll(false);
+    }
+  }, []);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [markAllAsReadTimestamp, setMarkAllAsReadTimestamp] = useState(null); // "모두 읽음" 처리 시간 추적
 
@@ -76,10 +100,9 @@ export default function NotificationPopover({
       if (diffHours < 24) return `${diffHours}시간 전`;
       if (diffDays < 7) return `${diffDays}일 전`;
       
-      // 7일 이상 지난 경우 절대 시간 표시 (HH:mm 형식)
-      const hours = String(date.getHours()).padStart(2, "0");
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      return `${hours}:${minutes}`;
+      // 7일 이상 지난 경우 날짜 표시 ("10월 17일", 올해가 아니면 "2025년 10월 17일")
+      const monthDay = `${date.getMonth() + 1}월 ${date.getDate()}일`;
+      return date.getFullYear() === now.getFullYear() ? monthDay : `${date.getFullYear()}년 ${monthDay}`;
     } catch (error) {
       console.error('[formatNotificationTime] 날짜 파싱 오류:', error, 'sentAt:', sentAt);
       return "";
@@ -117,6 +140,10 @@ export default function NotificationPopover({
         return newList;
       });
       
+      // "전체 알림" 탭 목록에서는 지우지 않고 읽음으로 표시만 바꿈
+      setAllList(prevList => prevList.map(item =>
+        item.notificationId === notif.notificationId ? { ...item, readYn: true } : item));
+
       // 알림 읽음 처리 (실패해도 페이지 이동은 진행)
       try {
         await markNotificationAsRead(notif.notificationId);
@@ -381,8 +408,27 @@ export default function NotificationPopover({
             </IconButton>
           </Box>
         </Box>
+        <Tabs
+          value={tab}
+          onChange={(e, v) => { setTab(v); if (v === "all") loadAllPage(0); }}
+          variant="fullWidth"
+          sx={{ minHeight: 36, mb: 1, "& .MuiTab-root": { minHeight: 36, py: 0.5 } }}
+        >
+          <Tab value="unread" label={`안 읽은 알림${unreadList.length > 0 ? ` (${unreadList.length})` : ""}`} />
+          <Tab value="all" label="전체 알림" />
+        </Tabs>
         <Divider sx={{ mb: 2 }} />
-        {loadingNotifications ? (
+        {tab === "all" ? (
+          <AllNotificationList
+            list={allList}
+            loading={loadingAll}
+            last={allLast}
+            onMore={() => loadAllPage(allPage + 1)}
+            onClick={handleNotificationClick}
+            formatNotificationTime={formatNotificationTime}
+            getNotificationTypeColor={getNotificationTypeColor}
+          />
+        ) : loadingNotifications ? (
           <Typography
             variant="body2"
             color="text.secondary"
@@ -474,3 +520,57 @@ export default function NotificationPopover({
   );
 }
 
+/** "전체 알림" 탭: 읽은 알림은 흐리게 + "읽음" 표시, 20개씩 더 보기 */
+function AllNotificationList({ list, loading, last, onMore, onClick, formatNotificationTime, getNotificationTypeColor }) {
+  if (!loading && list.length === 0) {
+    return (
+      <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 3 }}>
+        알림이 없습니다.
+      </Typography>
+    );
+  }
+  return (
+    <List dense sx={{ maxHeight: 400, overflowY: "auto" }}>
+      {list.map((notif) => (
+        <ListItem
+          key={notif.notificationId}
+          sx={{
+            px: 1.5, py: 1, borderRadius: 1, mb: 0.5, cursor: "pointer",
+            opacity: notif.readYn ? 0.55 : 1,
+            "&:hover": { bgcolor: "action.hover" }, overflow: "hidden",
+          }}
+          onClick={() => onClick(notif)}
+        >
+          <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+              <Box sx={{ display: "flex", gap: 0.5 }}>
+                <Chip
+                  label={getNotificationTypeLabel(notif.notificationType)}
+                  size="small"
+                  sx={{ height: 20, fontSize: "0.7rem", ...getNotificationTypeColor(notif.notificationType) }}
+                />
+                {notif.readYn && <Chip label="읽음" size="small" variant="outlined" sx={{ height: 20, fontSize: "0.7rem" }} />}
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                {notif.sentAt ? formatNotificationTime(notif.sentAt) : ""}
+              </Typography>
+            </Box>
+            <Typography variant="body2" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>
+              {notif.message || ""}
+            </Typography>
+          </Box>
+        </ListItem>
+      ))}
+      {loading && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "center", py: 1 }}>
+          불러오는 중...
+        </Typography>
+      )}
+      {!loading && !last && (
+        <Box sx={{ textAlign: "center", py: 1 }}>
+          <Button size="small" onClick={onMore}>더 보기</Button>
+        </Box>
+      )}
+    </List>
+  );
+}

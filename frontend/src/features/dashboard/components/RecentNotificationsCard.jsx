@@ -10,7 +10,7 @@ import {
   Chip,
   Button
 } from "@mui/material";
-import { getMyNotifications } from "../../notification/api/notificationAPI";
+import { getNotificationPage } from "../../notification/api/notificationAPI";
 import { formatTime, formatKoreanDate } from "../../../utils/TimeUtils";
 import { getNotificationTypeLabel } from "../../../utils/labelUtils";
 
@@ -26,9 +26,9 @@ export default function RecentNotificationsCard() {
   const loadNotifications = async () => {
     try {
       setLoading(true);
-      const data = await getMyNotifications();
-      // 최근 5개만 표시
-      setNotifications(data.slice(0, 5) || []);
+      // 안 읽은 알림 최근 5개만 서버에서 받음 (예전: 전체 이력을 받아 앞 5개만 씀, 읽은 것도 섞임)
+      const page = await getNotificationPage("unread", 0, 5);
+      setNotifications(page.content || []);
     } catch (err) {
       console.error("알림 조회 실패:", err);
       setNotifications([]);
@@ -68,7 +68,7 @@ export default function RecentNotificationsCard() {
           <List dense sx={{ pl: 1 }}>
             {notifications.map((notif) => (
               <ListItem 
-                key={notif.id} 
+                key={notif.notificationId} 
                 sx={{ 
                   px: 0, 
                   py: 1,

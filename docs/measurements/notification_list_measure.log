@@ -1,0 +1,13 @@
+# NotificationListMeasurementTest, 2026-10-29 19:35-19:50
+# before = main 967e68ca (bell: GET /api/v1/chat/notifications/unread/all, dashboard card: GET /api/v1/chat/notifications)
+# after = feature/notification-read-cleanup (bell: same path without history loads, card: GET /api/v1/notification?status=unread&size=5)
+# data: one user with N read notifications + 5 unread; entitiesLoaded/sql from 1 request with Hibernate statistics on; time with statistics off, 2 warm-up discarded, 20 calls (N=10k) / 5 calls (N=100k)
+# env: Windows 11, Docker Desktop, Testcontainers MySQL 8.0 + Redis 7; the 50k scroll test was running at the same time
+before [MEASURE] n=10000 path=/api/v1/chat/notifications/unread/all entitiesLoaded=10007 sql=7 calls=20 p50=593.9ms max=839.2ms
+before [MEASURE] n=10000 path=/api/v1/chat/notifications entitiesLoaded=10007 sql=5 calls=20 p50=583.6ms max=706.3ms
+before [MEASURE] n=100000 path=/api/v1/chat/notifications/unread/all entitiesLoaded=100007 sql=7 calls=5 p50=6937.4ms max=7887.4ms
+before [MEASURE] n=100000 path=/api/v1/chat/notifications entitiesLoaded=100007 sql=5 calls=5 p50=4909.4ms max=5695.4ms
+after [MEASURE] n=10000 path=/api/v1/chat/notifications/unread/all entitiesLoaded=7 sql=5 calls=20 p50=101.7ms max=149.1ms
+after [MEASURE] n=10000 path=/api/v1/notification?status=unread&size=5 entitiesLoaded=7 sql=4 calls=20 p50=98.8ms max=237.5ms
+after [MEASURE] n=100000 path=/api/v1/chat/notifications/unread/all entitiesLoaded=7 sql=5 calls=5 p50=110.8ms max=132.8ms
+after [MEASURE] n=100000 path=/api/v1/notification?status=unread&size=5 entitiesLoaded=7 sql=4 calls=5 p50=101.6ms max=130.3ms

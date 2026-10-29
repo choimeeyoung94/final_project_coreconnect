@@ -35,6 +35,9 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	// 서버 여러 대에서 같은 스케줄 작업이 한 번만 돌게 잠금 (Redis 사용, 테이블 불필요)
+	implementation 'net.javacrumbs.shedlock:shedlock-spring:5.16.0'
+	implementation 'net.javacrumbs.shedlock:shedlock-provider-redis-spring:5.16.0'
 	implementation 'org.springframework.session:spring-session-data-redis' // Redis 세션 공유 (K8s용)
 	implementation 'org.springframework.boot:spring-boot-starter-actuator' // 헬스체크용
 	implementation platform('io.awspring.cloud:spring-cloud-aws-dependencies:3.0.4')

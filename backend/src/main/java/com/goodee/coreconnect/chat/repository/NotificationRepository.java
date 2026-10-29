@@ -145,4 +145,24 @@ public interface NotificationRepository extends JpaRepository<Notification, Inte
 	@Query("DELETE FROM Notification n WHERE n.user.id = :userId "
 			+ "AND n.chat.id IN (SELECT c.id FROM Chat c WHERE c.chatRoom.id = :roomId)")
 	int deleteChatNotificationsOfRoom(@Param("userId") Integer userId, @Param("roomId") Integer roomId);
+
+	/** 알림 목록 한 페이지 (안 읽은 것만 또는 전체, 최신순). 보낸 사람·연결 대상은 같이 읽어 항목마다 추가 조회하지 않음. Slice라 개수 세기 쿼리 없음 */
+	@Query("SELECT n FROM Notification n "
+			+ "LEFT JOIN FETCH n.sender LEFT JOIN FETCH n.document LEFT JOIN FETCH n.board LEFT JOIN FETCH n.schedule "
+			+ "LEFT JOIN FETCH n.chat c LEFT JOIN FETCH c.chatRoom "
+			+ "WHERE n.user.id = :userId AND (n.notificationDeletedYn = false OR n.notificationDeletedYn IS NULL) "
+			+ "AND (:unreadOnly = false OR n.notificationReadYn = false) "
+			+ "ORDER BY n.notificationSentAt DESC, n.id DESC")
+	org.springframework.data.domain.Slice<Notification> findPageForUser(@Param("userId") Integer userId,
+			@Param("unreadOnly") boolean unreadOnly, org.springframework.data.domain.Pageable pageable);
+
+	/** 읽은 지 기준 시각보다 오래된 "읽은" 알림을 최대 limit개 삭제 (큰 삭제를 나눠서 하려고 MySQL DELETE ... LIMIT 사용) */
+	@Modifying
+	@Query(value = "DELETE FROM notification WHERE notification_read_yn = true AND notification_read_at < :cutoff LIMIT :limit", nativeQuery = true)
+	int deleteReadBefore(@Param("cutoff") java.time.LocalDateTime cutoff, @Param("limit") int limit);
+
+	/** 온 지 기준 시각보다 오래된 "안 읽은" 알림을 최대 limit개 삭제 */
+	@Modifying
+	@Query(value = "DELETE FROM notification WHERE (notification_read_yn = false OR notification_read_yn IS NULL) AND notification_sent_at < :cutoff LIMIT :limit", nativeQuery = true)
+	int deleteUnreadSentBefore(@Param("cutoff") java.time.LocalDateTime cutoff, @Param("limit") int limit);
 }
