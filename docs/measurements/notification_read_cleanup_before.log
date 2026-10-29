@@ -1,0 +1,9 @@
+# NotificationListApiTest on feature/notification-read-api 67217909 (before read-notification cleanup), 2026-10-29
+# tests=3 failures=3 errors=0
+FAIL 전체 알림 목록: 읽은 것도 오고 읽음 여부로 구분, 20개씩 다음 페이지
+    java.lang.AssertionError: Status expected:<200> but was:<404>
+FAIL 종 아이콘 API는 알림 전체 이력을 읽지 않는다 (읽은 알림 2,000개 + 안 읽은 3개)
+    java.lang.AssertionError: [읽어 온 알림 엔티티 수]  | Expecting actual: |   2005L | to be less than: |   100L 
+FAIL 안 읽은 알림 목록: 안 읽은 것만, 최신순, 요청한 개수까지만
+    java.lang.AssertionError: Status expected:<200> but was:<404>
+# NotificationCleanupTest: NotificationCleanupService class does not exist yet (no cleanup job) -> cannot compile before the fix

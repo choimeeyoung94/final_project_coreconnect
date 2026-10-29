@@ -6,7 +6,17 @@ export async function getUnreadNotificationSummary() {
   return res.data?.data || null;
 }
 
-/** 나에게 온 전체 알림 조회 (최신순) */
+/**
+ * 내 알림 목록 한 페이지 (서버 NotificationController, 최신순)
+ * @param status "unread"(안 읽은 것만) | "all"(읽은 것도, 항목의 readYn으로 구분)
+ * @returns {content: [...], page, last}
+ */
+export async function getNotificationPage(status = "unread", page = 0, size = 20) {
+  const res = await http.get("/notification", { params: { status, page, size } });
+  return res.data?.data || { content: [], page: 0, last: true };
+}
+
+/** 나에게 온 전체 알림 조회 (최신순) — 제한 없이 전부 받음, 화면에서는 getNotificationPage 사용 */
 export async function getMyNotifications() {
   const res = await http.get("/chat/notifications");
   return res.data?.data || [];

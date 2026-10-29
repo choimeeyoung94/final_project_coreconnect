@@ -1847,15 +1847,7 @@ public class ChatMessageController {
             
             List<NotificationType> allowedTypes = List.of(NotificationType.EMAIL, NotificationType.NOTICE, NotificationType.APPROVAL, NotificationType.SCHEDULE, NotificationType.CHAT);
             
-            // DB에서 직접 조회하여 확인
-            List<Notification> allUserNotifications = notificationRepository.findByUserIdOrderBySentAtDesc(user.getId());
-            log.info("🔔 [getAllUnreadNotifications] DB 직접 조회 - 전체 알림 개수: {}", allUserNotifications.size());
-            if (!allUserNotifications.isEmpty()) {
-                log.info("🔔 [getAllUnreadNotifications] 전체 알림 상세:");
-                allUserNotifications.forEach(n -> log.info("  - 알림 ID: {}, 타입: {}, 읽음여부: {}, 삭제여부: {}, user_id: {}", 
-                        n.getId(), n.getNotificationType(), n.getNotificationReadYn(), n.getNotificationDeletedYn(), n.getUser().getId()));
-            }
-            
+            // (예전에는 디버깅용으로 이 사용자의 알림 전체 이력을 여기서 두 번 읽었음 → 알림이 쌓이면 종을 열 때마다 전부 읽어서 제거)
             List<Notification> unreadList = notificationRepository.findUnreadByUserIdAndTypesOrderBySentAtDesc(user.getId(), allowedTypes);
             
             log.info("🔔 [getAllUnreadNotifications] 사용자 ID: {}, 안읽은 알림 개수: {}, allowedTypes: {}", 
@@ -1876,24 +1868,6 @@ public class ChatMessageController {
                     .filter(n -> n.getNotificationType() == NotificationType.NOTICE)
                     .count();
             log.info("🔔 [getAllUnreadNotifications] NOTICE 타입 알림 개수: {}", noticeCount);
-            
-            // 전체 알림 조회 (필터 없이) - 디버깅용
-            List<Notification> allNotifications = notificationRepository.findByUserIdOrderBySentAtDesc(user.getId());
-            long totalNoticeCount = allNotifications.stream()
-                    .filter(n -> n.getNotificationType() == NotificationType.NOTICE)
-                    .count();
-            log.info("🔔 [getAllUnreadNotifications] 전체 알림 개수: {}, NOTICE 타입: {}", 
-                    allNotifications.size(), totalNoticeCount);
-            
-            // NOTICE 타입 알림 상세 로그
-            if (totalNoticeCount > 0) {
-                log.info("🔔 [getAllUnreadNotifications] NOTICE 타입 알림 상세:");
-                allNotifications.stream()
-                        .filter(n -> n.getNotificationType() == NotificationType.NOTICE)
-                        .forEach(n -> log.info("  - 알림 ID: {}, 읽음여부: {}, 삭제여부: {}, user_id: {}, board_id: {}", 
-                                n.getId(), n.getNotificationReadYn(), n.getNotificationDeletedYn(), 
-                                n.getUser().getId(), n.getBoard() != null ? n.getBoard().getId() : null));
-            }
             
             // 쿼리 조건 확인을 위한 로그
             log.info("🔔 [getAllUnreadNotifications] 쿼리 조건: userId={}, notificationReadYn=false or null, notificationDeletedYn=false or null, types={}", 
