@@ -37,10 +37,11 @@ public class ScheduleCategoryServiceImpl implements ScheduleCategoryService {
 
   /** 카테고리 수정 (이름, 기본 여부 변경) */
   @Override
-  public ResponseScheduleCategoryDTO updateCategory(Integer id, RequestScheduleCategoryDTO dto) {
-    
+  public ResponseScheduleCategoryDTO updateCategory(Integer id, RequestScheduleCategoryDTO dto, String email) {
+
     ScheduleCategory category = scheduleCategoryRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("카테고리를 찾을 수 없습니다."));
+    assertOwner(category, email);
 
     category.rename(dto.getName());
     category.changeDefault(dto.isDefaultYn());
@@ -50,11 +51,12 @@ public class ScheduleCategoryServiceImpl implements ScheduleCategoryService {
 
   /** 카테고리 삭제 (Soft Delete) */
   @Override
-  public void deleteCategory(Integer id) {
-    
+  public void deleteCategory(Integer id, String email) {
+
     ScheduleCategory category = scheduleCategoryRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("카테고리를 찾을 수 없습니다."));
-    
+    assertOwner(category, email);
+
     // 기본 카테고리(defaultYn = true)면 삭제 불가
     if (Boolean.TRUE.equals(category.getDefaultYn())) {
         throw new IllegalStateException("기본 카테고리는 삭제할 수 없습니다.");
@@ -80,5 +82,12 @@ public class ScheduleCategoryServiceImpl implements ScheduleCategoryService {
                                       .collect(Collectors.toList());
   }
   
+
+  /** 카테고리를 만든 사용자인지 확인 */
+  private void assertOwner(ScheduleCategory category, String email) {
+    if (category.getUser() == null || !category.getUser().getEmail().equals(email)) {
+      throw new SecurityException("본인이 만든 카테고리만 변경할 수 있습니다.");
+    }
+  }
 }
 

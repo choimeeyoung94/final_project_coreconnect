@@ -14,6 +14,8 @@ import com.goodee.coreconnect.schedule.entity.Schedule;
 import com.goodee.coreconnect.schedule.repository.MeetingRoomRepository;
 import com.goodee.coreconnect.schedule.repository.ScheduleRepository;
 
+import com.goodee.coreconnect.user.entity.User;
+import com.goodee.coreconnect.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -23,6 +25,7 @@ public class MeetingRoomServiceImpl implements MeetingRoomService {
 
   private final MeetingRoomRepository meetingRoomRepository;
   private final ScheduleRepository scheduleRepository;
+  private final UserRepository userRepository;
 
   /** 회의실 생성 */
   @Override
@@ -95,14 +98,15 @@ public class MeetingRoomServiceImpl implements MeetingRoomService {
   /** 특정 회의실의 예약된 일정 조회 */
   @Override
   @Transactional(readOnly = true)
-  public List<ResponseScheduleDTO> getSchedulesByMeetingRoom(Integer meetingRoomId) {
+  public List<ResponseScheduleDTO> getSchedulesByMeetingRoom(Integer meetingRoomId, String viewerEmail) {
     MeetingRoom room = meetingRoomRepository.findById(meetingRoomId)
         .orElseThrow(() -> new IllegalArgumentException("회의실을 찾을 수 없습니다."));
+    Integer viewerId = userRepository.findByEmail(viewerEmail).map(User::getId).orElse(null);
 
     List<Schedule> schedules = scheduleRepository.findByMeetingRoomAndDeletedYnFalse(room);
 
     return schedules.stream()
-        .map(ResponseScheduleDTO::toDTO)
+        .map(s -> ResponseScheduleDTO.toDTOFor(s, viewerId)) // 남의 비공개 일정은 "비공개 약속" + 시간만
         .collect(Collectors.toList());
   }
   

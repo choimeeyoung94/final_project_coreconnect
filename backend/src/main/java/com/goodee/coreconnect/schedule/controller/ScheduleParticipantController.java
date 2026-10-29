@@ -43,22 +43,24 @@ public class ScheduleParticipantController {
   /** 일정별 참여자 목록 조회 */
   @Operation(summary = "참여자 목록 조회", description = "참여자 목록을 조회합니다.")
   @GetMapping(params = "scheduleId")
-  public List<ResponseScheduleParticipantDTO> getBySchedule(@RequestParam("scheduleId") Integer scheduleId) {
-    return participantService.getParticipantsBySchedule(scheduleId);
+  public List<ResponseScheduleParticipantDTO> getBySchedule(@RequestParam("scheduleId") Integer scheduleId,
+      @AuthenticationPrincipal CustomUserDetails user) {
+    return participantService.getParticipantsBySchedule(scheduleId, user.getEmail());
   }
 
   /** 유저별 참여 일정 목록 조회 */
   @Operation(summary = "참여자 일정 조회", description = "참여자의 일정을 조회합니다.")
   @GetMapping(params = "userId")
-  public List<ResponseScheduleParticipantDTO> getByUser(@RequestParam("userId") Integer userId) {
-    return participantService.getSchedulesByUser(userId);
+  public List<ResponseScheduleParticipantDTO> getByUser(@RequestParam("userId") Integer userId,
+      @AuthenticationPrincipal CustomUserDetails user) {
+    return participantService.getSchedulesByUser(userId, user.getEmail());
   }
 
   /** 참여자 삭제 (Soft Delete) */
   @Operation(summary = "참여자", description = "일정에서 참여자를 삭제합니다.")
   @DeleteMapping("/{id}")
-  public void delete(@PathVariable("id") Integer id) {
-    participantService.deleteParticipant(id);
+  public void delete(@PathVariable("id") Integer id, @AuthenticationPrincipal CustomUserDetails user) {
+    participantService.deleteParticipant(id, user.getEmail());
   }
 }
 

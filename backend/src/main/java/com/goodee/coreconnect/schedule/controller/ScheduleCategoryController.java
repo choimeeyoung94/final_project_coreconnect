@@ -44,15 +44,16 @@ public class ScheduleCategoryController {
   @Operation(summary = "카테고리 수정", description = "기존의 카테고리를 수정합니다.")
   @PutMapping("/{id}")
   public ResponseScheduleCategoryDTO update(@PathVariable("id") Integer id,
-                                            @Valid @RequestBody RequestScheduleCategoryDTO dto) {
-    return scheduleCategoryService.updateCategory(id, dto);
+                                            @Valid @RequestBody RequestScheduleCategoryDTO dto,
+                                            @AuthenticationPrincipal CustomUserDetails user) {
+    return scheduleCategoryService.updateCategory(id, dto, user.getEmail());
   }
 
   /** 카테고리 삭제 */
   @Operation(summary = "카테고리 삭제", description = "기존의 카테고리를 수정합니다.")
   @DeleteMapping("/{id}")
-  public void delete(@PathVariable("id") Integer id) {
-    scheduleCategoryService.deleteCategory(id);
+  public void delete(@PathVariable("id") Integer id, @AuthenticationPrincipal CustomUserDetails user) {
+    scheduleCategoryService.deleteCategory(id, user.getEmail());
   }
 
   /** 특정 유저의 카테고리 목록 조회 */

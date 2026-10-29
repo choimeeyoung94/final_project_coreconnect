@@ -69,7 +69,7 @@ public class ScheduleCategoryServiceIntegrationTest {
             .defaultYn(true)
             .build();
 
-    ResponseScheduleCategoryDTO response = categoryService.updateCategory(saved.getId(), dto);
+    ResponseScheduleCategoryDTO response = categoryService.updateCategory(saved.getId(), dto, testUser.getEmail());
 
     assertThat(response.getName()).isEqualTo("변경된 일정");
     assertThat(response.isDefaultYn()).isTrue();
@@ -95,7 +95,7 @@ public class ScheduleCategoryServiceIntegrationTest {
     ScheduleCategory saved = categoryRepository.save(
             ScheduleCategory.createScheduleCategory(testUser, "삭제할 카테고리", false));
 
-    categoryService.deleteCategory(saved.getId());
+    categoryService.deleteCategory(saved.getId(), testUser.getEmail());
 
     ScheduleCategory deleted = categoryRepository.findById(saved.getId()).orElseThrow();
     assertThat(deleted.getDeletedYn()).isTrue();
