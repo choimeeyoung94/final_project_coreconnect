@@ -1460,41 +1460,7 @@ public class ChatMessageController {
         }
     }
 
-    // 10. 알림 읽음 처리 (채팅/업무)
-    @Operation(summary = "알림 읽음 처리", description = "알림을 읽음 처리합니다.")
-    @PutMapping("/notifications/{notificationId}/read")
-    @org.springframework.transaction.annotation.Transactional
-    public ResponseEntity<ResponseDTO<NotificationReadResponseDTO>> markNotificationRead(
-            @PathVariable("notificationId") Integer notificationId,
-            @AuthenticationPrincipal CustomUserDetails loginUser
-    ) {
-        Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new IllegalArgumentException("알림 없음: " + notificationId));
-        // 받는 사람 본인만 읽음 처리 가능 (아니면 403)
-        if (notification.getUser() == null || !notification.getUser().getId().equals(loginUser.getId())) {
-            throw new AccessDeniedException("본인 알림만 읽음 처리할 수 있습니다.");
-        }
-
-        // 이미 읽음 처리된 알림인지 확인
-        if (Boolean.TRUE.equals(notification.getNotificationReadYn())) {
-            log.info("[markNotificationRead] 알림이 이미 읽음 처리되어 있습니다. notificationId: {}", notificationId);
-            NotificationReadResponseDTO dto = new NotificationReadResponseDTO(notification.getId(), notification.getNotificationReadYn());
-            return ResponseEntity.ok(ResponseDTO.success(dto, "알림이 이미 읽음 처리되어 있습니다."));
-        }
-        
-        // 알림 읽음 처리 (notification_read_yn = true, notification_read_at = 현재 시간)
-        notification.markRead();
-        notificationRepository.save(notification);
-        
-        // 즉시 DB에 반영되도록 flush
-        notificationRepository.flush();
-        
-        log.info("[markNotificationRead] 알림 읽음 처리 완료 - notificationId: {}, notificationReadYn: {}, notificationReadAt: {}", 
-                notification.getId(), notification.getNotificationReadYn(), notification.getNotificationReadAt());
-        
-        NotificationReadResponseDTO dto = new NotificationReadResponseDTO(notification.getId(), notification.getNotificationReadYn());
-        return ResponseEntity.ok(ResponseDTO.success(dto, "알림 읽음 처리 성공"));
-    }
+    // 10. 알림 1개 읽음 처리는 NotificationController(PUT /api/v1/notification/{id}/read)로 합침
 
     // 10-1. 모든 알림 읽음 처리
     @Operation(summary = "모든 알림 읽음 처리", description = "현재 사용자의 모든 안읽은 알림을 읽음 처리합니다.")

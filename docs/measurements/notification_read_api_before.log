@@ -1,0 +1,10 @@
+# NotificationReadApiTest on main 967e68ca (before merge of read APIs), 2026-10-29
+# tests=5 failures=3 errors=0
+PASS 남의 알림이면 403이고 안 읽음으로 남는다
+FAIL 이미 읽은 알림을 다시 읽음 처리해도 200이고, 읽은 시각은 바뀌지 않는다
+    org.opentest4j.AssertionFailedError: [두 번째 읽음 처리 뒤 읽은 시각]  | expected: 2026-10-29T17:33:51.643 (java.time.LocalDateTime) |  but was: 2026-10-29T17:33:53.374 (java.time.LocalDateTime) | when comparing values using 'ChronoLocalDateTime.timeLineOrder()'
+FAIL 본인 알림을 읽음 처리하면 200, 읽음으로 바뀌고 응답은 ResponseDTO로 감싼 모양이다
+    java.lang.AssertionError: No value at JSON path "$.data.notificationId"
+PASS 없는 알림이면 400
+FAIL 옛 주소 /api/v1/chat/notifications/{id}/read 는 더 이상 없다
+    java.lang.AssertionError: [옛 주소 응답 코드]  | Expecting actual: |   200 | to be in: |   [404, 405] | 

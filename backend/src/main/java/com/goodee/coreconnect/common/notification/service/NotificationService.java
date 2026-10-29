@@ -54,15 +54,22 @@ private final UserRepository userRepository;
     private final PlatformTransactionManager transactionManager;
     //private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
 
-    public NotificationReadResponseDTO markAsRead(Integer notificationId, String email) {
+    /**
+     * 알림 1개 읽음 처리 (알림 읽음 API는 이 메서드 하나만 씀)
+     * - 받는 사람 본인만 가능, 아니면 AccessDeniedException(403)
+     * - 이미 읽은 알림은 그대로 둠 (읽은 시각이 바뀌지 않게)
+     * - 없는 알림이면 IllegalArgumentException(400)
+     */
+    @Transactional
+    public NotificationReadResponseDTO markAsRead(Integer notificationId, Integer userId) {
         Notification notification = notificationRepository.findById(notificationId)
             .orElseThrow(() -> new IllegalArgumentException("알림 없음: " + notificationId));
-        // 받는 사람 본인만 읽음 처리 가능
-        if (notification.getUser() == null || !notification.getUser().getEmail().equals(email)) {
+        if (notification.getUser() == null || !notification.getUser().getId().equals(userId)) {
             throw new AccessDeniedException("본인 알림만 읽음 처리할 수 있습니다.");
         }
-        notification.markRead();
-        notificationRepository.save(notification);
+        if (!Boolean.TRUE.equals(notification.getNotificationReadYn())) {
+            notification.markRead(); // 트랜잭션 안이라 커밋 때 저장됨
+        }
         return new NotificationReadResponseDTO(notification.getId(), notification.getNotificationReadYn());
     }
 
