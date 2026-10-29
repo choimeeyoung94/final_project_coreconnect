@@ -49,6 +49,11 @@ public interface ChatMessageReadStatusRepository extends JpaRepository<ChatMessa
     // ⭐ 배포 환경에서 NULL 값도 처리하도록 (readYn = false OR readYn IS NULL)
     @Query("SELECT r FROM ChatMessageReadStatus r WHERE r.user.id = :userId AND r.chat.chatRoom.id = :roomId AND (r.readYn = false OR r.readYn IS NULL)")
     List<ChatMessageReadStatus> findUnreadMessagesByRoomIdAndUserId(@Param("roomId") Integer roomId, @Param("userId") Integer userId);
+
+    /** 방을 나간 사람의 그 방 읽음 상태 전부 삭제 → 안 읽은 수(countUnreadByChatId)에서 빠짐 */
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM ChatMessageReadStatus r WHERE r.user.id = :userId AND r.chat.id IN (SELECT c.id FROM Chat c WHERE c.chatRoom.id = :roomId)")
+    int deleteByUserIdAndRoomId(@Param("userId") Integer userId, @Param("roomId") Integer roomId);
     
     // 6. 내가 특정 채팅방에서 안읽은 메시지들을 모두 읽음 처리 (readYn=true, readAt=now)
     @Modifying

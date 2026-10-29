@@ -25,6 +25,9 @@ import lombok.extern.slf4j.Slf4j;
 @Setter
 @ToString
 public class ChatMessageResponseDTO {
+
+	/** 방을 나간 사람이 보낸 메시지의 보낸 사람 이름 */
+	public static final String UNKNOWN_SENDER_NAME = "알 수 없음";
 	
 	private Integer id;
 	private String messageContent;
@@ -42,6 +45,15 @@ public class ChatMessageResponseDTO {
 	private Integer unreadCount;
 	private String roomName;
 	private Boolean readYn;
+
+	/** 보낸 사람이 지금 그 방 참여자가 아닐 때: 내용은 두고 이름은 "알 수 없음", 누군지 알 수 있는 정보(이메일·사진·직급·부서)는 비움 */
+	public void hideSender() {
+		this.senderName = UNKNOWN_SENDER_NAME;
+		this.senderEmail = null;
+		this.senderProfileImageUrl = null;
+		this.senderJobGrade = null;
+		this.senderDeptName = null;
+	}
 	
 	// ✨ 2. readYn 파라미터를 받도록 메서드 시그니처 변경 (S3Service 포함 버전 - 권장)
     public static ChatMessageResponseDTO fromEntity(Chat chat, Boolean readYn, S3Service s3Service) {

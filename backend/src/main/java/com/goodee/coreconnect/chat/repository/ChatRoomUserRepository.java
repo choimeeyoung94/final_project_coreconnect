@@ -28,7 +28,21 @@ public interface ChatRoomUserRepository extends JpaRepository<ChatRoomUser, Inte
 	 * - 채팅방 퇴장 및 중복 초대 방지에 사용
 	 */
 	Optional<ChatRoomUser> findByChatRoomIdAndUserId(Integer chatRoomId, Integer userId);
-	
+
+	/** 채팅방 참여 여부 (권한 확인용, 엔티티를 읽지 않고 존재만 확인) */
+	boolean existsByChatRoomIdAndUserId(Integer chatRoomId, Integer userId);
+
+	/** 참여 행 하나 (유니크 제약이 없어 중복 행이 있어도 오류 없이 가장 최근 행) */
+	Optional<ChatRoomUser> findFirstByChatRoomIdAndUserIdOrderByIdDesc(Integer chatRoomId, Integer userId);
+
+	/** 방 참여자 id 목록 (ChatRoomMemberCache가 방 단위로 한 번에 읽어 캐시) */
+	@Query("SELECT cru.user.id FROM ChatRoomUser cru WHERE cru.chatRoom.id = :chatRoomId")
+	List<Integer> findUserIdsByChatRoomId(@Param("chatRoomId") Integer chatRoomId);
+
+	/** 여러 방의 (방 id, 참여자 id) 목록. 나간 사람 표시("알 수 없음")를 방 목록에서 한 번에 판단할 때 사용 */
+	@Query("SELECT cru.chatRoom.id, cru.user.id FROM ChatRoomUser cru WHERE cru.chatRoom.id IN :chatRoomIds")
+	List<Object[]> findRoomIdAndUserIdByChatRoomIds(@Param("chatRoomIds") List<Integer> chatRoomIds);
+
 	/**
 	 * ⭐ 여러 채팅방의 참여자 수를 한 번에 조회
 	 * - N+1 문제 해결

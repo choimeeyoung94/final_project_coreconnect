@@ -4,11 +4,15 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +41,10 @@ import com.goodee.coreconnect.chat.repository.ChatRepository;
 import com.goodee.coreconnect.chat.repository.ChatRoomRepository;
 import com.goodee.coreconnect.chat.repository.ChatRoomUserRepository;
 import com.goodee.coreconnect.chat.repository.MessageFileRepository;
+import com.goodee.coreconnect.common.notification.event.NotificationPushEvent;
+import com.goodee.coreconnect.chat.dto.response.ChatMessageResponseDTO;
+import com.goodee.coreconnect.chat.event.ChatRoomMembersChangedEvent;
+import com.goodee.coreconnect.chat.event.ChatUnreadCountsChangedEvent;
 import com.goodee.coreconnect.chat.handler.ChatWebSocketHandler;
 import com.goodee.coreconnect.chat.pubsub.ChatPubSubService;
 import com.goodee.coreconnect.user.entity.User;
@@ -57,7 +65,8 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	private final ChatRoomRepository chatRoomRepository;
 	private final ChatRepository chatRepository;
 	private final NotificationRepository notificationRepository;
-	private final UserRepository userRepository;
+	private final ApplicationEventPublisher eventPublisher;
+private final UserRepository userRepository;
 	private final DocumentRepository documentRepository;
 	private final MessageFileRepository messageFileRepository;
     private final ChatMessageReadStatusRepository chatMessageReadStatusRepository;
@@ -106,6 +115,8 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 			// 현재 로그인된 사용자가 어느 채팅방에 참여중인지 확인할 수 있게 하기 위함
 			user.getChatRoomUsers().add(chatRoomUser);
 		}
+		// 참여자 캐시(ChatRoomMemberCache)를 커밋 뒤 비움
+		eventPublisher.publishEvent(new ChatRoomMembersChangedEvent(chatRoom.getId()));
 		return chatRoom;		
 	}
 
@@ -331,11 +342,33 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 		return result;
 	}
 
+	@Override
+	public void assertMember(Integer roomId, Integer userId) {
+		if (!isMember(roomId, userId)) {
+			throw new AccessDeniedException("채팅방 참여자가 아닙니다. roomId=" + roomId);
+		}
+	}
+
+	@Override
+	public LocalDateTime joinedAtOfMember(Integer roomId, Integer userId) {
+		ChatRoomUser member = chatRoomUserRepository.findFirstByChatRoomIdAndUserIdOrderByIdDesc(roomId, userId)
+				.orElseThrow(() -> new AccessDeniedException("채팅방 참여자가 아닙니다. roomId=" + roomId));
+		return member.getJoinedAt();
+	}
+
+	@Override
+	public boolean isMember(Integer roomId, Integer userId) {
+		return roomId != null && userId != null
+				&& chatRoomUserRepository.existsByChatRoomIdAndUserId(roomId, userId);
+	}
+
 	@Transactional
 	@Override
 	public Chat sendChatMessage(Integer roomId, Integer senderId, Object contentOrFile) {
 		// 1. 채팅방/사용자 조회
 		ChatRoom chatRoom = chatRoomRepository.findById(roomId).orElseThrow(() -> new IllegalArgumentException("채팅방 없음: " + roomId));
+		// REST·STOMP·답신·파일 메시지가 모두 이 메서드로 저장되므로, 저장 직전에 참여자 확인
+		assertMember(roomId, senderId);
 		User sender = userRepository.findById(senderId)
 	            .orElseThrow(() -> new IllegalArgumentException("사용자 없음: " + senderId));
 		
@@ -845,8 +878,8 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	}
 	
 	@Override
-	public org.springframework.data.domain.Page<Chat> getChatsWithFilesByRoomIdPaged(Integer roomId, org.springframework.data.domain.Pageable pageable) {
-		return chatRepository.findChatsWithFilesByRoomIdPaged(roomId, pageable);
+	public org.springframework.data.domain.Page<Chat> getChatsWithFilesByRoomIdPaged(Integer roomId, LocalDateTime joinedAt, org.springframework.data.domain.Pageable pageable) {
+		return chatRepository.findChatsWithFilesByRoomIdPaged(roomId, joinedAt, pageable);
 	}
 
 	@Override
@@ -879,24 +912,52 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 	    List<Chat> lastMessages = chatRepository.findLatestMessageByChatRoomIds(roomIds);
 	    Map<Integer, Chat> roomIdToLastMessage = lastMessages.stream()
 	    		.collect(Collectors.toMap(chat -> chat.getChatRoom().getId(), chat -> chat));
+
+	    // 3-1. 방별 지금 참여자 (마지막 메시지 보낸 사람이 나갔으면 "알 수 없음"), 방별 내가 들어온 시각
+	    Map<Integer, Set<Integer>> roomIdToMemberIds = memberIdsByRoom(roomIds);
+	    Map<Integer, LocalDateTime> roomIdToJoinedAt = new HashMap<>();
+	    chatRoomUsers.forEach(cru -> roomIdToJoinedAt.put(cru.getChatRoom().getId(), cru.getJoinedAt()));
 	    
 	    
 	    // 4. DTO 변환
 	    List<ChatRoomListDTO> dtos = new ArrayList<>();
 	    for (ChatRoom room : chatRooms) {
 	        Chat lastMessage = roomIdToLastMessage.get(room.getId());
+	        LocalDateTime joinedAt = roomIdToJoinedAt.get(room.getId());
+	        if (lastMessage != null && joinedAt != null && lastMessage.getSendAt() != null && lastMessage.getSendAt().isBefore(joinedAt)) {
+	            lastMessage = null; // 들어오기 전 메시지는 미리보기에도 안 보임
+	        }
 	        long unreadCount = roomIdToUnreadCount.getOrDefault(room.getId(), 0L);
 	        ChatRoomListDTO dto = new ChatRoomListDTO();
 	        dto.setRoomId(room.getId());
 	        dto.setRoomName(room.getRoomName());
 	        dto.setLastMessageContent(lastMessage != null ? lastMessage.getMessageContent() : null);
 	        dto.setLasMessageTime(lastMessage != null ? lastMessage.getSendAt() : null);
-	        dto.setLastSenderName(lastMessage != null && lastMessage.getSender() != null ? lastMessage.getSender().getName() : null);
+	        dto.setLastSenderName(lastMessage != null && lastMessage.getSender() != null
+	                ? senderNameFor(lastMessage.getSender(), roomIdToMemberIds.get(room.getId())) : null);
 	        dto.setUnreadCount(unreadCount);
 	        dto.setLastMessageFileYn(lastMessage != null ? lastMessage.getFileYn() : null);
 	        dtos.add(dto);
 	    }
 	    return dtos;
+	}
+
+	@Override
+	public Map<Integer, Set<Integer>> memberIdsByRoom(List<Integer> roomIds) {
+	    Map<Integer, Set<Integer>> result = new HashMap<>();
+	    if (roomIds == null || roomIds.isEmpty()) {
+	        return result;
+	    }
+	    for (Object[] row : chatRoomUserRepository.findRoomIdAndUserIdByChatRoomIds(roomIds)) {
+	        result.computeIfAbsent((Integer) row[0], k -> new HashSet<>()).add((Integer) row[1]);
+	    }
+	    return result;
+	}
+
+	/** 보낸 사람이 지금 그 방 참여자가 아니면(나감) "알 수 없음" */
+	private static String senderNameFor(User sender, Set<Integer> memberIds) {
+	    return memberIds != null && memberIds.contains(sender.getId())
+	            ? sender.getName() : ChatMessageResponseDTO.UNKNOWN_SENDER_NAME;
 	}
 
 	@Override
@@ -936,9 +997,29 @@ public class ChatRoomServiceImpl implements ChatRoomService {
 		String leaveMessage = user.getName() + "님이 채팅방을 나갔습니다";
 		Chat leaveChat = sendChatMessage(roomId, user.getId(), leaveMessage);
 		
-		// 5. ChatRoomUser 삭제
+		// 5. ChatRoomUser 삭제 (참여자 캐시는 커밋 뒤 비움 → 같은 서버에서는 나간 즉시 메시지 전달이 막힘)
 		chatRoomUserRepository.delete(chatRoomUser);
-		
+		eventPublisher.publishEvent(new ChatRoomMembersChangedEvent(roomId));
+
+		// 5-0. 나간 사람의 이 방 읽음 상태 삭제 → 안 읽고 나간 메시지의 "안 읽은 수"에서 빠짐
+		//      숫자가 바뀌는 메시지(나간 사람이 안 읽은 것)는 커밋 뒤 방에 UNREAD_COUNT_UPDATE로 알림 (ChatUnreadCountsChangedListener)
+		List<Integer> changedChatIds = chatMessageReadStatusRepository.findUnreadMessagesByRoomIdAndUserId(roomId, user.getId()).stream()
+				.map(status -> status.getChat().getId())
+				.collect(Collectors.toList());
+		chatMessageReadStatusRepository.deleteByUserIdAndRoomId(user.getId(), roomId);
+		if (!changedChatIds.isEmpty()) {
+			eventPublisher.publishEvent(new ChatUnreadCountsChangedEvent(roomId, changedChatIds));
+		}
+
+		// 5-1. 나간 사람의 이 방 알림 삭제 (같은 트랜잭션, 롤백되면 같이 되돌아감)
+		int removed = notificationRepository.deleteChatNotificationsOfRoom(user.getId(), roomId);
+		log.info("[leaveChatRoom] 나간 사용자의 방 알림 삭제 - roomId: {}, userId: {}, 삭제 수: {}", roomId, user.getId(), removed);
+
+		// 5-2. 이미 열려 있는 그 사용자의 다른 탭이 목록에서 지우도록, 커밋 뒤 그 사용자에게만 이벤트 전송
+		//      (NotificationEventListener.handle(NotificationPushEvent)가 AFTER_COMMIT에서 sendToUser)
+		eventPublisher.publishEvent(new NotificationPushEvent(user.getId(),
+				Map.of("type", "CHAT_ROOM_NOTIFICATIONS_REMOVED", "roomId", roomId)));
+
 		// 6. WebSocket으로 나가기 메시지 브로드캐스트
 		if (leaveChat != null) {
 			ChatResponseDTO responseDto = new ChatResponseDTO();

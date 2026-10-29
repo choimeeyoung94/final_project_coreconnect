@@ -1,7 +1,10 @@
 package com.goodee.coreconnect.chat.entity;
 
+import java.time.LocalDateTime;
+
 import com.goodee.coreconnect.user.entity.User;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -46,6 +49,11 @@ public class ChatRoomUser {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "chat_room_id")
 	private ChatRoom chatRoom;
+
+	// 방에 들어온 시각 (만들기·초대·다시 초대). 이 시각 이후 메시지만 보여 줌
+	// 컬럼 추가 전부터 있던 참여자는 NULL → 메시지를 전부 보여 줌. 초 단위라 들어온 그 1초 안의 직전 메시지는 보일 수 있음
+	@Column(name = "joined_at")
+	private LocalDateTime joinedAt;
 	
 	protected ChatRoomUser() {}
 	
@@ -53,6 +61,8 @@ public class ChatRoomUser {
 		ChatRoomUser chatRoomUser = new ChatRoomUser();
 		chatRoomUser.user = user;
 		chatRoomUser.chatRoom = chatRoom;
+		// 초 단위로 자름: 운영 sent_at 컬럼 정밀도(초/마이크로초)와 상관없이 "들어온 직후 메시지(초대 안내 등)"가 joined_at보다 앞서 보이지 않게
+		chatRoomUser.joinedAt = LocalDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
 		return chatRoomUser;
 	}
 }

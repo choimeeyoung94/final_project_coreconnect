@@ -139,4 +139,10 @@ public interface NotificationRepository extends JpaRepository<Notification, Inte
     
     /** 특정 사용자가 보낸 모든 알림 조회 (sentYn 보정용) */
     List<Notification> findBySenderId(Integer senderId);
+
+	/** 방을 나간 사용자의 그 방 채팅 알림 삭제 (알림이 그 방 메시지에 연결된 것만, 다른 사람·다른 방 알림은 그대로) */
+	@Modifying
+	@Query("DELETE FROM Notification n WHERE n.user.id = :userId "
+			+ "AND n.chat.id IN (SELECT c.id FROM Chat c WHERE c.chatRoom.id = :roomId)")
+	int deleteChatNotificationsOfRoom(@Param("userId") Integer userId, @Param("roomId") Integer roomId);
 }

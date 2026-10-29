@@ -32,6 +32,18 @@ public interface ChatRoomService {
 
 	ChatRoom findById(Integer id);
 
+	/** 방 참여자가 아니면 AccessDeniedException(403) - 방 id로 접근하는 API와 메시지 저장 전에 호출 */
+	void assertMember(Integer roomId, Integer userId);
+
+	/** 참여자면 들어온 시각(없으면 null = 전부 보임)을 돌려주고, 아니면 AccessDeniedException */
+	java.time.LocalDateTime joinedAtOfMember(Integer roomId, Integer userId);
+
+	/** 방 id → 지금 참여자 id 집합 (쿼리 1번) */
+	java.util.Map<Integer, java.util.Set<Integer>> memberIdsByRoom(List<Integer> roomIds);
+
+	/** 방 참여자인지 (STOMP 구독 검사처럼 예외 대신 true/false가 필요한 곳에서 사용) */
+	boolean isMember(Integer roomId, Integer userId);
+
 	ChatRoom updateRoomType(int i, String string);
 	
 	int countUnreadByChatId(Integer chatId);
@@ -83,7 +95,7 @@ public interface ChatRoomService {
     List<Chat> getChatsWithFilesByRoomId(Integer roomId);
     
     // 채팅 메시지를 페이징으로 조회 (파일 포함)
-    org.springframework.data.domain.Page<Chat> getChatsWithFilesByRoomIdPaged(Integer roomId, org.springframework.data.domain.Pageable pageable);
+    org.springframework.data.domain.Page<Chat> getChatsWithFilesByRoomIdPaged(Integer roomId, java.time.LocalDateTime joinedAt, org.springframework.data.domain.Pageable pageable);
     
     boolean existsRoom(Integer roomId);
     

@@ -23,6 +23,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -36,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.goodee.coreconnect.chat.event.ChatRoomMembersChangedEvent;
 import com.goodee.coreconnect.chat.dto.request.CreateRoomRequestDTO;
 import com.goodee.coreconnect.chat.dto.request.InviteUsersRequestDTO;
 import com.goodee.coreconnect.chat.dto.request.PushNotificationTestRequestDTO;
@@ -116,6 +118,9 @@ public class ChatMessageController {
         
         return ResponseEntity.status(HttpStatus.CREATED).body(ChatRoomResponseDTO.fromEntity(newChatRoom));
     }
+	/** STOMP 전송 실패 때 클라이언트에 보내는 고정 문구 (서버 내부 정보가 나가지 않게) */
+	static final String SEND_FAILED_MESSAGE = "메시지를 보내지 못했습니다";
+
 	/**
 	 * 메시지 전송
 	 */
@@ -152,6 +157,12 @@ public class ChatMessageController {
 	        User authUser = userRepository.findByEmailWithDepartment(email).orElse(null);
 	        if (authUser == null) {
 	            log.error("[ChatMessageController] sendMessage - 사용자를 찾을 수 없습니다. email: {}", email);
+	            return;
+	        }
+
+	        // 방 참여자가 아니면 저장·방송하지 않음 (아래 catch의 에러 방송이 방에 나가지 않도록 예외 대신 바로 종료)
+	        if (req != null && req.getRoomId() != null && !chatRoomService.isMember(req.getRoomId(), authUser.getId())) {
+	            log.warn("[sendMessage] 채팅방 참여자가 아님 - roomId: {}, userId: {}", req.getRoomId(), authUser.getId());
 	            return;
 	        }
 	        
@@ -442,9 +453,10 @@ public class ChatMessageController {
 	    }
 	    
 	    } catch (Exception e) {
-	        log.error("🔥 [sendMessage] ========== 예외 발생 ========== - req: {}, error: {}, stackTrace: {}", 
-	                req, e.getMessage(), e);
-	        e.printStackTrace(); // 스택 트레이스 출력
+	        // 원인은 서버 로그에만 남김 (방 번호·보낸 사람 이메일, 예외 스택). 클라이언트에는 고정 문구만 보냄
+	        Map<String, Object> attrs = headerAccessor != null ? headerAccessor.getSessionAttributes() : null;
+	        log.error("[sendMessage] 메시지 전송 실패 - roomId: {}, sender: {}",
+	                req != null ? req.getRoomId() : null, attrs != null ? attrs.get("wsUserEmail") : null, e);
 	        
 	        // ⭐ 예외 발생 시 프론트엔드에 에러 알림 전송 (선택사항)
 	        try {
@@ -452,7 +464,7 @@ public class ChatMessageController {
 	                String errorTopic = "/topic/chat.room." + req.getRoomId();
 	                Map<String, Object> errorMessage = new HashMap<>();
 	                errorMessage.put("type", "ERROR");
-	                errorMessage.put("message", "메시지 전송 중 오류가 발생했습니다: " + e.getMessage());
+	                errorMessage.put("message", SEND_FAILED_MESSAGE); // 내부 예외 문구(e.getMessage())는 보내지 않음
                 chatPubSubService.publish(errorTopic, errorMessage);
 	                log.info("[sendMessage] 에러 메시지 브로드캐스트 완료 - topic: {}", errorTopic);
 	            }
@@ -470,7 +482,9 @@ public class ChatMessageController {
 	 * */
 	@Operation(summary = "채팅방 참여자 목록 조회", description = "채팅방에 참여중인 사용자 목록을 반환합니다.")
 	@GetMapping("/{roomId}/users")
-	public ResponseEntity<ResponseDTO<List<ChatUserResponseDTO>>> getChatRoomUsers(@PathVariable("roomId") Integer roomId) {
+	public ResponseEntity<ResponseDTO<List<ChatUserResponseDTO>>> getChatRoomUsers(@PathVariable("roomId") Integer roomId,
+			@AuthenticationPrincipal CustomUserDetails loginUser) {
+		chatRoomService.assertMember(roomId, loginUser.getId()); // 방 참여자가 아니면 403
 		List<ChatRoomUser> chatRoomUsers = chatRoomService.getChatRoomUsers(roomId);
 		// ⭐ S3Service를 파라미터로 전달하여 fromEntity에서 직접 profileImageUrl 변환
 		List<ChatUserResponseDTO> usersDTO = chatRoomUsers.stream()
@@ -599,6 +613,8 @@ public class ChatMessageController {
 	    @RequestParam(value = "size", defaultValue = "20") int size,
 	    @AuthenticationPrincipal CustomUserDetails customUserDetails) {
 	    log.debug("여기 들어옴=============================");
+		// 방 참여자가 아니면 403. 참여자면 들어온 시각(이 시각 이후 메시지만 보임, null이면 전부)
+		LocalDateTime joinedAt = chatRoomService.joinedAtOfMember(roomId, customUserDetails.getId());
 	    try {
 	        String email = customUserDetails.getEmail();
 	        User user = userRepository.findByEmail(email).orElseThrow();
@@ -616,7 +632,10 @@ public class ChatMessageController {
 
 	        // 페이징 처리
 	        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
-	        org.springframework.data.domain.Page<Chat> chatPage = chatRoomService.getChatsWithFilesByRoomIdPaged(roomId, pageable);
+	        org.springframework.data.domain.Page<Chat> chatPage = chatRoomService.getChatsWithFilesByRoomIdPaged(roomId, joinedAt, pageable);
+
+	        // 지금 참여자 id (페이지마다 한 번). 보낸 사람이 여기 없으면 나간 사람 → "알 수 없음"
+	        java.util.Set<Integer> memberIds = new java.util.HashSet<>(chatRoomUserRepository.findUserIdsByChatRoomId(roomId));
 
 	        // DTO 변환
 	        org.springframework.data.domain.Page<ChatMessageResponseDTO> dtoPage = chatPage.map(chat -> {
@@ -631,7 +650,9 @@ public class ChatMessageController {
 	            
 	            // 프로필 이미지 URL 설정 (user_profile_image_key 사용)
 	            // sender를 명시적으로 조회하여 profileImageKey 가져오기
-	            if (dto != null && chat.getSender() != null && chat.getSender().getId() != null) {
+	            if (dto != null && chat.getSender() != null && !memberIds.contains(chat.getSender().getId())) {
+	                dto.hideSender(); // 나간 사람: 내용은 그대로, 보낸 사람 정보만 가림
+	            } else if (dto != null && chat.getSender() != null && chat.getSender().getId() != null) {
 	                // ⭐ LazyInitializationException 방지: Department를 함께 로드하는 메서드 사용
 	                User senderUser = userRepository.findByIdWithDepartment(chat.getSender().getId()).orElse(null);
 	                if (senderUser != null) {
@@ -684,6 +705,7 @@ public class ChatMessageController {
             @PathVariable("roomId") Integer roomId,
             @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
+		chatRoomService.assertMember(roomId, customUserDetails.getId()); // 방 참여자가 아니면 403
 	      String email = customUserDetails.getEmail();
         User user = userRepository.findByEmail(email).orElseThrow();
         ChatRoom chatRoom = chatRoomService.findById(roomId);
@@ -755,6 +777,7 @@ public class ChatMessageController {
 	@Operation(summary = "채팅방 파일/이미지 업로드", description = "채팅방에 파일/이미지를 업로드합니다")
 	@PostMapping("/{roomId}/messages/file")
 	public ResponseEntity<ResponseDTO<ChatResponseDTO>> uploadFileMessage(@PathVariable("roomId") Integer roomId, @AuthenticationPrincipal CustomUserDetails user, @RequestParam("file") MultipartFile uploadFile) throws java.io.IOException {
+		chatRoomService.assertMember(roomId, user.getId()); // 방 참여자가 아니면 403
 		String email = user.getEmail();
 	  // ⭐ LazyInitializationException 방지: Department를 함께 로드하는 메서드 사용
 	  User sender = userRepository.findByEmailWithDepartment(email).orElseThrow();
@@ -908,6 +931,7 @@ public class ChatMessageController {
 			@PathVariable("roomId") Integer roomId, 
 			@AuthenticationPrincipal CustomUserDetails user, 
 			@RequestParam("files") MultipartFile[] uploadFiles) throws java.io.IOException {
+		chatRoomService.assertMember(roomId, user.getId()); // 방 참여자가 아니면 403
 		String email = user.getEmail();
 		// ⭐ LazyInitializationException 방지: Department를 함께 로드하는 메서드 사용
 		User sender = userRepository.findByEmailWithDepartment(email).orElseThrow();
@@ -1147,8 +1171,10 @@ public class ChatMessageController {
     @Operation(summary = "채팅방 초대 가능한 사용자 목록 조회", description = "특정 채팅방에 참여하지 않은 모든 사용자 목록을 조회합니다.")
     @GetMapping("/{roomId}/users/available")
     public ResponseEntity<ResponseDTO<List<ChatUserResponseDTO>>> getAvailableUsersForInvite(
-            @PathVariable("roomId") Integer roomId
+            @PathVariable("roomId") Integer roomId,
+            @AuthenticationPrincipal CustomUserDetails loginUser
     ) {
+		chatRoomService.assertMember(roomId, loginUser.getId()); // 방 참여자가 아니면 403
         log.info("[getAvailableUsersForInvite] 요청 시작 - roomId: {}", roomId);
         try {
             // 채팅방 존재 확인
@@ -1241,6 +1267,7 @@ public class ChatMessageController {
             @RequestBody InviteUsersRequestDTO req,
             @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
+		chatRoomService.assertMember(roomId, customUserDetails.getId()); // 방 참여자가 아니면 403
         try {
             log.info("[inviteUsersToChatRoom] 초대 요청 시작 - roomId: {}, userIds: {}", roomId, req.getUserIds());
             
@@ -1304,7 +1331,8 @@ public class ChatMessageController {
             
             log.info("[inviteUsersToChatRoom] 초대할 사용자 수: {}", invitedUsers.size());
             
-            // 5. 사용자 초대 처리
+            // 5. 사용자 초대 처리 (참여자 캐시는 커밋 뒤 비움)
+            eventPublisher.publishEvent(new ChatRoomMembersChangedEvent(roomId));
             List<ChatUserResponseDTO> dtoList = new ArrayList<>();
             for (User invited : invitedUsers) {
                 try {
@@ -1437,11 +1465,16 @@ public class ChatMessageController {
     @PutMapping("/notifications/{notificationId}/read")
     @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<ResponseDTO<NotificationReadResponseDTO>> markNotificationRead(
-            @PathVariable("notificationId") Integer notificationId
+            @PathVariable("notificationId") Integer notificationId,
+            @AuthenticationPrincipal CustomUserDetails loginUser
     ) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new IllegalArgumentException("알림 없음: " + notificationId));
-        
+        // 받는 사람 본인만 읽음 처리 가능 (아니면 403)
+        if (notification.getUser() == null || !notification.getUser().getId().equals(loginUser.getId())) {
+            throw new AccessDeniedException("본인 알림만 읽음 처리할 수 있습니다.");
+        }
+
         // 이미 읽음 처리된 알림인지 확인
         if (Boolean.TRUE.equals(notification.getNotificationReadYn())) {
             log.info("[markNotificationRead] 알림이 이미 읽음 처리되어 있습니다. notificationId: {}", notificationId);
@@ -1619,7 +1652,9 @@ public class ChatMessageController {
     // 15. 내가 참여중인 채팅방에서 각 메시지별 읽지 않은 인원 수 표시
     @Operation(summary = "내가 참여중인 채팅방에서 각 메시지별 읽지 않은 인원 수 표시", description = "내가 참여중인 채팅방에서 각 메시지별 읽지 않은 인원 수 표시")
     @GetMapping("/rooms/{roomId}/messages/unread-count")
-    public ResponseEntity<ResponseDTO<List<ChatUnreadCountDTO>>> getUnreadCounts(@PathVariable("roomId") Integer roomId) {
+    public ResponseEntity<ResponseDTO<List<ChatUnreadCountDTO>>> getUnreadCounts(@PathVariable("roomId") Integer roomId,
+            @AuthenticationPrincipal CustomUserDetails user) {
+		chatRoomService.assertMember(roomId, user.getId()); // 방 참여자가 아니면 403
         List<Object[]> unreadCounts = chatRoomService.countUnreadByRoomId(roomId);
         List<ChatUnreadCountDTO> dtoList = unreadCounts.stream()
             .map(arr -> new ChatUnreadCountDTO((Integer) arr[0], ((Long) arr[1]).intValue()))
@@ -1719,6 +1754,10 @@ public class ChatMessageController {
         // 3. 내가 참여중인 채팅방 목록 조회
         List<ChatRoomLatestMessageResponseDTO> chatRooms = chatRoomService.getChatRoomIdsByUserId(user.getId());
 
+        // 방별 지금 참여자 (보낸 사람이 나갔으면 "알 수 없음"), 쿼리 1번
+        Map<Integer, java.util.Set<Integer>> memberIdsByRoom = chatRoomService.memberIdsByRoom(
+            chatRooms.stream().map(ChatRoomLatestMessageResponseDTO::getRoomId).collect(Collectors.toList()));
+
         // 4. 채팅방별 안읽은 메시지 개수, 마지막 메시지 정보 포함해서 응답용 리스트 생성
         List<Map<String, Object>> roomsWithUnread = new ArrayList<>();
         
@@ -1734,6 +1773,10 @@ public class ChatMessageController {
             String lastUnreadMessageContent = lastUnreadStatus != null ? lastUnreadStatus.getChat().getMessageContent() : null;
             String lastUnreadSenderName = lastUnreadStatus != null && lastUnreadStatus.getChat().getSender() != null
                 ? lastUnreadStatus.getChat().getSender().getName() : null;
+            if (lastUnreadSenderName != null && !memberIdsByRoom.getOrDefault(room.getRoomId(), java.util.Set.of())
+                    .contains(lastUnreadStatus.getChat().getSender().getId())) {
+                lastUnreadSenderName = ChatMessageResponseDTO.UNKNOWN_SENDER_NAME;
+            }
             LocalDateTime lastUnreadMessageTime = lastUnreadStatus != null ? lastUnreadStatus.getChat().getSendAt() : null;
 
             // 응답 map에 id도 추가
@@ -1772,9 +1815,13 @@ public class ChatMessageController {
         		.map(status -> {
         		    ChatMessageResponseDTO dto = ChatMessageResponseDTO.fromEntity(status.getChat(), status.getReadYn(), s3Service);
         		    
-        		    // ⭐ senderEmail 명시적으로 설정 (lazy loading 문제 해결)
-        		    if (dto != null && status.getChat() != null && status.getChat().getSender() != null 
+        		    Integer senderId = status.getChat() != null && status.getChat().getSender() != null ? status.getChat().getSender().getId() : null;
+        		    Integer chatRoomId = status.getChat() != null && status.getChat().getChatRoom() != null ? status.getChat().getChatRoom().getId() : null;
+        		    if (dto != null && senderId != null && !memberIdsByRoom.getOrDefault(chatRoomId, java.util.Set.of()).contains(senderId)) {
+        		        dto.hideSender(); // 나간 사람이 보낸 메시지
+        		    } else if (dto != null && status.getChat() != null && status.getChat().getSender() != null 
         		        && status.getChat().getSender().getId() != null) {
+        		        // ⭐ senderEmail 명시적으로 설정 (lazy loading 문제 해결)
         		        // ⭐ LazyInitializationException 방지: Department를 함께 로드하는 메서드 사용
         		        User senderUser = userRepository.findByIdWithDepartment(status.getChat().getSender().getId()).orElse(null);
         		        if (senderUser != null && senderUser.getEmail() != null) {
@@ -1956,6 +2003,7 @@ public class ChatMessageController {
     @PatchMapping("/rooms/{roomId}/messages/read")
     @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> markRoomMessagesAsRead(@PathVariable Integer roomId, @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+		chatRoomService.assertMember(roomId, customUserDetails.getId()); // 방 참여자가 아니면 403
       String email = customUserDetails.getEmail();
     	User user = userRepository.findByEmail(email).orElseThrow();
     	
@@ -2013,6 +2061,7 @@ public class ChatMessageController {
             @PathVariable Integer roomId,
             @PathVariable Integer messageId,
             @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+		chatRoomService.assertMember(roomId, customUserDetails.getId()); // 방 참여자가 아니면 403
         
         try {
             String email = customUserDetails.getEmail();
@@ -2051,6 +2100,7 @@ public class ChatMessageController {
             @PathVariable Integer roomId,
             @RequestBody List<Integer> messageIds,
             @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+		chatRoomService.assertMember(roomId, customUserDetails.getId()); // 방 참여자가 아니면 403
         
         try {
             String email = customUserDetails.getEmail();

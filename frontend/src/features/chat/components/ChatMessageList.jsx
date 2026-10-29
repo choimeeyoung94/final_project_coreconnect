@@ -115,7 +115,8 @@ function ChatMessageList({
           if (
             msg.messageContent?.includes("님이 입장했습니다") ||
             msg.messageContent?.includes("님이 초대되었습니다") ||
-            msg.messageContent?.includes("님이 나갔습니다")
+            msg.messageContent?.includes("님이 나갔습니다") ||
+            msg.messageContent?.includes("님이 채팅방을 나갔습니다") // 서버 나가기 안내 문구(ChatRoomServiceImpl.leaveChatRoom)
           ) {
             return (
               <Box

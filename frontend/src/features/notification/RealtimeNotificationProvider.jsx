@@ -7,6 +7,7 @@ const RealtimeNotificationContext = createContext({
   notifications: [],
   pushNotification: () => {},
   clearNotifications: () => {},
+  removeRoomNotifications: () => {},
 });
 
 export const useRealtimeNotifications = () => useContext(RealtimeNotificationContext);
@@ -25,6 +26,11 @@ export function RealtimeNotificationProvider({ children }) {
   }, []);
 
   const clearNotifications = useCallback(() => setNotifications([]), []);
+
+  // 채팅방을 나가면 그 방 채팅 알림을 목록에서 뺌 (같은 탭: ChatLayout handleLeaveRoom, 다른 탭: 서버 이벤트)
+  const removeRoomNotifications = useCallback((roomId) => {
+    setNotifications(prev => prev.filter(n => Number(n.roomId) !== Number(roomId)));
+  }, []);
 
   // 알림 타입별 severity
   const typeToSeverity = (type) => {
@@ -45,6 +51,12 @@ export function RealtimeNotificationProvider({ children }) {
     const handleMessage = (payload) => {
       console.log("[Notification WS] message payload ::", payload);
 
+      // 서버가 방 나가기 커밋 뒤 보내는 이벤트: 알림으로 표시하지 않고, 그 방 알림만 목록에서 지움
+      if (payload?.type === "CHAT_ROOM_NOTIFICATIONS_REMOVED") {
+        removeRoomNotifications(payload.roomId);
+        return;
+      }
+
       const notif = {
         id: payload.notificationId || payload.id || `${Date.now()}`,
         type: payload.notificationType || payload.type || "NOTICE",
@@ -62,14 +74,11 @@ export function RealtimeNotificationProvider({ children }) {
         : notif.message;
       showSnack(message, typeToSeverity(notif.type));
       
-      // CHAT 타입 알림이고 roomId가 있으면 채팅방으로 이동
-      if (notif.type?.toUpperCase() === "CHAT" && notif.roomId) {
-        // 알림 표시 후 잠시 후 채팅방으로 이동
-        setTimeout(() => {
-          window.location.href = `/chat?roomId=${notif.roomId}`;
-        }, 500);
-      }
-    };
+      // 채팅 알림이 오면 자동으로 채팅방으로 이동하던 코드는 제거함
+      // - 지금까지는 서버가 roomId를 보내지 않아 실행된 적이 없었음
+      // - 서버가 roomId를 채우면서 실행되면, 다른 화면에서 일하던 사용자가 0.5초 뒤 강제로 이동하게 됨
+      // - 알림을 "눌렀을 때" 이동은 NotificationPopover에서 그대로 처리
+};
 
     // SockJS를 사용하여 상대 경로로 연결 (Vite 프록시를 통해 쿠키 자동 전송)
     connectNotification({ onMessage: handleMessage });
@@ -82,10 +91,10 @@ export function RealtimeNotificationProvider({ children }) {
         console.warn("[RealtimeNotificationProvider] cleanup 중 오류 (무시):", err);
       }
     };
-  }, [pushNotification, showSnack]); // showSnack 추가
+  }, [pushNotification, removeRoomNotifications, showSnack]); // showSnack 추가
 
   return (
-    <RealtimeNotificationContext.Provider value={{ notifications, pushNotification, clearNotifications }}>
+    <RealtimeNotificationContext.Provider value={{ notifications, pushNotification, clearNotifications, removeRoomNotifications }}>
       {children}
     </RealtimeNotificationContext.Provider>
   );

@@ -1,5 +1,6 @@
 package com.goodee.coreconnect.chat.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -94,8 +95,9 @@ public interface ChatRepository extends JpaRepository<Chat, Integer> {
     	   "LEFT JOIN FETCH c.messageFiles " + 
     	   "LEFT JOIN FETCH c.sender " +
     		"WHERE c.chatRoom.id = :roomId " + 
+    	   "AND (:joinedAt IS NULL OR c.sendAt >= :joinedAt) " +
     	   "ORDER BY c.sendAt DESC")
-    Page<Chat> findChatsWithFilesByRoomIdPaged(@Param("roomId") Integer roomId, Pageable pageable);
+    Page<Chat> findChatsWithFilesByRoomIdPaged(@Param("roomId") Integer roomId, @Param("joinedAt") LocalDateTime joinedAt, Pageable pageable);
     
 
     /** 
