@@ -1,0 +1,44 @@
+# ChatRoomOutboundInterceptor(나가는 메시지 참여자 확인) 비용 - ChatOutboundCheckMeasurementTest
+# 같은 JVM에서 검사기 OFF/ON 번갈아 3회, 워밍업 1회(OFF·ON) 버림. 서버가 방 토픽으로 메시지 100건 전송, 참여자 전원이 실제 STOMP로 구독
+# msPerMessage = 전원이 100건을 모두 받을 때까지 시간 / 100, queriesPerMessage = Hibernate prepareStatementCount / 100
+# 환경: Windows 11, Docker Desktop, Testcontainers MySQL 8.0 + Redis 7, 실제 WebSocket(/ws/chat-ws), MEASURE=true gradlew cleanTest test
+[MEASURE 캐시 전] N=10 OFF#1 msPerMessage=0.602 queriesPerMessage=0.00 deliveries=1000
+[MEASURE 캐시 전] N=10 ON#1 msPerMessage=82.742 queriesPerMessage=10.00 deliveries=1000
+[MEASURE 캐시 전] N=10 OFF#2 msPerMessage=0.551 queriesPerMessage=0.00 deliveries=1000
+[MEASURE 캐시 전] N=10 ON#2 msPerMessage=74.397 queriesPerMessage=10.00 deliveries=1000
+[MEASURE 캐시 전] N=10 OFF#3 msPerMessage=0.613 queriesPerMessage=0.00 deliveries=1000
+[MEASURE 캐시 전] N=10 ON#3 msPerMessage=57.574 queriesPerMessage=10.00 deliveries=1000
+[MEASURE 캐시 전] N=50 OFF#1 msPerMessage=2.370 queriesPerMessage=0.00 deliveries=5000
+[MEASURE 캐시 전] N=50 ON#1 msPerMessage=382.286 queriesPerMessage=50.01 deliveries=5000
+[MEASURE 캐시 전] N=50 OFF#2 msPerMessage=2.318 queriesPerMessage=0.00 deliveries=5000
+[MEASURE 캐시 전] N=50 ON#2 msPerMessage=510.635 queriesPerMessage=50.00 deliveries=5000
+[MEASURE 캐시 전] N=50 OFF#3 msPerMessage=1.888 queriesPerMessage=0.00 deliveries=5000
+[MEASURE 캐시 전] N=50 ON#3 msPerMessage=340.583 queriesPerMessage=50.01 deliveries=5000
+
+# ── 캐시 적용 후 (ChatRoomMemberCache, 방 → 참여자 목록 5초, 참여자 변경 커밋 뒤 비움). 같은 방법
+[MEASURE] N=10 OFF#1 msPerMessage=0.935 queriesPerMessage=0.00 deliveries=1000
+[MEASURE] N=10 ON#1 msPerMessage=0.824 queriesPerMessage=0.00 deliveries=1000
+[MEASURE] N=10 OFF#2 msPerMessage=1.100 queriesPerMessage=0.00 deliveries=1000
+[MEASURE] N=10 ON#2 msPerMessage=1.196 queriesPerMessage=0.00 deliveries=1000
+[MEASURE] N=10 OFF#3 msPerMessage=2.104 queriesPerMessage=0.00 deliveries=1000
+[MEASURE] N=10 ON#3 msPerMessage=1.286 queriesPerMessage=0.00 deliveries=1000
+[MEASURE] N=50 OFF#1 msPerMessage=4.107 queriesPerMessage=0.00 deliveries=5000
+[MEASURE] N=50 ON#1 msPerMessage=4.552 queriesPerMessage=0.00 deliveries=5000
+[MEASURE] N=50 OFF#2 msPerMessage=3.699 queriesPerMessage=0.00 deliveries=5000
+[MEASURE] N=50 ON#2 msPerMessage=2.546 queriesPerMessage=0.00 deliveries=5000
+[MEASURE] N=50 OFF#3 msPerMessage=2.418 queriesPerMessage=0.00 deliveries=5000
+[MEASURE] N=50 ON#3 msPerMessage=3.359 queriesPerMessage=0.00 deliveries=5000
+
+# ── 캐시 + '목록에 없으면 DB 한 번 더 확인' 적용 후 (다른 서버 초대 유실 방지). 같은 방법
+[MEASURE] N=10 OFF#1 msPerMessage=1.429 queriesPerMessage=0.00 deliveries=1000
+[MEASURE] N=10 ON#1 msPerMessage=0.976 queriesPerMessage=0.00 deliveries=1000
+[MEASURE] N=10 OFF#2 msPerMessage=1.054 queriesPerMessage=0.00 deliveries=1000
+[MEASURE] N=10 ON#2 msPerMessage=1.096 queriesPerMessage=0.00 deliveries=1000
+[MEASURE] N=10 OFF#3 msPerMessage=0.950 queriesPerMessage=0.00 deliveries=1000
+[MEASURE] N=10 ON#3 msPerMessage=1.090 queriesPerMessage=0.00 deliveries=1000
+[MEASURE] N=50 OFF#1 msPerMessage=3.702 queriesPerMessage=0.00 deliveries=5000
+[MEASURE] N=50 ON#1 msPerMessage=2.500 queriesPerMessage=0.00 deliveries=5000
+[MEASURE] N=50 OFF#2 msPerMessage=2.887 queriesPerMessage=0.00 deliveries=5000
+[MEASURE] N=50 ON#2 msPerMessage=3.688 queriesPerMessage=0.00 deliveries=5000
+[MEASURE] N=50 OFF#3 msPerMessage=4.175 queriesPerMessage=0.00 deliveries=5000
+[MEASURE] N=50 ON#3 msPerMessage=3.362 queriesPerMessage=0.00 deliveries=5000

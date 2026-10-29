@@ -1,0 +1,52 @@
+# AuthorizationLatencyMeasurementTest, 2026-10-29 13:05~13:57
+# env: Windows 11, Docker Desktop, Testcontainers MySQL 8.0 + Redis 7, MockMvc + access_token cookie, security.mode=secure
+# before = d8cfdf35 (audit_wt), after = fix/authz-idor work tree (before 3-F/3-G/joined_at)
+# SQL: sqlCountPerRequest, Hibernate statistics ON, 1 discarded call + 20 calls per API
+# TIME: timing, statistics OFF, warm-up 100 calls per API discarded, 10 rounds x 100 calls per API, order after1 -> before1 -> after2 -> before2
+sql_before [MEASURE] SQL 메일 상세 queriesPerRequest=6.00
+sql_before [MEASURE] SQLQ 메일 상세 x20 [CRITERIA] select u1_0.user_id,u1_0.dept_id,u1_0.user_email,u1_0.user_employee_number,u1_0.user_rank,u1_0.user_join_date,u1_0.user_name,u1_0.user_password,u1_0.user_phone,u1_0.user_profile_image_key,u1_0.user_role,u1_0.user_status from users u1_0 where u1_0.user_email=?
+sql_before [MEASURE] SQLQ 메일 상세 x40 [CRITERIA] select ef1_0.email_file_id,ef1_0.email_id,ef1_0.email_fiel_deleted_yn,ef1_0.email_file_name,ef1_0.email_files3object_key,ef1_0.email_file_size from email_file ef1_0 where ef1_0.email_id=?
+sql_before [MEASURE] SQLQ 메일 상세 x20 [CRITERIA] select er1_0.email_recipient_id,er1_0.deleted,er1_0.deleted_at,er1_0.email_id,er1_0.email_is_alarm_sent,er1_0.email_read_at,er1_0.email_read_yn,er1_0.email_recipient_address,er1_0.email_recipient_type,er1_0.email_id2,er1_0.user_id from email_recipient er1_0 where er1_0.email_id=?
+sql_before [MEASURE] SQL 받은메일함 queriesPerRequest=4.00
+sql_before [MEASURE] SQLQ 받은메일함 x20 [CRITERIA] select u1_0.user_id,u1_0.dept_id,u1_0.user_email,u1_0.user_employee_number,u1_0.user_rank,u1_0.user_join_date,u1_0.user_name,u1_0.user_password,u1_0.user_phone,u1_0.user_profile_image_key,u1_0.user_role,u1_0.user_status from users u1_0 where u1_0.user_email=?
+sql_before [MEASURE] SQLQ 받은메일함 x20 SELECT r FROM EmailRecipient r LEFT JOIN FETCH r.email e WHERE r.emailRecipientAddress = :emailRecipientAddress AND r.emailRecipientType IN :emailRecipientType AND e.emailStatus = 'SENT' AND r.deleted = false AND (    :keyword IS NULL OR :keyword = '' OR (        (:searchType = 'TITLE' AND LOWER(e.emailTitle) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR         (:searchType = 'CONTENT' AND LOWER(e.emailContent) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR         (:searchType = 'TITLE_CONTENT' AND (            LOWER(e.emailTitle) LIKE LOWER(CONCAT('%', :keyword, '%')) OR             LOWER(e.emailContent) LIKE LOWER(CONCAT('%', :keyword, '%'))        ))    )) ORDER BY e.emailSentTime DESC, e.reservedAt DESC
+sql_before [MEASURE] SQL 채팅 메시지 목록 queriesPerRequest=6.00
+sql_before [MEASURE] SQLQ 채팅 메시지 목록 x40 [CRITERIA] select u1_0.user_id,u1_0.dept_id,u1_0.user_email,u1_0.user_employee_number,u1_0.user_rank,u1_0.user_join_date,u1_0.user_name,u1_0.user_password,u1_0.user_phone,u1_0.user_profile_image_key,u1_0.user_role,u1_0.user_status from users u1_0 where u1_0.user_email=?
+sql_before [MEASURE] SQLQ 채팅 메시지 목록 x20 select count(*) from ChatRoom x WHERE x.id = :id
+sql_before [MEASURE] SQLQ 채팅 메시지 목록 x20 SELECT DISTINCT c FROM Chat c LEFT JOIN FETCH c.messageFiles LEFT JOIN FETCH c.sender WHERE c.chatRoom.id = :roomId ORDER BY c.sendAt DESC
+sql_before [MEASURE] SQL 일정 단건 queriesPerRequest=4.05
+sql_before [MEASURE] SQLQ 일정 단건 x20 [CRITERIA] select u1_0.user_id,u1_0.dept_id,u1_0.user_email,u1_0.user_employee_number,u1_0.user_rank,u1_0.user_join_date,u1_0.user_name,u1_0.user_password,u1_0.user_phone,u1_0.user_profile_image_key,u1_0.user_role,u1_0.user_status from users u1_0 where u1_0.user_email=?
+sql_before [MEASURE] SQLQ 일정 단건 x1 [CRITERIA] select e1_0.email_id,e1_0.email_bounce_reason,e1_0.email_content,e1_0.email_delete_yn,e1_0.email_deleted_time,e1_0.email_folder,e1_0.email_id2,e1_0.email_read_at,e1_0.email_save_status_yn,e1_0.email_sent_time,e1_0.email_status,e1_0.email_title,e1_0.email_type,e1_0.favorite_status,e1_0.reply_to_email_id,e1_0.reserved_at,e1_0.sender_email,e1_0.sender_id from email e1_0 where e1_0.email_status=? and e1_0.reserved_at<=?
+sql_after [MEASURE] SQL 메일 상세 queriesPerRequest=6.00
+sql_after [MEASURE] SQLQ 메일 상세 x20 [CRITERIA] select u1_0.user_id,u1_0.dept_id,u1_0.user_email,u1_0.user_employee_number,u1_0.user_rank,u1_0.user_join_date,u1_0.user_name,u1_0.user_password,u1_0.user_phone,u1_0.user_profile_image_key,u1_0.user_role,u1_0.user_status from users u1_0 where u1_0.user_email=?
+sql_after [MEASURE] SQLQ 메일 상세 x40 [CRITERIA] select ef1_0.email_file_id,ef1_0.email_id,ef1_0.email_fiel_deleted_yn,ef1_0.email_file_name,ef1_0.email_files3object_key,ef1_0.email_file_size from email_file ef1_0 where ef1_0.email_id=?
+sql_after [MEASURE] SQLQ 메일 상세 x20 [CRITERIA] select er1_0.email_recipient_id,er1_0.deleted,er1_0.deleted_at,er1_0.email_id,er1_0.email_is_alarm_sent,er1_0.email_read_at,er1_0.email_read_yn,er1_0.email_recipient_address,er1_0.email_recipient_type,er1_0.email_id2,er1_0.user_id from email_recipient er1_0 where er1_0.email_id=?
+sql_after [MEASURE] SQL 받은메일함 queriesPerRequest=4.00
+sql_after [MEASURE] SQLQ 받은메일함 x20 [CRITERIA] select u1_0.user_id,u1_0.dept_id,u1_0.user_email,u1_0.user_employee_number,u1_0.user_rank,u1_0.user_join_date,u1_0.user_name,u1_0.user_password,u1_0.user_phone,u1_0.user_profile_image_key,u1_0.user_role,u1_0.user_status from users u1_0 where u1_0.user_email=?
+sql_after [MEASURE] SQLQ 받은메일함 x20 SELECT r FROM EmailRecipient r LEFT JOIN FETCH r.email e WHERE r.emailRecipientAddress = :emailRecipientAddress AND r.emailRecipientType IN :emailRecipientType AND e.emailStatus = 'SENT' AND r.deleted = false AND (    :keyword IS NULL OR :keyword = '' OR (        (:searchType = 'TITLE' AND LOWER(e.emailTitle) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR         (:searchType = 'CONTENT' AND LOWER(e.emailContent) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR         (:searchType = 'TITLE_CONTENT' AND (            LOWER(e.emailTitle) LIKE LOWER(CONCAT('%', :keyword, '%')) OR             LOWER(e.emailContent) LIKE LOWER(CONCAT('%', :keyword, '%'))        ))    )) ORDER BY e.emailSentTime DESC, e.reservedAt DESC
+sql_after [MEASURE] SQL 채팅 메시지 목록 queriesPerRequest=7.00
+sql_after [MEASURE] SQLQ 채팅 메시지 목록 x40 [CRITERIA] select u1_0.user_id,u1_0.dept_id,u1_0.user_email,u1_0.user_employee_number,u1_0.user_rank,u1_0.user_join_date,u1_0.user_name,u1_0.user_password,u1_0.user_phone,u1_0.user_profile_image_key,u1_0.user_role,u1_0.user_status from users u1_0 where u1_0.user_email=?
+sql_after [MEASURE] SQLQ 채팅 메시지 목록 x20 select count(*) from ChatRoom x WHERE x.id = :id
+sql_after [MEASURE] SQLQ 채팅 메시지 목록 x20 [CRITERIA] select cru1_0.id from chat_room_user cru1_0 where cru1_0.chat_room_id=? and cru1_0.user_id=? limit ?
+sql_after [MEASURE] SQLQ 채팅 메시지 목록 x20 SELECT DISTINCT c FROM Chat c LEFT JOIN FETCH c.messageFiles LEFT JOIN FETCH c.sender WHERE c.chatRoom.id = :roomId ORDER BY c.sendAt DESC
+sql_after [MEASURE] SQL 일정 단건 queriesPerRequest=5.00
+sql_after [MEASURE] SQLQ 일정 단건 x40 [CRITERIA] select u1_0.user_id,u1_0.dept_id,u1_0.user_email,u1_0.user_employee_number,u1_0.user_rank,u1_0.user_join_date,u1_0.user_name,u1_0.user_password,u1_0.user_phone,u1_0.user_profile_image_key,u1_0.user_role,u1_0.user_status from users u1_0 where u1_0.user_email=?
+--- sql done 13:16:59
+time_after1 [MEASURE] TIME 메일 상세 p50=81.168ms p95=172.987ms roundAvgMean=93.313ms roundAvgSd=16.352ms rounds=[105.09, 90.42, 60.72, 110.54, 86.98, 90.95, 92.88, 97.53, 79.37, 118.66]
+time_after1 [MEASURE] TIME 받은메일함 p50=73.916ms p95=171.204ms roundAvgMean=85.376ms roundAvgSd=27.540ms rounds=[89.85, 64.57, 56.72, 135.85, 94.78, 77.08, 73.21, 75.75, 57.68, 128.27]
+time_after1 [MEASURE] TIME 채팅 메시지 목록 p50=83.926ms p95=178.770ms roundAvgMean=95.955ms roundAvgSd=24.564ms rounds=[92.24, 74.96, 67.83, 143.51, 91.69, 86.74, 84.88, 95.54, 86.17, 135.98]
+time_after1 [MEASURE] TIME 일정 단건 p50=70.894ms p95=162.813ms roundAvgMean=82.903ms roundAvgSd=12.005ms rounds=[77.76, 68.15, 95.61, 80.74, 75.04, 94.02, 89.93, 95.19, 61.91, 90.67]
+time_before1 [MEASURE] TIME 메일 상세 p50=67.868ms p95=166.093ms roundAvgMean=82.174ms roundAvgSd=26.465ms rounds=[137.98, 80.18, 75.35, 109.13, 68.79, 66.79, 52.78, 66.73, 103.15, 60.86]
+time_before1 [MEASURE] TIME 받은메일함 p50=53.498ms p95=143.928ms roundAvgMean=68.754ms roundAvgSd=22.899ms rounds=[92.67, 54.25, 56.56, 120.48, 49.10, 44.52, 76.93, 66.80, 61.67, 64.57]
+time_before1 [MEASURE] TIME 채팅 메시지 목록 p50=65.443ms p95=141.929ms roundAvgMean=76.608ms roundAvgSd=12.758ms rounds=[91.27, 71.95, 91.94, 99.17, 68.43, 70.95, 66.88, 76.39, 64.62, 64.49]
+time_before1 [MEASURE] TIME 일정 단건 p50=51.969ms p95=127.043ms roundAvgMean=61.870ms roundAvgSd=15.431ms rounds=[70.40, 45.68, 96.84, 68.47, 44.74, 57.71, 56.99, 62.30, 48.47, 67.09]
+time_after2 [MEASURE] TIME 메일 상세 p50=72.635ms p95=178.074ms roundAvgMean=86.904ms roundAvgSd=29.891ms rounds=[107.67, 141.66, 80.93, 73.22, 81.12, 128.39, 57.64, 83.01, 63.03, 52.38]
+time_after2 [MEASURE] TIME 받은메일함 p50=58.105ms p95=172.437ms roundAvgMean=76.310ms roundAvgSd=38.097ms rounds=[87.32, 178.76, 73.61, 59.12, 54.71, 70.01, 65.53, 73.18, 59.68, 41.18]
+time_after2 [MEASURE] TIME 채팅 메시지 목록 p50=64.720ms p95=176.320ms roundAvgMean=81.854ms roundAvgSd=26.813ms rounds=[73.19, 133.46, 79.39, 128.29, 72.56, 73.02, 62.24, 77.23, 57.88, 61.26]
+time_after2 [MEASURE] TIME 일정 단건 p50=49.935ms p95=135.881ms roundAvgMean=65.204ms roundAvgSd=23.072ms rounds=[119.02, 60.16, 53.29, 87.93, 65.92, 53.75, 48.15, 69.74, 39.68, 54.40]
+time_before2 [MEASURE] TIME 메일 상세 p50=63.384ms p95=159.224ms roundAvgMean=77.759ms roundAvgSd=25.144ms rounds=[87.58, 71.04, 58.78, 64.31, 54.47, 59.29, 69.10, 121.27, 123.26, 68.50]
+time_before2 [MEASURE] TIME 받은메일함 p50=57.732ms p95=136.181ms roundAvgMean=68.037ms roundAvgSd=18.728ms rounds=[75.16, 60.33, 57.97, 65.39, 46.33, 63.46, 57.71, 70.36, 116.34, 67.32]
+time_before2 [MEASURE] TIME 채팅 메시지 목록 p50=59.640ms p95=175.401ms roundAvgMean=77.502ms roundAvgSd=32.784ms rounds=[98.90, 54.95, 51.69, 84.60, 59.20, 53.82, 104.53, 63.31, 151.81, 52.20]
+time_before2 [MEASURE] TIME 일정 단건 p50=46.755ms p95=119.484ms roundAvgMean=58.523ms roundAvgSd=16.554ms rounds=[62.64, 48.62, 50.68, 39.99, 43.06, 42.74, 87.56, 78.64, 73.00, 58.29]
+--- timing done 13:56:46
+--- all done 13:59:55

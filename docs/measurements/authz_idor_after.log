@@ -1,0 +1,40 @@
+# 수정 후 최종 (fix/authz-idor 작업본: 인가 + STOMP + 비공개 일정 + 나간 방 알림)
+# 환경: Windows 11, Testcontainers MySQL 8.0 + Redis 7, security.mode=secure, MockMvc + access_token 쿠키 / 실제 WebSocket(/ws/chat-ws), gradlew cleanTest test
+PASS [ChatNotificationOnLeaveTest] 방 나가기가 롤백되면 알림은 그대로이고 삭제 이벤트도 보내지 않는다
+PASS [ChatNotificationOnLeaveTest] C가 방1을 나가면 C의 방1 알림만 지워지고, C의 방2 알림과 B의 방1 알림은 남는다
+PASS [ChatNotificationOnLeaveTest] 방을 나가면 커밋 뒤 나간 사람에게만 알림 삭제 이벤트를 1번 보낸다
+PASS [ChatNotificationOnLeaveTest] 채팅 알림은 어느 방 메시지의 알림인지 연결돼 저장된다
+PASS [H6 첨부파일] [정상] 결재자는 결재 문서 첨부를 받을 수 있다
+PASS [H6 첨부파일] A가 B의 메일 첨부 fileId로 다운로드하면 403이다
+PASS [H6 첨부파일] A가 자기와 상관없는 결재 문서의 첨부 fileId로 다운로드하면 403이다
+PASS [H6 첨부파일] [정상] 메일 수신자 B는 첨부를 받을 수 있다
+PASS [H7 채팅 REST] 방에 없는 A가 그 방에 메시지를 보내면 403이고, 메시지가 저장되지 않는다
+PASS [H7 채팅 REST] 방에 없는 A가 그 방 메시지 목록을 조회하면 403이다
+PASS [H7 채팅 REST] [정상] 방 참여자 B는 메시지 목록을 조회할 수 있다
+PASS [H7 채팅 REST] 방에 없는 A가 그 방 참여자 목록을 조회하면 403이다
+PASS [H9 채팅 STOMP] A가 와일드카드(/topic/chat.room.*)로 구독해 모든 방을 받으려 해도 구독으로 등록되지 않는다
+PASS [H9 채팅 STOMP] 방에 없는 A가 STOMP로 그 방에 메시지를 보내도 저장되지 않는다
+PASS [H9 채팅 STOMP] 방에 없는 A의 SUBSCRIBE /topic/chat.room.{id}는 구독으로 등록되지 않는다 (참여자 B는 등록된다)
+PASS [H5 메일] A가 userEmail=B로 받은메일함을 요청해도 B의 메일 제목이 응답에 없다
+PASS [H5 메일] A가 B의 임시저장 메일을 삭제하면 403이고, B의 임시메일은 그대로 DRAFT다
+PASS [H5 메일] A가 B의 메일 id로 상세조회하면 403이다
+PASS [H5 메일] [정상] B는 받은메일함에서 자기 메일을 본다
+PASS [H5 메일] A가 userEmail을 B로 바꿔 상세조회해도 403이고, B의 메일은 안 읽음 상태로 남는다
+PASS [H5 메일] [정상] B는 자기 메일을 상세조회할 수 있다
+PASS [알림 읽음 처리] A가 B의 알림 id로 읽음 처리하면 403이고, B의 알림은 안 읽음으로 남는다 (두 API 모두)
+PASS [알림 읽음 처리] [정상] B는 자기 알림을 읽음 처리할 수 있다
+PASS [H8 일정] A가 B의 일정을 삭제하면 403이고, B의 일정은 삭제되지 않는다
+PASS [H8 일정] [정상] B는 자기 일정을 조회·삭제할 수 있다
+PASS [H8 일정] A가 참석자 일정 현황으로 B의 비공개 일정을 보면 제목은 '비공개 약속', 시간은 그대로, 내용·장소는 비어 있다
+PASS [H8 일정] A가 B 일정의 참여자(C)를 일정에서 빼면 403이고, C는 그대로 참여자다
+PASS [H8 일정] A가 B의 비공개 일정 참여자 목록을 조회하면 403이다
+PASS [H8 일정] A가 B의 일정 목록(userId=B)을 조회하면 B의 공개 일정만 보이고 비공개 일정은 보이지 않는다
+PASS [H8 일정] [정상] 참여자 C는 참석자 일정 현황에서 B의 비공개 일정 제목·내용을 그대로 본다
+PASS [H8 일정] A가 B의 일정 카테고리 이름을 바꾸면 403이고, 이름은 그대로다
+PASS [H8 일정] A가 회의실 일정 목록에서 B의 비공개 일정을 보면 '비공개 약속'과 시간만 보인다
+PASS [H8 일정] 관리자가 봐도 B의 비공개 일정은 '비공개 약속'과 시간만 보인다
+PASS [H8 일정] A가 B의 비공개 일정을 단건 조회하면 403이다
+PASS [StompSubscriptionE2ETest] [(나)] 남의 방 구독이 거부돼도 연결은 유지되고, 이미 구독한 내 방 메시지는 계속 받는다
+PASS [StompSubscriptionE2ETest] A가 SEND를 /topic/chat.room.{id}로 직접 보내도 방 구독자에게 전달되지 않는다 (서버 메시지는 전달됨)
+PASS [StompSubscriptionE2ETest] 방에서 나간 B의 기존 구독으로는 그 방의 새 메시지가 더 이상 오지 않는다
+# 합계: 37개 중 실패 0개
