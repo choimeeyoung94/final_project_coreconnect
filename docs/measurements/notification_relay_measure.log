@@ -1,0 +1,3 @@
+# NotificationRedisRelayTest.measureCrossServerLatency, fix applied (feature/notification-redis-relay), 2026-10-29
+# env: Windows 11, Docker Desktop, Testcontainers Redis 7; server2 = second WebSocketDeliveryService on same Redis; 120 sends, first 20 discarded; includes async send + Mockito verify wait
+[MEASURE] cross-server notification n=100 p50=15.60ms p95=49.24ms max=98.38ms

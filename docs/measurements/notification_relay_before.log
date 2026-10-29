@@ -1,0 +1,9 @@
+# NotificationRedisRelayTest on main d8cfdf35 (before fix), 2026-10-29
+# tests=5 failures=2 skipped=1
+PASS C가 서버1(보낸 서버)에 붙어 있으면 1번만 받는다 (두 번 가지 않음)
+SKIP measureCrossServerLatency()
+FAIL 여러 명에게 보내면(sendToUsers) 서버1의 B와 서버2의 C가 각각 1번 받는다
+    Wanted but not invoked: | webSocketSession.sendMessage(<any>); | -> at com.goodee.coreconnect.notification.NotificationRedisRelayTest.manyRecipients_acrossServers(NotificationRedisRelayTest.java:98) |  | However, there was exactly 1 interaction with this mock: | webSocketSession.getId(); | -> at com
+FAIL C의 알림 연결이 서버2에만 있어도, 서버1에서 보낸 알림을 C가 1번 받는다
+    Wanted but not invoked: | webSocketSession.sendMessage( |     <Capturing argument: TextMessage> | ); | -> at com.goodee.coreconnect.notification.NotificationRedisRelayTest.otherServer_receivesOnce(NotificationRedisRelayTest.java:68) |  | However, there was exactly 1 interaction with this mock: | web
+PASS 받는 사람이 어느 서버에도 연결돼 있지 않으면 오류 없이 아무에게도 안 간다
