@@ -39,6 +39,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -139,6 +140,27 @@ public class EmailServiceImpl implements EmailService {
 	@Value("${sendgrid.api.key}")
 	private String senGridApiKey; 
 
+	/** 메일 열람 권한 확인 (첨부 다운로드 등 메일 id로 접근하는 곳에서 사용) */
+	@Override
+	public void assertCanView(com.goodee.coreconnect.email.entity.Email email, String viewerEmail) {
+	    assertCanView(email, emailRecipientRepository.findByEmail(email), viewerEmail);
+	}
+
+	private void assertCanView(com.goodee.coreconnect.email.entity.Email email, List<EmailRecipient> recipients, String viewerEmail) {
+	    if (viewerEmail != null && viewerEmail.equals(email.getSenderEmail())) {
+	        return; // return = 통과 (보낸 사람, 임시저장 메일이면 작성자)
+	    }
+	    // 보낸 사람이 아니면 "받는 사람인가"를 확인함. 두 조건을 모두 만족해야 받는 사람으로 인정
+	    // 1) 임시저장(DRAFT)이 아닐 것: 아직 보내지 않은 메일은 받는 사람 주소가 적혀 있어도 받은 게 아님
+	    // 2) 이 메일의 수신자 목록(TO·CC·BCC 행 전부) 중에, 주소가 보는 사람 이메일과 같은 행이 하나라도 있을 것
+	    boolean isRecipient = email.getEmailStatus() != EmailStatusEnum.DRAFT
+	            && recipients.stream().anyMatch(r -> r.getEmailRecipientAddress() != null   // 주소가 빈 행은 건너뜀
+	                    && r.getEmailRecipientAddress().equals(viewerEmail));             // 수신자 주소 == 로그인 사용자 이메일
+	    if (!isRecipient) {
+	        throw new AccessDeniedException("메일을 열람할 권한이 없습니다.");
+	    }
+	}
+
 	/**이메일 상세조회*/
 	@Override
 	public EmailResponseDTO getEmailDetail(Integer emailId, String viewerEmail) {
@@ -147,6 +169,8 @@ public class EmailServiceImpl implements EmailService {
 	            .orElseThrow(() -> new IllegalArgumentException("메일이 존재하지 않습니다." + emailId));
 	    // 전체 수신자 목록
 	    List<EmailRecipient> recipients = emailRecipientRepository.findByEmail(email);
+	    // 발신자·수신자가 아니면 여기서 403 (아래 읽음 처리도 실행되지 않음)
+	    assertCanView(email, recipients, viewerEmail);
 
 	    // --- 읽음 처리 [빌더 패턴]
 	    Optional<EmailRecipient> myRecipientOpt = recipients.stream()
@@ -1242,9 +1266,12 @@ public class EmailServiceImpl implements EmailService {
      */
     @Override
     @Transactional
-    public void deleteDraftMail(Integer draftId) {
+    public void deleteDraftMail(Integer draftId, Integer userId) {
     	com.goodee.coreconnect.email.entity.Email draft = emailRepository.findById(draftId)
     	        .orElseThrow(() -> new IllegalArgumentException("임시저장 메일을 찾을 수 없습니다."));
+    	    if (!draft.getSenderId().equals(userId)) {
+    	        throw new AccessDeniedException("본인이 작성한 임시저장 메일만 삭제할 수 있습니다.");
+    	    }
     	    if (draft.getEmailStatus() != EmailStatusEnum.DRAFT) {
     	        throw new IllegalStateException("임시저장 상태(DRAFT) 메일만 삭제할 수 있습니다.");
     	    }

@@ -113,9 +113,15 @@ public interface EmailService {
 	    EmailResponseDTO getDraftMailDetail(Integer draftId, String userEmail);
 		
 	    /**
-	     * 임시저장 메일 삭제 
+	     * 임시저장 메일 삭제 (작성자 본인만)
 	     * */
-	    void deleteDraftMail(Integer draftId);
+	    void deleteDraftMail(Integer draftId, Integer userId);
+
+	    /**
+	     * 메일 열람 권한 확인 - 발신자 또는 수신자(TO/CC/BCC)가 아니면 AccessDeniedException(403)
+	     * 임시저장(DRAFT) 메일은 작성자만 볼 수 있음
+	     */
+	    void assertCanView(Email email, String viewerEmail);
 	    
 
 	    /**
