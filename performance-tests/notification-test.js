@@ -85,7 +85,7 @@ function getUnreadNotifications(token) {
 
 // 알림 읽음 처리
 function markNotificationAsRead(token, notificationId) {
-  const url = `${BASE_URL}/api/v1/chat/notifications/${notificationId}/read`;
+  const url = `${BASE_URL}/api/v1/notification/${notificationId}/read`;
   const params = {
     headers: {
       'Authorization': `Bearer ${token}`,

@@ -24,9 +24,9 @@ export async function getAllUnreadNotifications() {
   return res.data?.data || [];
 }
 
-/** 알림 읽음 처리 */
+/** 알림 읽음 처리 (채팅·결재·메일·일정 공통, 서버 NotificationController) */
 export async function markNotificationAsRead(notificationId) {
-  const res = await http.put(`/chat/notifications/${notificationId}/read`);
+  const res = await http.put(`/notification/${notificationId}/read`);
   return res.data;
 }
 

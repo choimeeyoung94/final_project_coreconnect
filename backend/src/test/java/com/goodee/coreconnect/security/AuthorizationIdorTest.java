@@ -382,15 +382,13 @@ class AuthorizationIdorTest extends AbstractIntegrationTest {
   class NotificationRead {
 
     @Test
-    @DisplayName("A가 B의 알림 id로 읽음 처리하면 403이고, B의 알림은 안 읽음으로 남는다 (두 API 모두)")
+    @DisplayName("A가 B의 알림 id로 읽음 처리하면 403이고, B의 알림은 안 읽음으로 남는다")
     void markRead_otherUsersNotification_forbidden() throws Exception {
       User a = newUser("a");
       User b = newUser("b");
       Notification notification = notificationOf(b);
 
       mockMvc.perform(as(a, put("/api/v1/notification/{id}/read", notification.getId())))
-          .andExpect(status().isForbidden());
-      mockMvc.perform(as(a, put("/api/v1/chat/notifications/{id}/read", notification.getId())))
           .andExpect(status().isForbidden());
 
       assertThat(notificationRepository.findById(notification.getId()).orElseThrow().getNotificationReadYn()).isFalse();
@@ -402,7 +400,7 @@ class AuthorizationIdorTest extends AbstractIntegrationTest {
       User b = newUser("b");
       Notification notification = notificationOf(b);
 
-      mockMvc.perform(as(b, put("/api/v1/chat/notifications/{id}/read", notification.getId())))
+      mockMvc.perform(as(b, put("/api/v1/notification/{id}/read", notification.getId())))
           .andExpect(status().isOk());
     }
   }

@@ -1,0 +1,8 @@
+# NotificationReadMeasurementTest, 2026-10-29 18:02-18:30
+# before = main 967e68ca, PUT /api/v1/chat/notifications/{id}/read ; after = feature/notification-read-api, PUT /api/v1/notification/{id}/read
+# env: Windows 11, Docker Desktop, Testcontainers MySQL 8.0 + Redis 7, MockMvc; warm-up 100, SQL = 20-request average (Hibernate statistics on only for that), time = 400 requests (statistics off); order before1 -> after1 -> before2 -> after2
+# note: the 50k scroll test (ChatScrollPagingTest) was running at the same time on the same PC/Docker
+before1 [MEASURE] path=/api/v1/chat/notifications/{id}/read sqlPerRequest=4.00 n=400 p50=82.28ms p95=182.03ms
+after1 [MEASURE] path=/api/v1/notification/{id}/read sqlPerRequest=4.00 n=400 p50=124.15ms p95=352.19ms
+before2 [MEASURE] path=/api/v1/chat/notifications/{id}/read sqlPerRequest=4.00 n=400 p50=125.82ms p95=257.12ms
+after2 [MEASURE] path=/api/v1/notification/{id}/read sqlPerRequest=4.00 n=400 p50=88.91ms p95=183.11ms
