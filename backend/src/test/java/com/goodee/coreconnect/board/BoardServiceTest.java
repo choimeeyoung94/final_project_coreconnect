@@ -1,5 +1,9 @@
 package com.goodee.coreconnect.board;
 
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.goodee.coreconnect.support.AbstractIntegrationTest;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
@@ -8,9 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.test.context.TestPropertySource;
 
 import com.goodee.coreconnect.board.dto.request.BoardRequestDTO;
 import com.goodee.coreconnect.board.dto.response.BoardResponseDTO;
@@ -20,14 +22,15 @@ import com.goodee.coreconnect.board.repository.BoardCategoryRepository;
 import com.goodee.coreconnect.board.repository.BoardRepository;
 import com.goodee.coreconnect.board.service.BoardService;
 import com.goodee.coreconnect.user.entity.User;
+import com.goodee.coreconnect.user.enums.Role;
 import com.goodee.coreconnect.user.repository.UserRepository;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@SpringBootTest
-@TestPropertySource(locations = "classpath:application.properties")
-class BoardServiceTest {
+@Transactional
+@WithMockUser(username = "admin@example.com", roles = "ADMIN")
+class BoardServiceTest extends AbstractIntegrationTest {
 
     @Autowired
     private BoardService boardService;
@@ -43,12 +46,10 @@ class BoardServiceTest {
 
     @BeforeEach
     void setUp() {
-        // 게시글 모두 삭제 (테스트 환경 정리)
-        boardRepository.deleteAll();
-
-        // 테스트용 사용자 로드
+        // 테스트용 사용자 준비 (빈 DB에서도 돌도록 없으면 만듦)
         user = userRepository.findByEmail("admin@example.com")
-                .orElseThrow(() -> new IllegalStateException("테스트용 유저(admin@example.com)를 찾을 수 없습니다."));
+                .orElseGet(() -> userRepository.saveAndFlush(User.createUser("pw123", "게시판관리자", Role.ADMIN,
+                        "admin@example.com", "010-0000-0000", null, null, null)));
         log.info("테스트 유저 로드 완료: {}", user.getName());
 
         // 테스트용 카테고리 확인 및 생성

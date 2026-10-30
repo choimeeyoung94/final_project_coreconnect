@@ -1,5 +1,6 @@
 package com.goodee.coreconnect.approval;
 
+import com.goodee.coreconnect.support.AbstractIntegrationTest;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
@@ -8,8 +9,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.goodee.coreconnect.approval.entity.ApprovalLine;
@@ -29,10 +28,8 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@SpringBootTest
 @Transactional
-@TestPropertySource(locations = "classpath:application.properties")
-public class ApprovalLineRepositoryTest {
+public class ApprovalLineRepositoryTest extends AbstractIntegrationTest {
 
   @Autowired
   private ApprovalLineRepository approvalLineRepository;

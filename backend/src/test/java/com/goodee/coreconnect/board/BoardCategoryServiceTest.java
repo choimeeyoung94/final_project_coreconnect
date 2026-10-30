@@ -20,6 +20,7 @@ import com.goodee.coreconnect.board.dto.request.BoardCategoryRequestDTO;
 import com.goodee.coreconnect.board.dto.response.BoardCategoryResponseDTO;
 import com.goodee.coreconnect.board.entity.BoardCategory;
 import com.goodee.coreconnect.board.repository.BoardCategoryRepository;
+import com.goodee.coreconnect.board.repository.BoardRepository;
 import com.goodee.coreconnect.board.service.BoardCategoryServiceImpl;
 import com.goodee.coreconnect.user.entity.User;
 import com.goodee.coreconnect.user.enums.Role;
@@ -33,6 +34,9 @@ class BoardCategoryServiceTest {
 
     @Mock
     private BoardCategoryRepository categoryRepository;
+
+    @Mock
+    private BoardRepository boardRepository;
 
     @Mock
     private UserRepository userRepository;

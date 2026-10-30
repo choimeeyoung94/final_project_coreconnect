@@ -7,6 +7,7 @@ import java.util.HashMap;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import static org.mockito.ArgumentMatchers.anyString;
@@ -44,7 +45,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -77,6 +77,7 @@ import com.goodee.coreconnect.common.notification.service.NotificationService;
 import com.goodee.coreconnect.common.notification.service.WebSocketDeliveryService;
 import com.goodee.coreconnect.common.service.S3Service;
 import com.goodee.coreconnect.security.jwt.JwtProvider;
+import com.goodee.coreconnect.support.AbstractIntegrationTest;
 import com.goodee.coreconnect.user.entity.User;
 import com.goodee.coreconnect.user.enums.Role;
 import com.goodee.coreconnect.user.repository.UserRepository;
@@ -85,11 +86,26 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * WebSocketHandler 및 채팅/알림 비즈니스 로직 테스트
+ *
+ * legacy: 개발 DB에 있던 실제 계정(이메일)과 방 번호(2, 4)에 의존해서 빈 DB에서는 돌 수 없음.
+ * 데이터를 스스로 만들도록 고칠 때까지 CI에서 제외함. (여기에만 있는 시나리오가 있을 수 있어 삭제는 하지 않음)
  * */
 @Slf4j
-@SpringBootTest(webEnvironment  = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@TestPropertySource(locations = "classpath:application.properties")
-public class ChatWebSocketHandlerTest {
+@Tag("legacy")
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
+    "jwt.secret=integration-test-jwt-secret-key-must-be-at-least-256-bits-long",
+    "cloud.aws.credentials.access-key=test",
+    "cloud.aws.credentials.secret-key=test",
+    "cloud.aws.region.static=ap-northeast-2",
+    "cloud.aws.s3.bucket=test-bucket",
+    "sendgrid.api.key=test",
+    "sendgrid.from.email=test@coreconnect.test",
+    "sendgrid.from.name=CoreConnect",
+    "sendgrid.reply.to=test@coreconnect.test",
+    "spring.mail.host=localhost",
+    "spring.mail.username=test@coreconnect.test"
+})
+public class ChatWebSocketHandlerTest extends AbstractIntegrationTest {
 
 	@Autowired
 	ChatRoomService chatRoomService;

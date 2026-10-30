@@ -78,7 +78,14 @@ dependencies {
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+	// 운영은 BackendApplication.main()이 Asia/Seoul로 고정. 테스트는 main()을 안 거치므로 UTC 러너에서도 같게 맞춤
+	systemProperty 'user.timezone', 'Asia/Seoul'
+	// legacy 태그: 실제 개발 DB 데이터에 의존하는 테스트. 포함해서 돌리려면 -PincludeLegacy
+	useJUnitPlatform {
+		if (!project.hasProperty('includeLegacy')) {
+			excludeTags 'legacy'
+		}
+	}
 }
 
 tasks.withType(JavaCompile) {

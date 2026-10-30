@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.net.URL;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Optional;
@@ -42,6 +43,9 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
 @DisplayName("BoardFileService 단위 테스트")
 class BoardFileServiceTest {
@@ -60,6 +64,9 @@ class BoardFileServiceTest {
 
     @Mock
     private S3Client s3Client; // 실제 putObject() 호출 방지
+
+    @Mock
+    private S3Presigner presigner;
 
     @InjectMocks
     private BoardFileServiceImpl boardFileService;
@@ -109,6 +116,11 @@ class BoardFileServiceTest {
 
         // URL 반환 Mock
         when(s3Service.getFileUrl(any())).thenReturn("https://mock-s3/test.txt");
+
+        // 다운로드 주소는 presigner가 만듦
+        PresignedGetObjectRequest presigned = mock(PresignedGetObjectRequest.class);
+        when(presigned.url()).thenReturn(new URL("https://mock-s3/presigned"));
+        when(presigner.presignGetObject(any(GetObjectPresignRequest.class))).thenReturn(presigned);
     }
 
     @Test

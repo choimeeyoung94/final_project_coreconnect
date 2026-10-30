@@ -1,5 +1,6 @@
 package com.goodee.coreconnect.approval;
 
+import com.goodee.coreconnect.support.AbstractIntegrationTest;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
@@ -8,8 +9,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.goodee.coreconnect.approval.entity.Template;
@@ -23,10 +22,8 @@ import com.goodee.coreconnect.user.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@SpringBootTest
-@TestPropertySource(locations = "classpath:application.properties")
 @Transactional
-public class TemplateRepositoryTest {
+public class TemplateRepositoryTest extends AbstractIntegrationTest {
 
     @Autowired
     private TemplateRepository templateRepository;

@@ -127,6 +127,7 @@ class BoardReplyServiceTest {
     void testUpdateReply_FailByOtherUser() {
         // 🔹 다른 사용자 mock 생성
         User otherUser = mock(User.class);
+        when(otherUser.getId()).thenReturn(99); // mock의 id 기본값은 0이라 작성자(user)와 같아지지 않게 다른 값으로
 
         when(userRepository.findByEmail("user@test.com")).thenReturn(Optional.of(otherUser));
         when(replyRepository.findById(1)).thenReturn(Optional.of(parentReply));

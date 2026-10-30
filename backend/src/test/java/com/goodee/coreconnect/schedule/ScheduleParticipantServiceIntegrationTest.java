@@ -1,5 +1,6 @@
 package com.goodee.coreconnect.schedule;
 
+import com.goodee.coreconnect.support.AbstractIntegrationTest;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDateTime;
@@ -9,7 +10,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.goodee.coreconnect.schedule.dto.request.RequestScheduleParticipantDTO;
@@ -21,14 +21,14 @@ import com.goodee.coreconnect.schedule.repository.ScheduleParticipantRepository;
 import com.goodee.coreconnect.schedule.repository.ScheduleRepository;
 import com.goodee.coreconnect.schedule.service.ScheduleParticipantService;
 import com.goodee.coreconnect.user.entity.User;
+import com.goodee.coreconnect.user.enums.Role;
 import com.goodee.coreconnect.user.repository.UserRepository;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@SpringBootTest
 @Transactional
-public class ScheduleParticipantServiceIntegrationTest {
+public class ScheduleParticipantServiceIntegrationTest extends AbstractIntegrationTest {
 
   @Autowired
   private ScheduleParticipantService participantService;
@@ -45,18 +45,18 @@ public class ScheduleParticipantServiceIntegrationTest {
   private User testUser;
   private Schedule testSchedule;
 
-//  @BeforeEach
-//  void setUp() {
-//    testUser = userRepository.findById(10)
-//            .orElseThrow(() -> new IllegalStateException("user_id=10 유저가 없습니다."));
-//
-//    testSchedule = scheduleRepository.save(
-//            Schedule.createSchedule(testUser, null, null, null,
-//                    "참여자 테스트 일정", "내용입니다",
-//                    LocalDateTime.now().plusHours(1),
-//                    LocalDateTime.now().plusHours(2),
-//                    "회의실A", ScheduleVisibility.PUBLIC));
-//  }
+  @BeforeEach
+  void setUp() {
+    testUser = userRepository.save(User.createUser("pw123", "참여자", Role.USER,
+            "participant@test.com", "010-0000-0000", null, null, null));
+
+    testSchedule = scheduleRepository.save(
+            Schedule.createSchedule(testUser, null, null,
+                    "참여자 테스트 일정", "내용입니다",
+                    LocalDateTime.now().plusHours(1),
+                    LocalDateTime.now().plusHours(2),
+                    "회의실A", ScheduleVisibility.PUBLIC, null));
+  }
 
   @Test
   @DisplayName("1️⃣ 참여자 추가 테스트 (이메일 기반)") 
@@ -64,6 +64,7 @@ public class ScheduleParticipantServiceIntegrationTest {
     
     RequestScheduleParticipantDTO dto = RequestScheduleParticipantDTO.builder()
             .scheduleId(testSchedule.getId())
+            .userId(testUser.getId())
             .role(ScheduleRole.MEMBER)
             .build();
 

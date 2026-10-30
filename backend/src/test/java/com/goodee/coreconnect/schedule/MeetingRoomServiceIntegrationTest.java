@@ -1,5 +1,6 @@
 package com.goodee.coreconnect.schedule;
 
+import com.goodee.coreconnect.support.AbstractIntegrationTest;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
@@ -7,7 +8,6 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.goodee.coreconnect.schedule.dto.MeetingRoomDTO;
@@ -18,9 +18,8 @@ import com.goodee.coreconnect.schedule.service.MeetingRoomService;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@SpringBootTest
 @Transactional
-public class MeetingRoomServiceIntegrationTest {
+public class MeetingRoomServiceIntegrationTest extends AbstractIntegrationTest {
 
   @Autowired
   private MeetingRoomService meetingRoomService;
