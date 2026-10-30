@@ -89,16 +89,49 @@ public interface ChatRepository extends JpaRepository<Chat, Integer> {
     	   "ORDER BY c.sendAt ASC")
     List<Chat> findAllChatsWithFilesByRoomId(@Param("roomId") Integer roomId);
     
-    // 8-1. 채팅방에서 메시지를 페이징으로 불러올때 파일이 있는 경우 파일들도 함께 조회 (최신 메시지부터)
-    // sender도 함께 JOIN FETCH하여 user_profile_image_key를 가져올 수 있도록 함
-    @Query("SELECT DISTINCT c FROM Chat c " + 
-    	   "LEFT JOIN FETCH c.messageFiles " + 
-    	   "LEFT JOIN FETCH c.sender " +
-    		"WHERE c.chatRoom.id = :roomId " + 
-    	   "AND (:joinedAt IS NULL OR c.sendAt >= :joinedAt) " +
-    	   "ORDER BY c.sendAt DESC")
-    Page<Chat> findChatsWithFilesByRoomIdPaged(@Param("roomId") Integer roomId, @Param("joinedAt") LocalDateTime joinedAt, Pageable pageable);
-    
+    // 8-1. 메시지 목록 1단계: 최신 메시지 id (첫 화면, 최신순). 컬렉션 fetch join이 없어서 SQL에 LIMIT이 붙음
+    // 같은 시각 메시지는 id로 순서를 고정 → 커서로 넘겨도 중복·빠짐 없음
+    // 인덱스 idx_chat_room_sent_at_id (chat_room_id, sent_at, id)를 거꾸로 읽다가 LIMIT에서 멈춤
+    @Query("SELECT c.id FROM Chat c " +
+           "WHERE c.chatRoom.id = :roomId " +
+           "AND (:joinedAt IS NULL OR c.sendAt >= :joinedAt) " +
+           "ORDER BY c.sendAt DESC, c.id DESC")
+    List<Integer> findLatestMessageIds(@Param("roomId") Integer roomId, @Param("joinedAt") LocalDateTime joinedAt, Pageable pageable);
+
+    // 8-2. 커서 before: (sentAt, id) 메시지보다 이전 메시지 id (최신순). 몇 번째 페이지든 인덱스에서 그 위치부터 읽음
+    @Query("SELECT c.id FROM Chat c " +
+           "WHERE c.chatRoom.id = :roomId " +
+           "AND (:joinedAt IS NULL OR c.sendAt >= :joinedAt) " +
+           "AND (c.sendAt < :sentAt OR (c.sendAt = :sentAt AND c.id < :id)) " +
+           "ORDER BY c.sendAt DESC, c.id DESC")
+    List<Integer> findMessageIdsBefore(@Param("roomId") Integer roomId, @Param("joinedAt") LocalDateTime joinedAt,
+                                       @Param("sentAt") LocalDateTime sentAt, @Param("id") Integer id, Pageable pageable);
+
+    // 8-3. 커서 after: (sentAt, id) 메시지보다 뒤 메시지 id (오래된 순). 연결이 끊긴 동안 놓친 메시지 받아 오기
+    @Query("SELECT c.id FROM Chat c " +
+           "WHERE c.chatRoom.id = :roomId " +
+           "AND (:joinedAt IS NULL OR c.sendAt >= :joinedAt) " +
+           "AND (c.sendAt > :sentAt OR (c.sendAt = :sentAt AND c.id > :id)) " +
+           "ORDER BY c.sendAt ASC, c.id ASC")
+    List<Integer> findMessageIdsAfter(@Param("roomId") Integer roomId, @Param("joinedAt") LocalDateTime joinedAt,
+                                      @Param("sentAt") LocalDateTime sentAt, @Param("id") Integer id, Pageable pageable);
+
+    // 8-4. 커서로 받은 메시지의 보낸 시각 (이 방 메시지일 때만)
+    @Query("SELECT c.sendAt FROM Chat c WHERE c.id = :id AND c.chatRoom.id = :roomId")
+    java.util.Optional<LocalDateTime> findSendAtInRoom(@Param("id") Integer id, @Param("roomId") Integer roomId);
+
+    // 8-5. 메시지 목록 2단계: 1단계 id들의 본문을 방·파일·보낸 사람·부서·프로필까지 한 번에 (순서는 호출한 쪽에서 맞춤)
+    // 프로필(User.userDetailProfile)은 mappedBy @OneToOne이라 지연 로딩이 안 되고, 같이 가져오지 않으면 메시지 행마다 따로 조회됨
+    // 방(chatRoom)은 DTO가 방 이름을 읽어서 같이 가져옴 (운영은 open-in-view=false라 트랜잭션 밖에서 지연 로딩 불가)
+    @Query("SELECT DISTINCT c FROM Chat c " +
+           "LEFT JOIN FETCH c.chatRoom " +
+           "LEFT JOIN FETCH c.messageFiles " +
+           "LEFT JOIN FETCH c.sender s " +
+           "LEFT JOIN FETCH s.department " +
+           "LEFT JOIN FETCH s.userDetailProfile " +
+           "WHERE c.id IN :ids")
+    List<Chat> findWithFilesAndSenderByIdIn(@Param("ids") List<Integer> ids);
+
 
     /** 
      * 특정 채팅방에서 가장 최근(최신) 1개의 메시지를 반환

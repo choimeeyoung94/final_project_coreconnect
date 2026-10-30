@@ -1,0 +1,74 @@
+ApprovalLineRepositoryTest	내가 결재할 문서(WAITING) 조회 - 문서 생성일 오름차순 정렬	java.lang.IllegalStateException: Failed to load ApplicationContext for [WebMergedContextConfiguration@1eb738e5 testClass
+ApprovalLineRepositoryTest	특정 문서의 결재선 조회 - 결재 순서(order) 오름차순 정렬	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	내 결재함 조회 - 성공 (결재할 문서 0건 - 내 차례 아님)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	내 결재함 조회 - 성공 (결재할 문서 0건 - 문서가 REJECTED 상태)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	내 결재함 조회 - 성공 (결재할 문서 1건)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	내 상신함 조회 - 성공	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	내 상신함 조회 - 성공 (삭제된 문서 제외)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	문서 반려 - 성공	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	문서 반려 - 실패 (진행중인 문서 아님)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	문서 상세 조회 - 성공 (결재자)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	문서 상세 조회 - 성공 (기안자)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	문서 상세 조회 - 실패 (권한 없음)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	문서 상세 조회 - 실패 (삭제된 문서)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	문서 승인 - 성공 (중간 결재자)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	문서 승인 - 성공 (최종 결재자 -&gt; 완료)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	문서 승인 - 실패 (권한 없음 - 순서 아님)	java.lang.IllegalStateException: Failed to load ApplicationContext for [WebMergedContextConfiguration@44953958 testClass
+ApprovalServiceTest	새 결재 문서 상신 - 성공 (파일 없음)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	새 결재 문서 상신 - 성공 (파일 포함)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	새 결재 문서 상신 - 실패 (존재하지 않는 결재자)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	새 결재 문서 상신 - 실패 (존재하지 않는 템플릿)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	양식 상세 조회 - 성공	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	양식 상세 조회 - 실패 (ID 없음)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ApprovalServiceTest	활성 양식 목록 조회 - 성공	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+BackendApplicationTests	contextLoads()	java.lang.IllegalStateException: Failed to load ApplicationContext for [WebMergedContextConfiguration@6618b9b0 testClass
+BoardCategoryServiceTest	관리자가 카테고리 삭제 성공 (Soft Delete)	java.lang.NullPointerException: Cannot invoke &quot;com.goodee.coreconnect.board.repository.BoardRepository.findByCatego
+BoardFileServiceTest	파일 단건 조회 성공	java.lang.NullPointerException: Cannot invoke &quot;software.amazon.awssdk.services.s3.presigner.S3Presigner.presignGetO
+BoardFileServiceTest	파일 목록 조회 성공	java.lang.NullPointerException: Cannot invoke &quot;software.amazon.awssdk.services.s3.presigner.S3Presigner.presignGetO
+BoardFileServiceTest	파일 업로드 성공	java.lang.NullPointerException: Cannot invoke &quot;software.amazon.awssdk.services.s3.presigner.S3Presigner.presignGetO
+BoardReplyServiceTest	타인 댓글 수정 시 AccessDeniedException 발생	org.opentest4j.AssertionFailedError: Expected org.springframework.security.access.AccessDeniedException to be thrown, bu
+BoardServiceTest	검색 기능 (제목, 내용, 작성자명) 테스트	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+BoardServiceTest	게시글 Soft Delete	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+BoardServiceTest	게시글 등록	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+BoardServiceTest	게시글 수정	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+BoardServiceTest	공지글 목록 조회	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+BoardServiceTest	사용자 이메일 기반 게시글 목록 조회	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+BoardServiceTest	카테고리별 게시글 목록 조회	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	1. ChatWebSocketHandler WebSocket 연결/해제 &amp; 실시간 채팅 메시지 푸시 	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	2. 채팅방 생성/초대/참여자 관리	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	3. 메시지 전송/알림 전송/수신자 전달 - 실제 DB 테스트	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	NotificationWebSocketHandler WebSocket 연결/해제 &amp; 실시간 알림 푸시	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	Service/Repository로 2번방 roomType을 alone으로 변경	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	testDatabaseConnectionInfo()	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	testJPASelectQueryEmail()	java.lang.IllegalStateException: Failed to load ApplicationContext for [WebMergedContextConfiguration@31caf651 testClass
+ChatWebSocketHandlerTest	testPrintAllUsers()	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	나에게 온 Email, Approval, Notice, Schedule 관련 알림을 가장 최근에 온 알림만 	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	로그인한 사용자가 참여중인 모든 채팅방의 마지막 메시지만 조회	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	로그인한 사용자가 참여중인 채팅방 목록에서 채팅방을 선택하는 경우 선택한 채팅방의 메시지만 날짜기준 오름차순	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	사용자가 채팅방을 선택해서 채팅방에 메시지 전송시 다른 사용자들이 접속중이 아닌 경우 안읽은 사람 수 표시해	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	선택한 채팅방에서 메시지를 정렬해서 보여줄때 나와 다른 사람을 구분해서 메시지를 날짜기준 오름차순으로 정렬해	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	실시간 알림 WebSocket 푸시 테스트	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	실제 DB에 채팅방 생성/참여자 저장 테스트	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	실제 사용자 JWT로 WebSocket 연결 및 메시지 전송/수신 테스트	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	전자결재 문서 등록/알림 생성 &amp; 삭제/알림 soft-delete 통합 테스트	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	채팅메시지에 온 안읽은 메시지를 토스트 메시지로 표시	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	채팅방 참여자가 3명이상일떄 채팅방에서 메시지를 수신받은 사람이 답신 보내기	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	채팅방에 파일 또는 이미지 업로드 시 미리보기 기능 테스트	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	채팅방에서 메시지를 수신받은 사람이 답신 보내기 - 채팅방 참여자가 두명일때	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	통합 테스트	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ChatWebSocketHandlerTest	현재 참여중인 채팅방에서 또 다른 사용자 초대하기 - 2명이상 초대하기	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+DocumentRepositoryTest	내가 결재할 문서 목록 조회 (결재선 IN 활용)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+DocumentRepositoryTest	내가 작성한 문서 목록 조회 - 생성일 내림차순 정렬	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+DocumentRepositoryTest	특정 상태의 문서 목록 조회 - 생성일 내림차순 정렬	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+MeetingRoomServiceIntegrationTest	1️⃣회의실 생성 테스트	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ScheduleCategoryServiceIntegrationTest	1️⃣카테고리 생성 테스트 (이메일 기반)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ScheduleCategoryServiceIntegrationTest	2️⃣카테고리 수정 테스트	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ScheduleCategoryServiceIntegrationTest	3️⃣특정 유저의 카테고리 목록 조회 테스트 (이메일 기반)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ScheduleCategoryServiceIntegrationTest	4️⃣카테고리 삭제 테스트 (Soft Delete)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ScheduleParticipantServiceIntegrationTest	1️⃣ 참여자 추가 테스트 (이메일 기반)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ScheduleParticipantServiceIntegrationTest	2️⃣ 일정별 참여자 목록 조회 테스트	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ScheduleParticipantServiceIntegrationTest	3️⃣ 유저별 참여 일정 목록 조회 테스트	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ScheduleParticipantServiceIntegrationTest	4️⃣ 참여자 삭제 테스트 (Soft Delete)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ScheduleServiceIntegrationTest	1️⃣일정 생성 테스트 (회의실 없음, 이메일 기반)	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+ScheduleServiceIntegrationTest	6️⃣존재하지 않는 일정 조회 시 예외 발생	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co
+TemplateRepositoryTest	활성화된 템플릿 조회 - 이름 오름차순 정렬	java.lang.IllegalStateException: ApplicationContext failure threshold (1) exceeded: skipping repeated attempt to load co

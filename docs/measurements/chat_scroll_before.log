@@ -1,0 +1,8 @@
+# ChatScrollPagingTest, main 967e68ca (수정 전), 2026-10-29 17:53-20:49
+# 방 메시지 50,000개, 모두 같은 sent_at (SAME), 20개씩 15페이지 + 1페이지 두 번 더
+[SCROLL] SAME pages=15 received=300 unique=300 duplicates=0 duplicatePages=[] missingFromNewest300=111 samePage1Twice=true avgMsPerPage=456213 firstIdsPage0=[49590, 49591, 49592, 49593, 49594] firstIdsPage1=[49610, 49611, 49612, 49613, 49614]
+
+# 2026-10-29 21:00-21:41, 메시지 5,000개 (SCROLL_TOTAL=5000, SCROLL_ONLY=PER_SECOND,DISTINCT)
+# PER_SECOND: 1초에 50개씩 같은 sent_at / DISTINCT: 메시지마다 1ms씩 다른 sent_at
+[SCROLL] PER_SECOND pages=15 received=300 unique=299 duplicates=1 duplicatePages=[2] missingFromNewest300=1 samePage1Twice=true avgMsPerPage=59939 firstIdsPage0=[5000, 4951, 4952, 4953, 4954] firstIdsPage1=[4971, 4972, 4973, 4974, 4975]
+[SCROLL] DISTINCT pages=15 received=300 unique=300 duplicates=0 duplicatePages=[] missingFromNewest300=0 samePage1Twice=true avgMsPerPage=56923 firstIdsPage0=[10000, 9999, 9998, 9997, 9996] firstIdsPage1=[9980, 9979, 9978, 9977, 9976]

@@ -1,0 +1,325 @@
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :compileTestJava UP-TO-DATE
+> Task :processTestResources UP-TO-DATE
+> Task :testClasses UP-TO-DATE
+> Task :test
+
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+
+> Task :test
+
+ChatMessagePagingTest > [6-1] 메시지 150개 방에서 20개 페이지를 열 때 방 메시지 전체를 엔티티로 만들지 않는다 FAILED
+    java.lang.AssertionError at ChatMessagePagingTest.java:90
+
+ChatMessagePagingTest > size는 최대 100으로 자른다 FAILED
+    java.lang.AssertionError at ChatMessagePagingTest.java:213
+
+ChatMessagePagingTest > [커서] 다른 방 메시지 id를 커서로 주면 400 FAILED
+    java.lang.AssertionError at ChatMessagePagingTest.java:200
+
+ChatMessagePagingTest > [커서] before=id로 계속 넘기면 그 메시지보다 이전 것만 최신순으로, 끝까지 중복·빠짐 없이 온다 FAILED
+    org.opentest4j.AssertionFailedError at ChatMessagePagingTest.java:149
+
+ChatMessagePagingTest > [6-2] SQL 수가 페이지 크기와 상관없다 (메시지 5개 페이지 = 20개 페이지) FAILED
+    org.opentest4j.AssertionFailedError at ChatMessagePagingTest.java:107
+
+ChatMessagePagingTest > [11] 모두 같은 시각인 메시지 45개를 20개씩 넘기면 id 큰 순서로 중복·빠짐 없이 온다 FAILED
+    org.opentest4j.AssertionFailedError at ChatMessagePagingTest.java:75
+
+ChatMessagePagingTest > [커서·9번 A] after=id면 그 뒤 메시지만 오래된 순으로 size개씩 온다 FAILED
+    org.opentest4j.AssertionFailedError at ChatMessagePagingTest.java:164
+
+2026-10-30T13:31:11.862+09:00  INFO 27848 --- [coreconnect] [ionShutdownHook] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-10-30T13:31:11.863+09:00  INFO 27848 --- [coreconnect] [ionShutdownHook] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@6a6806a2]]
+2026-10-30T13:31:11.863+09:00  INFO 27848 --- [coreconnect] [ionShutdownHook] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-10-30T13:31:12.488+09:00  INFO 27848 --- [coreconnect] [ionShutdownHook] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-30T13:31:12.491+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table account_log 
+       drop 
+       foreign key FKr1pu4ong5ye2yiih20w1ecawx
+2026-10-30T13:31:12.756+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table approval_file 
+       drop 
+       foreign key FK79qm3fj4mmqtn0nyqavkybgcx
+2026-10-30T13:31:12.942+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table approval_line 
+       drop 
+       foreign key FKdsi1oo69si2lopuuyd50xbb8s
+2026-10-30T13:31:13.136+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table approval_line 
+       drop 
+       foreign key FK4uwl78f5ktvhqpuenmrn37n6r
+2026-10-30T13:31:13.282+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table attendance 
+       drop 
+       foreign key FK3sor9jiu86p7727124fmpplqs
+2026-10-30T13:31:13.481+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table attendance 
+       drop 
+       foreign key FKjcaqd29v2qy723owsdah2t8vx
+2026-10-30T13:31:13.628+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table board 
+       drop 
+       foreign key FKda9ql2dvmo2jndde3msxwm8h6
+2026-10-30T13:31:14.026+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table board 
+       drop 
+       foreign key FK5vlh90qyii65ixwsbnafd55ud
+2026-10-30T13:31:14.469+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table board_file 
+       drop 
+       foreign key FK7y5mp0lksehqt19ibjdx5xufo
+2026-10-30T13:31:14.659+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table board_reply 
+       drop 
+       foreign key FKr1lvvxwqtol2ng5hydob4x108
+2026-10-30T13:31:14.812+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table board_reply 
+       drop 
+       foreign key FKs2t4viu2geejck2b1hds2dl6m
+2026-10-30T13:31:14.906+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table board_reply 
+       drop 
+       foreign key FKpuq08e6jlk2lvjs4sbvg1emh6
+2026-10-30T13:31:15.038+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table board_view_history 
+       drop 
+       foreign key FKeq363wg361uenp0rg5gf5pn2h
+2026-10-30T13:31:15.139+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table board_view_history 
+       drop 
+       foreign key FKe9ouf8p0lruioa657y3p96iks
+2026-10-30T13:31:15.289+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table chat_message 
+       drop 
+       foreign key FKj52yap2xrm9u0721dct0tjor9
+2026-10-30T13:31:15.600+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table chat_message 
+       drop 
+       foreign key FK5f82aoyy0jiwpj08qapfrxbh6
+2026-10-30T13:31:15.999+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table chat_message_read_status 
+       drop 
+       foreign key FKp9p7w5sj5aopv7smji7xsxpj8
+2026-10-30T13:31:16.126+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table chat_message_read_status 
+       drop 
+       foreign key FKela0ovgje0efmur1lby6xv85q
+2026-10-30T13:31:16.289+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table chat_room 
+       drop 
+       foreign key FK814agb5y1c84c3he9up2ek8s7
+2026-10-30T13:31:16.579+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table chat_room_user 
+       drop 
+       foreign key FKn7wfsq1ii61la6vi9gigw4pk1
+2026-10-30T13:31:16.793+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table chat_room_user 
+       drop 
+       foreign key FK1483pmv1lx4x5py5gm0m1109v
+2026-10-30T13:31:17.048+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table dashboard 
+       drop 
+       foreign key FKlusqdmhtffg9gl024rqtguufb
+2026-10-30T13:31:17.350+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table department 
+       drop 
+       foreign key FK1s3407nuxj5r1rkfsh4apjolv
+2026-10-30T13:31:17.610+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table department 
+       drop 
+       foreign key FKmgsnnmudxrwqidn4f64q8rp4o
+2026-10-30T13:31:17.924+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table document 
+       drop 
+       foreign key FKavtoxqx6jklk9m5kkyq6lo1ms
+2026-10-30T13:31:18.252+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table document 
+       drop 
+       foreign key FKm19xjdnh3l6aueyrpm1705t52
+2026-10-30T13:31:18.482+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table email_file 
+       drop 
+       foreign key FKq1t6s3wcelcnsxnrufyq4c41s
+2026-10-30T13:31:18.819+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table email_recipient 
+       drop 
+       foreign key FK8mc2dpiuuf2rlnwpldhj21yfx
+2026-10-30T13:31:19.527+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table email_recipient 
+       drop 
+       foreign key FKe4welvpng28tirxehucr7uedi
+2026-10-30T13:31:20.101+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table leave_request 
+       drop 
+       foreign key fk_leave_request_user
+2026-10-30T13:31:20.428+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table message_file 
+       drop 
+       foreign key FKmi689ks497rmcxjimhv4m555y
+2026-10-30T13:31:20.684+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table notification 
+       drop 
+       foreign key FKlov3gio05yp7qi3rj73m8p33d
+2026-10-30T13:31:20.862+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table notification 
+       drop 
+       foreign key FKgk7apwqj94dlfujrwr5rwrsw5
+2026-10-30T13:31:21.002+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table notification 
+       drop 
+       foreign key FK8ehcijpiwb66sm453k6q4ceib
+2026-10-30T13:31:21.251+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table notification 
+       drop 
+       foreign key FKs1bpmm6u9prwo8x6r8730iow1
+2026-10-30T13:31:21.440+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table notification 
+       drop 
+       foreign key FKrg0atx075rr68et2rqrh34qwj
+2026-10-30T13:31:21.624+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table notification 
+       drop 
+       foreign key FKnk4ftb5am9ubmkv1661h15ds9
+2026-10-30T13:31:21.910+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table password_reset_request 
+       drop 
+       foreign key FK2hxsvtign78oeyjmer5rjps5c
+2026-10-30T13:31:22.072+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table password_reset_request 
+       drop 
+       foreign key FKck6qh7xf6s21sroo6k0b5887l
+2026-10-30T13:31:22.253+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table profile_image 
+       drop 
+       foreign key fk_profile_image_user
+2026-10-30T13:31:22.529+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table schedule 
+       drop 
+       foreign key FKk4xjo52g3r920ofe0gki08xnq
+2026-10-30T13:31:23.040+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table schedule 
+       drop 
+       foreign key FKant9pb8o2p7hkishplugdn8xk
+2026-10-30T13:31:23.329+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table schedule 
+       drop 
+       foreign key FK4ihcdlfs4he9p8g1ikh8vco70
+2026-10-30T13:31:23.528+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table schedule 
+       drop 
+       foreign key FKdn5svbxyacce1gpfiawk7iqtc
+2026-10-30T13:31:23.684+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table schedule_category 
+       drop 
+       foreign key FKtbb50q8i5fd636nwl6wunle9l
+2026-10-30T13:31:23.758+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table schedule_participant 
+       drop 
+       foreign key FK28x0del61t0rxlsji1ood2oo0
+2026-10-30T13:31:23.894+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table schedule_participant 
+       drop 
+       foreign key FK5g48lsj6508kw6es9sae8ujcs
+2026-10-30T13:31:23.978+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table template 
+       drop 
+       foreign key FKdjl177n13c7qmsoxp434nkml0
+2026-10-30T13:31:24.081+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table user_detail_profiles 
+       drop 
+       foreign key FKio2oyyk8vqpkn1vf0vxxnu6ng
+2026-10-30T13:31:24.231+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    alter table users 
+       drop 
+       foreign key FKd3l0ehyq19s0us56oapn22p2a
+2026-10-30T13:31:24.495+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists account_log
+2026-10-30T13:31:24.829+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists approval_file
+2026-10-30T13:31:25.081+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists approval_line
+2026-10-30T13:31:25.516+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists attendance
+2026-10-30T13:31:25.796+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists board
+2026-10-30T13:31:26.279+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists board_category
+2026-10-30T13:31:26.550+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists board_file
+2026-10-30T13:31:26.845+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists board_reply
+2026-10-30T13:31:27.099+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists board_view_history
+2026-10-30T13:31:27.318+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists chat_message
+2026-10-30T13:31:28.099+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists chat_message_read_status
+2026-10-30T13:31:28.927+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists chat_room
+2026-10-30T13:31:29.222+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists chat_room_user
+2026-10-30T13:31:29.540+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists dashboard
+2026-10-30T13:31:29.960+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists department
+2026-10-30T13:31:30.915+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists document
+2026-10-30T13:31:31.749+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists email
+2026-10-30T13:31:32.059+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists email_file
+2026-10-30T13:31:32.324+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists email_recipient
+2026-10-30T13:31:32.571+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists leave_request
+2026-10-30T13:31:32.734+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists mail_user_visibility
+2026-10-30T13:31:33.045+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists meeting_room
+2026-10-30T13:31:33.233+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists message_file
+2026-10-30T13:31:33.512+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists notice
+2026-10-30T13:31:33.931+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists notification
+2026-10-30T13:31:34.462+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists password_reset_request
+2026-10-30T13:31:35.077+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists profile_image
+2026-10-30T13:31:35.484+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists schedule
+2026-10-30T13:31:35.614+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists schedule_category
+2026-10-30T13:31:35.817+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists schedule_participant
+2026-10-30T13:31:36.012+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists template
+2026-10-30T13:31:36.232+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists user_detail_profiles
+2026-10-30T13:31:36.331+09:00 DEBUG 27848 --- [coreconnect] [ionShutdownHook] org.hibernate.SQL                        : 
+    drop table if exists users
+2026-10-30T13:31:36.638+09:00  INFO 27848 --- [coreconnect] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : SlaveDB-Pool - Shutdown initiated...
+2026-10-30T13:31:36.708+09:00  INFO 27848 --- [coreconnect] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : SlaveDB-Pool - Shutdown completed.
+2026-10-30T13:31:36.709+09:00  INFO 27848 --- [coreconnect] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : MasterDB-Pool - Shutdown initiated...
+2026-10-30T13:31:36.770+09:00  INFO 27848 --- [coreconnect] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : MasterDB-Pool - Shutdown completed.
+
+> Task :test
+
+9 tests completed, 7 failed
+
+> Task :test FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':test'.
+> There were failing tests. See the report at: file:///C:/dev/final_project_coreconnect/backend/build/reports/tests/test/index.html
+
+* Try:
+> Run with --scan to get full insights.
+
+BUILD FAILED in 6m 23s
+5 actionable tasks: 1 executed, 4 up-to-date

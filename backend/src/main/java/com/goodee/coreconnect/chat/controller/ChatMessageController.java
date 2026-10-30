@@ -603,14 +603,19 @@ public class ChatMessageController {
 	
 	
 	/**
-	 * 5. 내가 접속한 채팅방에 모든 메시지 날짜 오름차순 조회 (페이징 지원)
-	 * 
+	 * 5. 채팅방 메시지 목록 (한 페이지)
+	 * - 파라미터 없음: 최신 size개, 최신순 (첫 화면). 응답 Slice(content, last)
+	 * - before={id}: 그 메시지보다 이전 size개, 최신순 (위로 스크롤). 응답 Slice
+	 * - after={id}: 그 메시지보다 뒤 size개, 오래된 순 (연결이 끊긴 동안 놓친 메시지). 응답 Slice
+	 * - 예전 page 번호 방식은 없앰: 새 메시지가 오면 기준이 밀려 중복·빠짐이 생기고, 전체 개수를 세느라 방 메시지 수만큼 읽음
+	 * - size는 1–100
 	 * */
 	@GetMapping("/{roomId}/messages")
-	public ResponseEntity<ResponseDTO<org.springframework.data.domain.Page<ChatMessageResponseDTO>>> getChatRoomMessagesByChatRoomId(
+	public ResponseEntity<ResponseDTO<org.springframework.data.domain.Slice<ChatMessageResponseDTO>>> getChatRoomMessagesByChatRoomId(
 	    @PathVariable("roomId") Integer roomId,
-	    @RequestParam(value = "page", defaultValue = "0") int page,
 	    @RequestParam(value = "size", defaultValue = "20") int size,
+	    @RequestParam(value = "before", required = false) Integer before,
+	    @RequestParam(value = "after", required = false) Integer after,
 	    @AuthenticationPrincipal CustomUserDetails customUserDetails) {
 	    log.debug("여기 들어옴=============================");
 		// 방 참여자가 아니면 403. 참여자면 들어온 시각(이 시각 이후 메시지만 보임, null이면 전부)
@@ -630,31 +635,39 @@ public class ChatMessageController {
 	        // 메시지 조회 시 접속 중인 사용자의 모든 메시지를 읽음 처리하면 안 됨
 	        // unreadCount는 각 메시지별로 DB에서 직접 조회하여 사용
 
-	        // 페이징 처리
-	        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
-	        org.springframework.data.domain.Page<Chat> chatPage = chatRoomService.getChatsWithFilesByRoomIdPaged(roomId, joinedAt, pageable);
+	        // 한 페이지 (DB에서 LIMIT, 보낸 사람·부서·파일은 같이 읽어 옴)
+	        int pageSize = Math.max(1, Math.min(size, 100));
+	        org.springframework.data.domain.Slice<Chat> chatPage = chatRoomService.getMessages(roomId, joinedAt, pageSize, before, after);
 
 	        // 지금 참여자 id (페이지마다 한 번). 보낸 사람이 여기 없으면 나간 사람 → "알 수 없음"
 	        java.util.Set<Integer> memberIds = new java.util.HashSet<>(chatRoomUserRepository.findUserIdsByChatRoomId(roomId));
 
+	        // 내 읽음 여부·안 읽은 사람 수를 페이지 단위로 한 번씩 (메시지마다 조회하지 않음)
+	        List<Integer> chatIds = chatPage.getContent().stream().map(Chat::getId).toList();
+	        java.util.Map<Integer, Boolean> readByMe = new java.util.HashMap<>();
+	        java.util.Map<Integer, Integer> unreadCounts = new java.util.HashMap<>();
+	        if (!chatIds.isEmpty()) {
+	            for (Object[] row : chatMessageReadStatusRepository.findReadYnByUserIdAndChatIds(userId, chatIds)) {
+	                readByMe.put((Integer) row[0], Boolean.TRUE.equals(row[1]));
+	            }
+	            for (Object[] row : chatMessageReadStatusRepository.countUnreadByChatIds(chatIds)) {
+	                unreadCounts.put((Integer) row[0], ((Number) row[1]).intValue());
+	            }
+	        }
+
 	        // DTO 변환
-	        org.springframework.data.domain.Page<ChatMessageResponseDTO> dtoPage = chatPage.map(chat -> {
-	            Optional<ChatMessageReadStatus> readStatusOpt =
-	                chatMessageReadStatusRepository.findByChatIdAndUserId(chat.getId(), userId);
-	            boolean readYn = readStatusOpt.map(ChatMessageReadStatus::getReadYn).orElse(false);
+	        org.springframework.data.domain.Slice<ChatMessageResponseDTO> dtoPage = chatPage.map(chat -> {
+	            boolean readYn = readByMe.getOrDefault(chat.getId(), false);
 	            ChatMessageResponseDTO dto = ChatMessageResponseDTO.fromEntity(chat, readYn, s3Service);
-	            
-	            // ⭐ unreadCount를 실시간으로 계산하여 설정 (DB 저장값이 아닌 실제 읽지 않은 사람 수)
-	            int realUnreadCount = chatMessageReadStatusRepository.countUnreadByChatId(chat.getId());
-	            dto.setUnreadCount(realUnreadCount);
-	            
-	            // 프로필 이미지 URL 설정 (user_profile_image_key 사용)
-	            // sender를 명시적으로 조회하여 profileImageKey 가져오기
+
+	            // ⭐ unreadCount: DB 저장값이 아닌 실제 읽지 않은 사람 수 (보낸 사람 제외)
+	            dto.setUnreadCount(unreadCounts.getOrDefault(chat.getId(), 0));
+
 	            if (dto != null && chat.getSender() != null && !memberIds.contains(chat.getSender().getId())) {
 	                dto.hideSender(); // 나간 사람: 내용은 그대로, 보낸 사람 정보만 가림
 	            } else if (dto != null && chat.getSender() != null && chat.getSender().getId() != null) {
-	                // ⭐ LazyInitializationException 방지: Department를 함께 로드하는 메서드 사용
-	                User senderUser = userRepository.findByIdWithDepartment(chat.getSender().getId()).orElse(null);
+	                // 보낸 사람·부서는 목록 조회에서 같이 읽어 옴 (메시지마다 다시 조회하지 않음)
+	                User senderUser = chat.getSender();
 	                if (senderUser != null) {
 	                    // ⭐ senderEmail 명시적으로 설정 (lazy loading 문제 해결)
 	                    // fromEntity에서 chat.getSender().getEmail()이 null일 수 있으므로 senderUser.getEmail() 직접 설정
@@ -687,7 +700,7 @@ public class ChatMessageController {
 	            return dto;
 	        });
 
-	        log.debug("messages page: {}, total: {}", chatPage.getNumber(), chatPage.getTotalElements());
+	        log.debug("messages roomId: {}, before: {}, after: {}, size: {}, hasNext: {}", roomId, before, after, chatPage.getNumberOfElements(), chatPage.hasNext());
 
 	        return ResponseEntity.ok(ResponseDTO.success(dtoPage, "채팅방 메시지 페이징 조회 성공"));
 	    } catch (Exception e) {

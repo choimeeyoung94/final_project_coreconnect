@@ -1,0 +1,4 @@
+# 수정 후 스크롤 중복 조사 (메시지 5만 개 x 3방, 커서 방식: 첫 화면 → before=가장 오래된 id, 20개씩 15페이지, 2026-10-30 15:54:41)
+[SCROLL] SAME pages=15 received=300 unique=300 duplicates=0 duplicatePages=[] missingFromNewest300=0 samePage1Twice=true avgMsPerPage=279 firstIdsPage0=[50000, 49999, 49998, 49997, 49996] firstIdsPage1=[49980, 49979, 49978, 49977, 49976]
+[SCROLL] PER_SECOND pages=15 received=300 unique=300 duplicates=0 duplicatePages=[] missingFromNewest300=0 samePage1Twice=true avgMsPerPage=263 firstIdsPage0=[100000, 99999, 99998, 99997, 99996] firstIdsPage1=[99980, 99979, 99978, 99977, 99976]
+[SCROLL] DISTINCT pages=15 received=300 unique=300 duplicates=0 duplicatePages=[] missingFromNewest300=0 samePage1Twice=true avgMsPerPage=184 firstIdsPage0=[150000, 149999, 149998, 149997, 149996] firstIdsPage1=[149980, 149979, 149978, 149977, 149976]
