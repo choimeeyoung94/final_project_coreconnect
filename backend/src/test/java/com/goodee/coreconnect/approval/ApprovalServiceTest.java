@@ -1,5 +1,9 @@
 package com.goodee.coreconnect.approval;
 
+import com.goodee.coreconnect.department.entity.Department;
+import com.goodee.coreconnect.department.repository.DepartmentRepository;
+import com.goodee.coreconnect.support.AbstractIntegrationTest;
+import com.goodee.coreconnect.user.enums.JobGrade;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -14,11 +18,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Page;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -54,10 +56,8 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@SpringBootTest
 @Transactional
-@TestPropertySource(locations = "classpath:application.properties")
-public class ApprovalServiceTest {
+public class ApprovalServiceTest extends AbstractIntegrationTest {
 
   @Autowired
   private ApprovalService approvalService;
@@ -71,6 +71,8 @@ public class ApprovalServiceTest {
   private UserRepository userRepository;
   @Autowired
   private ApprovalLineRepository approvalLineRepository;
+  @Autowired
+  private DepartmentRepository departmentRepository;
 
   @Autowired
   private EntityManager em; // 영속성 컨텍스트 관리를 위해 주입
@@ -90,10 +92,11 @@ public class ApprovalServiceTest {
   void setUp() {
     // 1. 테스트용 사용자 생성 (User.createUser 사용)
     // User.createUser(password, name, role, email, phone, department)
-    // Department가 필수지만, ApprovalService 테스트에는 불필요하므로 null 전달
-    drafter = User.createUser("password123", "기안자", Role.USER, "drafter@test.com", "010-1111-1111", null, null, null);
-    approver1 = User.createUser("password123", "결재자1", Role.USER, "approver1@test.com", "010-2222-2222", null, null, null);
-    approver2 = User.createUser("password123", "결재자2", Role.USER, "approver2@test.com", "010-3333-3333", null, null, null);
+    // 결재선·문서 상세 DTO가 부서명과 직급을 읽으므로 둘 다 채워서 생성
+    Department dept = departmentRepository.save(Department.createDepartment("개발부", 1));
+    drafter = User.createUser("password123", "기안자", Role.USER, "drafter@test.com", "010-1111-1111", dept, JobGrade.STAFF, null);
+    approver1 = User.createUser("password123", "결재자1", Role.USER, "approver1@test.com", "010-2222-2222", dept, JobGrade.MANAGER, null);
+    approver2 = User.createUser("password123", "결재자2", Role.USER, "approver2@test.com", "010-3333-3333", dept, JobGrade.DIRECTOR, null);
 
     userRepository.saveAll(List.of(drafter, approver1, approver2));
 
@@ -268,8 +271,9 @@ public class ApprovalServiceTest {
     // Assert (Then)
     assertThat(drafts).isNotNull();
     assertThat(drafts).hasSize(1);
-    assertThat(((DocumentDetailResponseDTO) drafts.get()).getDocumentId()).isEqualTo(testDocument.getId());
-    assertThat(((DocumentCreateRequestDTO) drafts.get()).getDocumentTitle()).isEqualTo("기본 테스트 문서");
+    DocumentSimpleResponseDTO draft = drafts.getContent().get(0);
+    assertThat(draft.getDocumentId()).isEqualTo(testDocument.getId());
+    assertThat(draft.getDocumentTitle()).isEqualTo("기본 테스트 문서");
   }
 
   @Test
@@ -552,9 +556,10 @@ public class ApprovalServiceTest {
     List<TemplateSimpleResponseDTO> templates = approvalService.getActiveTemplates();
 
     // Assert
-    // 리포지토리 쿼리(findByActiveYnTrue...)가 '테스트 양식' 1건만 가져와야 함 (이미 DB에 2개가 있어서 3개가 맞음)
-    assertThat(templates).hasSize(3);
-    assertThat(templates.get(0).getTemplateName()).isEqualTo("테스트 양식");
+    // 리포지토리 쿼리(findByActiveYnTrue...)가 활성 양식만 가져와야 함
+    assertThat(templates).extracting(TemplateSimpleResponseDTO::getTemplateName)
+        .contains("테스트 양식")
+        .doesNotContain("비활성 양식");
   }
 
   @Test

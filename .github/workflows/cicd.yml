@@ -40,12 +40,20 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      # 4. Backend 의존성 설치 및 빌드 검증
-      - name: Build Backend
+      # 4. Backend 빌드 + 테스트 (Testcontainers가 러너의 Docker로 MySQL·Redis를 띄움, legacy 태그는 제외)
+      - name: Build and Test Backend
         working-directory: ./backend
         run: |
           chmod +x gradlew || true
-          ./gradlew clean build -x test --no-daemon || ./gradlew clean build -x test --no-daemon
+          ./gradlew clean build --no-daemon
+
+      # 실패한 테스트를 확인할 수 있게 리포트 보관
+      - name: Upload Backend Test Report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-report
+          path: backend/build/reports/tests/test
 
       # 5. Frontend 의존성 설치
       - name: Install Frontend Dependencies

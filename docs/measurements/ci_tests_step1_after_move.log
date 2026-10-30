@@ -1,0 +1,46 @@
+ChatWebSocketHandlerTest > ä�ù� �����ڰ� 3���̻��ϋ� ä�ù濡�� �޽����� ���Ź��� ����� ��� ������ FAILED
+ChatWebSocketHandlerTest > 1. ChatWebSocketHandler WebSocket ����/���� & �ǽð� ä�� �޽��� Ǫ�� �׽�Ʈ FAILED
+ChatWebSocketHandlerTest > ä�ù濡�� �޽����� ���Ź��� ����� ��� ������ - ä�ù� �����ڰ� �θ��϶� FAILED
+ChatWebSocketHandlerTest > ������ ä�ù濡�� �޽����� �����ؼ� �����ٶ� ���� �ٸ� ����� �����ؼ� �޽����� ��¥���� ������������ �����ؼ� �����ֱ� FAILED
+ChatWebSocketHandlerTest > ���ڰ��� ���� ���/�˸� ���� & ����/�˸� soft-delete ���� �׽�Ʈ FAILED
+ChatWebSocketHandlerTest > �α����� ����ڰ� �������� ä�ù� ��Ͽ��� ä�ù��� �����ϴ� ��� ������ ä�ù��� �޽����� ��¥���� ������������ ���� FAILED
+ChatWebSocketHandlerTest > ����ڰ� ä�ù��� �����ؼ� ä�ù濡 �޽��� ���۽� �ٸ� ����ڵ��� �������� �ƴ� ��� ������ ��� �� ǥ�����ֱ� FAILED
+ChatWebSocketHandlerTest > 3. �޽��� ����/�˸� ����/������ ���� - ���� DB �׽�Ʈ FAILED
+ChatWebSocketHandlerTest > 2. ä�ù� ����/�ʴ�/������ ���� FAILED
+ChatWebSocketHandlerTest > ���� ����� JWT�� WebSocket ���� �� �޽��� ����/���� �׽�Ʈ FAILED
+ChatWebSocketHandlerTest > ���� DB�� ä�ù� ����/������ ���� �׽�Ʈ FAILED
+ChatWebSocketHandlerTest > ���� �������� ä�ù濡�� �� �ٸ� ����� �ʴ��ϱ� - 2���̻� �ʴ��ϱ� FAILED
+ChatWebSocketHandlerTest > Service/Repository�� 2���� roomType�� alone���� ���� FAILED
+ChatWebSocketHandlerTest > ä�ø޽����� �� ������ �޽����� �佺Ʈ �޽����� ǥ�� FAILED
+ChatWebSocketHandlerTest > �ǽð� �˸� WebSocket Ǫ�� �׽�Ʈ FAILED
+ChatWebSocketHandlerTest > NotificationWebSocketHandler WebSocket ����/���� & �ǽð� �˸� Ǫ�� �׽�Ʈ FAILED
+ChatWebSocketHandlerTest > ä�ù濡 ���� �Ǵ� �̹��� ���ε� �� �̸����� ��� �׽�Ʈ FAILED
+ChatWebSocketHandlerTest > ���� �׽�Ʈ FAILED
+ChatWebSocketHandlerTest > ������ �� Email, Approval, Notice, Schedule ���� �˸��� ���� �ֱٿ� �� �˸��� ���� ���� ���ڷ� ������ �� �˸� �Լ� ǥ�����ֱ� FAILED
+ChatWebSocketHandlerTest > �α����� ����ڰ� �������� ��� ä�ù��� ������ �޽����� ��ȸ FAILED
+ApprovalServiceTest > ���� �� ��ȸ - ���� (������) FAILED
+ApprovalServiceTest > ���� �� ��ȸ - ���� (�����) FAILED
+ApprovalServiceTest > Ȱ�� ��� ��� ��ȸ - ���� FAILED
+ApprovalServiceTest > �� ������ ��ȸ - ���� (������ ���� 1��) FAILED
+ApprovalServiceTest > �� ����� ��ȸ - ���� FAILED
+DocumentRepositoryTest > ���� ������ ���� ��� ��ȸ (���缱 IN Ȱ��) FAILED
+DocumentRepositoryTest > ���� �ۼ��� ���� ��� ��ȸ - ������ �������� ���� FAILED
+BoardCategoryService ���� �׽�Ʈ (���� User ��ü ���) > �����ڰ� ī�װ�� ���� ���� (Soft Delete) FAILED
+BoardFileService ���� �׽�Ʈ > ���� �ܰ� ��ȸ ���� FAILED
+BoardFileService ���� �׽�Ʈ > ���� ���ε� ���� FAILED
+BoardFileService ���� �׽�Ʈ > ���� ��� ��ȸ ���� FAILED
+? BoardReplyService ���� �׽�Ʈ > Ÿ�� ��� ���� �� AccessDeniedException �߻� FAILED
+BoardServiceTest > �Խñ� ���� FAILED
+BoardServiceTest > �Խñ� ��� FAILED
+BoardServiceTest > �Խñ� Soft Delete FAILED
+BoardServiceTest > �˻� ��� (����, ����, �ۼ��ڸ�) �׽�Ʈ FAILED
+BoardServiceTest > ������ ��� ��ȸ FAILED
+BoardServiceTest > ����� �̸��� ��� �Խñ� ��� ��ȸ FAILED
+BoardServiceTest > ī�װ���� �Խñ� ��� ��ȸ FAILED
+ScheduleParticipantServiceIntegrationTest > 4?? ������ ���� �׽�Ʈ (Soft Delete) FAILED
+ScheduleParticipantServiceIntegrationTest > 3?? ������ ���� ���� ��� ��ȸ �׽�Ʈ FAILED
+ScheduleParticipantServiceIntegrationTest > 1?? ������ �߰� �׽�Ʈ (�̸��� ���) FAILED
+ScheduleParticipantServiceIntegrationTest > 2?? ������ ������ ��� ��ȸ �׽�Ʈ FAILED
+193 tests completed, 43 failed, 10 skipped
+> Task :test FAILED
+BUILD FAILED in 17m 29s

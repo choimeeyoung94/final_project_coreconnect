@@ -1,5 +1,6 @@
 package com.goodee.coreconnect.approval;
 
+import com.goodee.coreconnect.support.AbstractIntegrationTest;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
@@ -10,9 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.goodee.coreconnect.approval.entity.ApprovalLine;
@@ -33,10 +32,8 @@ import com.goodee.coreconnect.user.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@SpringBootTest
-@TestPropertySource(locations = "classpath:application.properties")
 @Transactional
-public class DocumentRepositoryTest {
+public class DocumentRepositoryTest extends AbstractIntegrationTest {
 
     @Autowired private DocumentRepository documentRepository;
     @Autowired private UserRepository userRepository;
@@ -104,22 +101,20 @@ public class DocumentRepositoryTest {
     void findByUserOrderByCreatedAtDesc() {
         
         // --- 1. 실행 (Act) ---
-        // drafter1이 작성한 문서를 조회 (doc1, doc2, doc3)
+        // drafter1이 작성한 문서를 조회 (임시저장 doc1·doc3는 상신함에서 빠지므로 doc2만)
         Page<Document> results = documentRepository.findByUserAndDocDeletedYnOrderByCreatedAtDesc(drafter1, false, null);
 
         // --- 2. 검증 (Assert) ---
         log.info("drafter1이 작성한 문서 개수: {}", results.getSize());
 
-        // (검증 1) drafter1이 작성한 문서는 총 3개여야 한다. (doc4_noise 제외)
-        assertThat(results).hasSize(3);
+        // (검증 1) 쿼리가 DRAFT를 제외하므로 drafter1의 문서는 1개여야 한다. (doc4_noise 제외)
+        assertThat(results).hasSize(1);
         
         // (검증 2) 모든 문서의 작성자는 drafter1이어야 한다.
         assertThat(results).allMatch(doc -> doc.getUser().equals(drafter1));
 
-        // (검증 3) (핵심!) createdAt 내림차순(최신순)으로 정렬되어야 한다.
-        // 순서: doc3 (최신) -> doc2 (중간) -> doc1 (오래됨)
         assertThat(results).extracting(Document::getId)
-                           .containsExactly(doc3_completed.getId(), doc2_inprogress.getId(), doc1_draft.getId());
+                           .containsExactly(doc2_inprogress.getId());
     }
 
     @Test
@@ -152,7 +147,7 @@ public class DocumentRepositoryTest {
         // --- 1. 준비 (Arrange) ---
         // approver1이 결재할 'WAITING' 상태인 결재선 목록을 먼저 조회
         List<ApprovalLine> linesForApprover1 = approvalLineRepository
-            .findMyCurrentTasks(approver1, ApprovalLineStatus.WAITING, DocumentStatus.DRAFT);
+            .findMyCurrentTasks(approver1, ApprovalLineStatus.WAITING, DocumentStatus.IN_PROGRESS);
         
         // (준비 검증) approver1은 2개의 결재선(doc2, doc4)을 가지고 있어야 함
         assertThat(linesForApprover1).hasSize(2);

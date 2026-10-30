@@ -1,0 +1,12 @@
+# 기본 시간대 UTC(GitHub 러너 조건) + AttendanceCheckInConcurrencyTest 각 5회, 2026-10-30
+# with = test 작업에 user.timezone=Asia/Seoul / without = 설정 없음
+with 1 fail 0 ['저장 건수=1, 성공=1, 실패=9'] {"Duplicate entry '2-2026-10-30'"}
+with 2 fail 0 ['저장 건수=1, 성공=1, 실패=9'] {"Duplicate entry '2-2026-10-30'"}
+with 3 fail 0 ['저장 건수=1, 성공=1, 실패=9'] {"Duplicate entry '2-2026-10-30'"}
+with 4 fail 0 ['저장 건수=1, 성공=1, 실패=9'] {"Duplicate entry '2-2026-10-30'"}
+with 5 fail 0 ['저장 건수=1, 성공=1, 실패=9'] {"Duplicate entry '2-2026-10-30'"}
+without 1 fail 1 ['저장 건수=1, 성공=2, 실패=8'] {"Duplicate entry '2-2026-10-29'", "Duplicate entry '2-2026-10-30'"}
+without 2 fail 0 ['저장 건수=1, 성공=1, 실패=9'] {"Duplicate entry '2-2026-10-29'"}
+without 3 fail 1 ['저장 건수=1, 성공=2, 실패=8'] {"Duplicate entry '2-2026-10-29'"}
+without 4 fail 1 ['저장 건수=1, 성공=2, 실패=8'] {"Duplicate entry '2-2026-10-29'"}
+without 5 fail 1 ['저장 건수=1, 성공=2, 실패=8'] {"Duplicate entry '2-2026-10-29'", "Duplicate entry '2-2026-10-30'"}

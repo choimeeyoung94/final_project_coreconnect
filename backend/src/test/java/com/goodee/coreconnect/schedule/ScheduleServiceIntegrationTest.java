@@ -1,5 +1,6 @@
 package com.goodee.coreconnect.schedule;
 
+import com.goodee.coreconnect.support.AbstractIntegrationTest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -10,7 +11,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.goodee.coreconnect.schedule.dto.request.RequestScheduleDTO;
@@ -25,9 +25,8 @@ import com.goodee.coreconnect.user.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@SpringBootTest
 @Transactional
-public class ScheduleServiceIntegrationTest {
+public class ScheduleServiceIntegrationTest extends AbstractIntegrationTest {
 
   @Autowired
   private ScheduleService scheduleService;

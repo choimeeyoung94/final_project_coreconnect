@@ -1,0 +1,10 @@
+ApprovalServiceTest > 내 상신함 조회 - 성공 FAILED
+AttendanceCheckInConcurrencyTest > 같은 사용자가 동시에 10번 출근해도 출근 기록은 1건만 저장된다 FAILED
+BoardServiceTest > 게시글 수정 FAILED
+BoardServiceTest > 게시글 Soft Delete FAILED
+BoardServiceTest > 사용자 이메일 기반 게시글 목록 조회 FAILED
+BoardServiceTest > 카테고리별 게시글 목록 조회 FAILED
+ScheduleParticipantServiceIntegrationTest > 1️⃣ 참여자 추가 테스트 (이메일 기반) FAILED
+170 tests completed, 7 failed, 10 skipped
+> Task :test FAILED
+BUILD FAILED in 13m 46s
