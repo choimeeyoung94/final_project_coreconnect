@@ -877,9 +877,42 @@ private final UserRepository userRepository;
 		return chats;
 	}
 	
+	/**
+	 * 메시지 목록 한 페이지 (두 단계: id를 DB에서 LIMIT으로 → 그 id들의 본문을 fetch join 한 번)
+	 * - 아무것도 없으면 최신 size개 (첫 화면)
+	 * - before: 그 메시지보다 이전 size개 (최신순), after: 그 메시지보다 뒤 size개 (오래된 순)
+	 * - 전체 개수는 세지 않음 (Slice): size+1개를 받아 보고 다음이 있는지만 판단
+	 */
 	@Override
-	public org.springframework.data.domain.Page<Chat> getChatsWithFilesByRoomIdPaged(Integer roomId, LocalDateTime joinedAt, org.springframework.data.domain.Pageable pageable) {
-		return chatRepository.findChatsWithFilesByRoomIdPaged(roomId, joinedAt, pageable);
+	@Transactional(readOnly = true)
+	public org.springframework.data.domain.Slice<Chat> getMessages(Integer roomId, LocalDateTime joinedAt, int size, Integer before, Integer after) {
+		if (before != null && after != null) {
+			throw new IllegalArgumentException("before와 after는 함께 쓸 수 없습니다.");
+		}
+		// size+1개를 받아서 한 개가 더 있으면 다음이 있음
+		org.springframework.data.domain.Pageable limit = org.springframework.data.domain.PageRequest.of(0, size + 1);
+		List<Integer> ids;
+		if (before == null && after == null) {
+			ids = chatRepository.findLatestMessageIds(roomId, joinedAt, limit);
+		} else {
+			Integer cursorId = before != null ? before : after;
+			LocalDateTime cursorSentAt = chatRepository.findSendAtInRoom(cursorId, roomId)
+					.orElseThrow(() -> new IllegalArgumentException("이 방의 메시지가 아닙니다: " + cursorId));
+			ids = before != null
+					? chatRepository.findMessageIdsBefore(roomId, joinedAt, cursorSentAt, cursorId, limit)
+					: chatRepository.findMessageIdsAfter(roomId, joinedAt, cursorSentAt, cursorId, limit);
+		}
+		boolean hasNext = ids.size() > size;
+		List<Integer> pageIds = hasNext ? ids.subList(0, size) : ids;
+		return new org.springframework.data.domain.SliceImpl<>(loadInOrder(pageIds), org.springframework.data.domain.PageRequest.of(0, size), hasNext);
+	}
+
+	/** id 목록의 메시지를 한 번에 읽고 id 목록 순서대로 돌려줌 (IN 조회는 순서를 보장하지 않음) */
+	private List<Chat> loadInOrder(List<Integer> ids) {
+		if (ids.isEmpty()) return List.of();
+		Map<Integer, Chat> byId = chatRepository.findWithFilesAndSenderByIdIn(ids).stream()
+				.collect(Collectors.toMap(Chat::getId, c -> c, (x, y) -> x));
+		return ids.stream().map(byId::get).filter(java.util.Objects::nonNull).toList();
 	}
 
 	@Override

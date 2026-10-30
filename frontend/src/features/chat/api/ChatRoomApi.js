@@ -8,10 +8,27 @@ export async function fetchChatRoomsLatest() {
   return res.data;
 }
 
-// 채팅방별 전체 메시지 (roomId 기준) - 페이징 지원
-export async function fetchChatRoomMessages(roomId, page = 0, size = 20) {
+// 최신 메시지 size개, 최신순 (첫 화면). 응답 content, last (전체 개수를 세지 않음)
+export async function fetchLatestChatRoomMessages(roomId, size = 20) {
   const res = await http.get(`/chat/${roomId}/messages`, {
-    params: { page, size }
+    params: { size }
+  });
+  return res.data;
+}
+
+// 이 메시지(beforeId)보다 이전 메시지 size개, 최신순 (위로 스크롤). 응답 content, last
+// 페이지 번호와 달리 그 사이 새 메시지가 와도 밀리지 않아 중복·빠짐이 없음
+export async function fetchChatRoomMessagesBefore(roomId, beforeId, size = 20) {
+  const res = await http.get(`/chat/${roomId}/messages`, {
+    params: { before: beforeId, size }
+  });
+  return res.data;
+}
+
+// 이 메시지(afterId)보다 뒤 메시지 size개, 오래된 순 (연결이 끊긴 동안 놓친 메시지). 응답 content, last
+export async function fetchChatRoomMessagesAfter(roomId, afterId, size = 100) {
+  const res = await http.get(`/chat/${roomId}/messages`, {
+    params: { after: afterId, size }
   });
   return res.data;
 }

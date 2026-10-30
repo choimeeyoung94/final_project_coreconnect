@@ -94,8 +94,8 @@ public interface ChatRoomService {
     // 채팅 메시지에 파일이 있는 경우 파일을 조회
     List<Chat> getChatsWithFilesByRoomId(Integer roomId);
     
-    // 채팅 메시지를 페이징으로 조회 (파일 포함)
-    org.springframework.data.domain.Page<Chat> getChatsWithFilesByRoomIdPaged(Integer roomId, java.time.LocalDateTime joinedAt, org.springframework.data.domain.Pageable pageable);
+    // 채팅 메시지 목록 한 페이지 (파일·보낸 사람 포함). 최신 / before(이전) / after(이후), 전체 개수는 세지 않음
+    org.springframework.data.domain.Slice<Chat> getMessages(Integer roomId, java.time.LocalDateTime joinedAt, int size, Integer before, Integer after);
     
     boolean existsRoom(Integer roomId);
     

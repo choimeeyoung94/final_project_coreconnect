@@ -1,0 +1,11 @@
+# 브라우저에서 연결 끊었다 붙이기 확인 (2026-10-30 16:35–16:38 KST, 9번 A 화면 코드)
+# 환경: 로컬 백엔드(bootRun, local 프로필, 임시 MySQL 8.0 컨테이너 3307 + Redis 컨테이너 6380), 프론트 vite dev(5173), 앱 안 브라우저
+# 사용자: A, B (open 모드 로그인으로 생성한 테스트 계정), 방 1번 reconnect-check (A, B)
+1. A가 REST로 before-disconnect 1–3 전송, B가 브라우저에서 방을 열어 3개 보임. B가 b-ping 전송(id 4)
+2. 07:37:15Z  B 브라우저의 채팅 웹소켓(/ws/chat/.../websocket)을 강제로 닫음 (알림 소켓은 그대로). 다시 연결도 막음(테스트용 send 가로채기)
+3. 07:37:29Z  A가 REST로 while-disconnected 1–3 전송 (201 x3)
+4. 07:37:38Z  B 화면 확인: while-disconnected 0개 (아직 끊긴 상태)
+5. 07:37:47Z  다시 연결 허용
+6. 07:37:51Z  서버 로그: "messages roomId: 1, before: null, after: 4, size: 3, hasNext: false"  ← onConnect → fetchMissedMessages가 after=4(b-ping)로 요청, 3개 받음
+7. 07:37:59Z  B 화면: b-ping 아래에 while-disconnected 1, 2, 3 순서대로 표시, 중복 없음 (스크린샷으로 확인)
+참고: 새로고침이나 방 다시 열기 없이 표시됨. 수정 전 코드는 onConnect에서 아무것도 받지 않아 이 3개가 방을 다시 열 때까지 안 보였음(코드 확인, 수정 전 코드로 브라우저 확인은 안 함)

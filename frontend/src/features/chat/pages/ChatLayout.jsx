@@ -12,7 +12,9 @@ import { useRealtimeNotifications } from "../../notification/RealtimeNotificatio
 
 import {
   markRoomMessagesAsRead,
-  fetchChatRoomMessages,
+  fetchChatRoomMessagesBefore,
+  fetchChatRoomMessagesAfter,
+  fetchLatestChatRoomMessages,
   fetchChatRoomsLatest,
   createChatRoom
 } from "../api/ChatRoomApi";
@@ -125,6 +127,37 @@ export default function ChatLayout() {
 
   // ⭐ UNREAD_COUNT_UPDATE 대기 큐: 메시지가 아직 로드되지 않은 경우 unreadCount 업데이트 저장
   const pendingUnreadCountUpdatesRef = useRef(new Map()); // chatId -> unreadCount
+
+  // STOMP 콜백(연결 시점에 만들어짐)에서도 지금 메시지 목록을 보도록 최신 값을 ref에 둠
+  const messagesRef = useRef([]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+  // ---------- 연결이 끊긴 동안 놓친 메시지 받아 오기 (open_issues 9번 A) ----------
+  // 실시간 메시지는 연결돼 있던 브라우저에만 감 → 다시 연결되면(onConnect) 화면의 가장 최신 메시지 뒤에 온 것을 after로 받아 붙임
+  // 첫 연결이라 아직 이 방 메시지가 화면에 없으면 아무것도 안 함 (loadMessages가 받음)
+  const fetchMissedMessages = useCallback(async (roomId) => {
+    const last = [...messagesRef.current].reverse().find(m => Number.isInteger(m?.id) && Number(m?.roomId) === Number(roomId));
+    let afterId = last?.id;
+    if (!afterId) return;
+    try {
+      for (let i = 0; i < 10; i++) { // 100개씩 최대 1,000개 (그보다 많이 놓쳤으면 남은 것은 방을 다시 열 때)
+        const res = await fetchChatRoomMessagesAfter(roomId, afterId, 100);
+        const pageData = res?.data?.data || res?.data;
+        const list = Array.isArray(pageData?.content) ? pageData.content : [];
+        if (list.length > 0) {
+          // 서버는 오래된 순으로 줌 → 뒤에 붙임. 그사이 실시간으로 이미 받은 것은 id로 뺌
+          setMessages(prev => {
+            const ids = new Set(prev.map(m => m?.id));
+            return [...prev, ...list.filter(m => !ids.has(m.id))];
+          });
+          afterId = list[list.length - 1].id;
+        }
+        if (pageData?.last !== false) break;
+      }
+    } catch (error) {
+      console.error("❌ [ChatLayout] 놓친 메시지 받아 오기 실패:", error);
+    }
+  }, []);
 
 
   const location = useLocation();
@@ -1127,6 +1160,7 @@ export default function ChatLayout() {
           onConnect: () => {
             console.log('🔥 [ChatLayout] 재연결 성공 - socketConnected를 true로 설정');
             setSocketConnected(true);
+            fetchMissedMessages(selectedRoomId); // 보내기 직전 다시 연결된 경우에도 끊긴 동안 온 메시지를 받아 옴
           },
           onError: () => {
             console.log('🔥 [ChatLayout] 재연결 실패 - socketConnected를 false로 설정');
@@ -1276,7 +1310,7 @@ export default function ChatLayout() {
         setHasMore(true);
         setIsLoadingMore(false);
 
-        const res = await fetchChatRoomMessages(selectedRoomId, 0, 20);
+        const res = await fetchLatestChatRoomMessages(selectedRoomId, 20);
         
         // ⭐ API 응답 구조 확인 (디버깅)
         console.log("🔍 [ChatLayout] 초기 메시지 로드 API 응답:", {
@@ -1610,15 +1644,23 @@ export default function ChatLayout() {
 
     try {
       const nextPage = currentPage + 1;
-      const res = await fetchChatRoomMessages(selectedRoomId, nextPage, 20);
+      // 지금 화면의 가장 오래된 메시지(서버 id가 있는 것)보다 이전 것을 받음
+      // 페이지 번호로 받으면 그 사이 새 메시지가 올 때 기준이 밀려 같은 메시지가 또 오거나 빠짐
+      const oldestId = messages.find(m => Number.isInteger(m?.id))?.id;
+      const res = oldestId
+        ? await fetchChatRoomMessagesBefore(selectedRoomId, oldestId, 20)
+        : await fetchLatestChatRoomMessages(selectedRoomId, 20);
       const pageData = res?.data?.data || res?.data;
 
       if (pageData?.content && Array.isArray(pageData.content)) {
         // 서버는 최신순으로 내려주므로 prepend를 위해 reverse
         const newMessages = [...pageData.content].reverse();
 
-        // 2) 기존 메시지 앞에 새 메시지 붙이기 (오름차순 유지)
-        setMessages(prev => [...newMessages, ...prev]);
+        // 2) 기존 메시지 앞에 새 메시지 붙이기 (오름차순 유지, 이미 있는 id는 빼고)
+        setMessages(prev => {
+          const ids = new Set(prev.map(m => m?.id));
+          return [...newMessages.filter(m => !ids.has(m.id)), ...prev];
+        });
 
         // 페이징 상태 업데이트
         setHasMore(!pageData.last);
@@ -1702,6 +1744,8 @@ export default function ChatLayout() {
           console.log('🔥 [ChatLayout] socketConnected를 true로 설정 완료:', {
             timestamp: connectTimestamp
           });
+          // 자동 재연결(reconnectDelay 5초)도 이 콜백을 다시 부름 → 끊긴 동안 온 메시지를 받아 옴
+          fetchMissedMessages(selectedRoomId);
         },
         () => {
           const errorTimestamp = new Date().toISOString();
@@ -1834,13 +1878,13 @@ export default function ChatLayout() {
                   loadRooms();
                   // 메시지 목록도 새로고침하여 읽음 상태 업데이트
                   if (selectedRoomId) {
-                    const res = await fetchChatRoomMessages(selectedRoomId, 0, 20);
+                    const res = await fetchLatestChatRoomMessages(selectedRoomId, 20);
                     if (res && res.data) {
                       const messageList = Array.isArray(res.data.content) ? res.data.content : [];
                       setMessages(messageList);
                       setCurrentPage(0);
                       setTotalPages(res.data.totalPages || 0);
-                      setHasMore(res.data.totalPages > 1);
+                      setHasMore(!res.data.last);
                     }
                   }
                 } catch (error) {

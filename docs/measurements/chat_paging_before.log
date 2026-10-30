@@ -1,0 +1,72 @@
+# 수정 전 측정 (main d8d6b7cb, 2026-10-30 13:17:01), Windows Docker Desktop MySQL 8.0 Testcontainers, 다른 테스트 없이
+[INDEX] PRIMARY seq=1 col=id collation=A
+[INDEX] idx_chat_room_sent_at seq=1 col=chat_room_id collation=A
+[INDEX] idx_chat_room_sent_at seq=2 col=sent_at collation=D
+[INDEX] idx_sender_sent_at seq=1 col=sender_id collation=A
+[INDEX] idx_sender_sent_at seq=2 col=sent_at collation=D
+[INDEX] idx_chat_room_read_yn seq=1 col=chat_room_id collation=A
+[INDEX] idx_chat_room_read_yn seq=2 col=read_yn collation=A
+[INDEX] idx_chat_room_read_yn seq=3 col=sent_at collation=D
+[INDEX] idx_sent_at seq=1 col=sent_at collation=D
+[MEASURE] total=1000 case=page0 n=5 received=20 sql=1070 entities=1025 innodbRowsRead=2090 p50=6624ms p95=7225ms max=7225ms
+[DETAIL] total=1000 case=page0 entityFetch=1 collectionFetch=0 collectionLoad=1000
+[DETAIL] total=1000 case=page0 x2 [CRITERIA] select u1_0.user_id,u1_0.dept_id,u1_0.user_email,u1_0.user_employee_number,u1_0.user_rank,u1_0.user_join_date,u1_0.user_name,u1_0.user_password,u1_0.user_phone,u1_0.user_profile_image_key,u1_0.user_role,u1_0.user_status from users u1_0 where u1_0.user_email=?
+[DETAIL] total=1000 case=page0 x20 SELECT COUNT(1) FROM ChatMessageReadStatus r WHERE r.chat.id = :chatId AND r.readYn = false AND r.user.id != (SELECT c.sender.id FROM Chat c WHERE c.id = :chatId)
+[DETAIL] total=1000 case=page0 x1 select count(*) from ChatRoom x WHERE x.id = :id
+[DETAIL] total=1000 case=page0 x20 [CRITERIA] select cmrs1_0.chat_message_id,cmrs1_0.user_id,cmrs1_0.chat_message_read_status_read_at,cmrs1_0.chat_message_read_status_read_yn from chat_message_read_status cmrs1_0 where cmrs1_0.chat_message_id=? and cmrs1_0.user_id=?
+[DETAIL] total=1000 case=page0 x20 SELECT u FROM User u LEFT JOIN FETCH u.department WHERE u.id = :id 
+[DETAIL] total=1000 case=page0 x1 [CRITERIA] select cru1_0.id,cru1_0.chat_room_id,cru1_0.joined_at,cru1_0.user_id from chat_room_user cru1_0 where cru1_0.chat_room_id=? and cru1_0.user_id=? order by cru1_0.id desc limit ?
+[DETAIL] total=1000 case=page0 x1 SELECT cru.user.id FROM ChatRoomUser cru WHERE cru.chatRoom.id = :chatRoomId
+[DETAIL] total=1000 case=page0 x1 SELECT count(DISTINCT c) FROM Chat c LEFT JOIN c.messageFiles LEFT JOIN c.sender WHERE c.chatRoom.id = :roomId AND (:joinedAt IS NULL OR c.sendAt >= :joinedAt)
+[DETAIL] total=1000 case=page0 x1 SELECT DISTINCT c FROM Chat c LEFT JOIN FETCH c.messageFiles LEFT JOIN FETCH c.sender WHERE c.chatRoom.id = :roomId AND (:joinedAt IS NULL OR c.sendAt >= :joinedAt) ORDER BY c.sendAt DESC
+[MEASURE] total=1000 case=page25 n=5 received=20 sql=1070 entities=1025 innodbRowsRead=2090 p50=7375ms p95=8031ms max=8031ms
+[DETAIL] total=1000 case=page25 entityFetch=1 collectionFetch=0 collectionLoad=1000
+[DETAIL] total=1000 case=page25 x2 [CRITERIA] select u1_0.user_id,u1_0.dept_id,u1_0.user_email,u1_0.user_employee_number,u1_0.user_rank,u1_0.user_join_date,u1_0.user_name,u1_0.user_password,u1_0.user_phone,u1_0.user_profile_image_key,u1_0.user_role,u1_0.user_status from users u1_0 where u1_0.user_email=?
+[DETAIL] total=1000 case=page25 x20 SELECT COUNT(1) FROM ChatMessageReadStatus r WHERE r.chat.id = :chatId AND r.readYn = false AND r.user.id != (SELECT c.sender.id FROM Chat c WHERE c.id = :chatId)
+[DETAIL] total=1000 case=page25 x1 select count(*) from ChatRoom x WHERE x.id = :id
+[DETAIL] total=1000 case=page25 x20 [CRITERIA] select cmrs1_0.chat_message_id,cmrs1_0.user_id,cmrs1_0.chat_message_read_status_read_at,cmrs1_0.chat_message_read_status_read_yn from chat_message_read_status cmrs1_0 where cmrs1_0.chat_message_id=? and cmrs1_0.user_id=?
+[DETAIL] total=1000 case=page25 x20 SELECT u FROM User u LEFT JOIN FETCH u.department WHERE u.id = :id 
+[DETAIL] total=1000 case=page25 x1 [CRITERIA] select cru1_0.id,cru1_0.chat_room_id,cru1_0.joined_at,cru1_0.user_id from chat_room_user cru1_0 where cru1_0.chat_room_id=? and cru1_0.user_id=? order by cru1_0.id desc limit ?
+[DETAIL] total=1000 case=page25 x1 SELECT cru.user.id FROM ChatRoomUser cru WHERE cru.chatRoom.id = :chatRoomId
+[DETAIL] total=1000 case=page25 x1 SELECT count(DISTINCT c) FROM Chat c LEFT JOIN c.messageFiles LEFT JOIN c.sender WHERE c.chatRoom.id = :roomId AND (:joinedAt IS NULL OR c.sendAt >= :joinedAt)
+[DETAIL] total=1000 case=page25 x1 SELECT DISTINCT c FROM Chat c LEFT JOIN FETCH c.messageFiles LEFT JOIN FETCH c.sender WHERE c.chatRoom.id = :roomId AND (:joinedAt IS NULL OR c.sendAt >= :joinedAt) ORDER BY c.sendAt DESC
+[EXPLAIN] total=1000 old: 방 전체, sent_at만 정렬, LIMIT 없음 | type=ref key=idx_chat_room_sent_at rows=1000 Extra=Using index
+[EXPLAIN] total=1000 old: 방 전체, sent_at만 정렬, LIMIT 없음 | ANALYZE -> Covering index lookup on c using idx_chat_room_sent_at (chat_room_id=1)  (cost=101 rows=1000) (actual time=0.119..0.786 rows=1000 loops=1) / 
+[EXPLAIN] total=1000 new: 첫 페이지 id만 LIMIT | type=ref key=idx_chat_room_sent_at rows=1000 Extra=Using index; Using filesort
+[EXPLAIN] total=1000 new: 첫 페이지 id만 LIMIT | ANALYZE -> Limit: 20 row(s)  (cost=101 rows=20) (actual time=1.05..1.05 rows=20 loops=1) /     -> Sort: c.sent_at DESC, c.id DESC, limit input to 20 row(s) per chunk  (cost=101 rows=1000) (actual time=1.05..1.05 rows=20 loops=1) /         -> Index lookup on c using idx_chat_room_sent_at (chat_room_id=1)  (cost=101 rows=1000) (actual time=0.0775..0.585 rows=1000 loops=1) / 
+[EXPLAIN] total=1000 new: 중간 페이지 OFFSET | type=ref key=idx_chat_room_sent_at rows=1000 Extra=Using index; Using filesort
+[EXPLAIN] total=1000 new: 중간 페이지 OFFSET | ANALYZE -> Limit/Offset: 20/500 row(s)  (cost=101 rows=20) (actual time=1.35..1.36 rows=20 loops=1) /     -> Sort: c.sent_at DESC, c.id DESC, limit input to 520 row(s) per chunk  (cost=101 rows=1000) (actual time=1.25..1.32 rows=520 loops=1) /         -> Index lookup on c using idx_chat_room_sent_at (chat_room_id=1)  (cost=101 rows=1000) (actual time=0.144..0.712 rows=1000 loops=1) / 
+[EXPLAIN] total=1000 new: 커서 before | type=range key=idx_chat_room_sent_at rows=500 Extra=Using where; Using index; Using filesort
+[EXPLAIN] total=1000 new: 커서 before | ANALYZE -> Limit: 21 row(s)  (cost=101 rows=21) (actual time=0.709..0.713 rows=21 loops=1) /     -> Sort: c.sent_at DESC, c.id DESC, limit input to 21 row(s) per chunk  (cost=101 rows=500) (actual time=0.708..0.71 rows=21 loops=1) /         -> Filter: ((c.chat_room_id = 1) and ((c.sent_at < TIMESTAMP'2026-10-30 13:10:08.497221') or ((c.sent_at = TIMESTAMP'2026-10-30 13:10:08.497221') and (c.id < 500))))  (cost=101 rows=500) (actual time=0.104..0.465 rows=499 loops=1) /             -> Index range scan on c using idx_chat_room_sent_at over (chat_room_id = 1 AND sent_at = '2026-10-30 13:10:08.497221' AND id < 500) OR (chat_room_id = 1 AND '2026-10-30 13:10:08.497221' < sent_at < NULL)  (cost=101 rows=500) (actual time=0.0999..0.344 rows=499 loops=1) / 
+[MEASURE] total=10000 case=page0 n=5 received=20 sql=10071 entities=10025 innodbRowsRead=20092 p50=40788ms p95=54630ms max=54630ms
+[DETAIL] total=10000 case=page0 entityFetch=1 collectionFetch=0 collectionLoad=10000
+[DETAIL] total=10000 case=page0 x2 [CRITERIA] select u1_0.user_id,u1_0.dept_id,u1_0.user_email,u1_0.user_employee_number,u1_0.user_rank,u1_0.user_join_date,u1_0.user_name,u1_0.user_password,u1_0.user_phone,u1_0.user_profile_image_key,u1_0.user_role,u1_0.user_status from users u1_0 where u1_0.user_email=?
+[DETAIL] total=10000 case=page0 x20 SELECT COUNT(1) FROM ChatMessageReadStatus r WHERE r.chat.id = :chatId AND r.readYn = false AND r.user.id != (SELECT c.sender.id FROM Chat c WHERE c.id = :chatId)
+[DETAIL] total=10000 case=page0 x1 select count(*) from ChatRoom x WHERE x.id = :id
+[DETAIL] total=10000 case=page0 x20 [CRITERIA] select cmrs1_0.chat_message_id,cmrs1_0.user_id,cmrs1_0.chat_message_read_status_read_at,cmrs1_0.chat_message_read_status_read_yn from chat_message_read_status cmrs1_0 where cmrs1_0.chat_message_id=? and cmrs1_0.user_id=?
+[DETAIL] total=10000 case=page0 x20 SELECT u FROM User u LEFT JOIN FETCH u.department WHERE u.id = :id 
+[DETAIL] total=10000 case=page0 x1 [CRITERIA] select e1_0.email_id,e1_0.email_bounce_reason,e1_0.email_content,e1_0.email_delete_yn,e1_0.email_deleted_time,e1_0.email_folder,e1_0.email_id2,e1_0.email_read_at,e1_0.email_save_status_yn,e1_0.email_sent_time,e1_0.email_status,e1_0.email_title,e1_0.email_type,e1_0.favorite_status,e1_0.reply_to_email_id,e1_0.reserved_at,e1_0.sender_email,e1_0.sender_id from email e1_0 where e1_0.email_status=? and e1_0.reserved_at<=?
+[DETAIL] total=10000 case=page0 x1 [CRITERIA] select cru1_0.id,cru1_0.chat_room_id,cru1_0.joined_at,cru1_0.user_id from chat_room_user cru1_0 where cru1_0.chat_room_id=? and cru1_0.user_id=? order by cru1_0.id desc limit ?
+[DETAIL] total=10000 case=page0 x1 SELECT cru.user.id FROM ChatRoomUser cru WHERE cru.chatRoom.id = :chatRoomId
+[DETAIL] total=10000 case=page0 x1 SELECT count(DISTINCT c) FROM Chat c LEFT JOIN c.messageFiles LEFT JOIN c.sender WHERE c.chatRoom.id = :roomId AND (:joinedAt IS NULL OR c.sendAt >= :joinedAt)
+[DETAIL] total=10000 case=page0 x1 SELECT DISTINCT c FROM Chat c LEFT JOIN FETCH c.messageFiles LEFT JOIN FETCH c.sender WHERE c.chatRoom.id = :roomId AND (:joinedAt IS NULL OR c.sendAt >= :joinedAt) ORDER BY c.sendAt DESC
+[MEASURE] total=10000 case=page250 n=5 received=20 sql=10071 entities=10025 innodbRowsRead=20092 p50=59187ms p95=81937ms max=81937ms
+[DETAIL] total=10000 case=page250 entityFetch=1 collectionFetch=0 collectionLoad=10000
+[DETAIL] total=10000 case=page250 x2 [CRITERIA] select u1_0.user_id,u1_0.dept_id,u1_0.user_email,u1_0.user_employee_number,u1_0.user_rank,u1_0.user_join_date,u1_0.user_name,u1_0.user_password,u1_0.user_phone,u1_0.user_profile_image_key,u1_0.user_role,u1_0.user_status from users u1_0 where u1_0.user_email=?
+[DETAIL] total=10000 case=page250 x20 SELECT COUNT(1) FROM ChatMessageReadStatus r WHERE r.chat.id = :chatId AND r.readYn = false AND r.user.id != (SELECT c.sender.id FROM Chat c WHERE c.id = :chatId)
+[DETAIL] total=10000 case=page250 x1 select count(*) from ChatRoom x WHERE x.id = :id
+[DETAIL] total=10000 case=page250 x20 [CRITERIA] select cmrs1_0.chat_message_id,cmrs1_0.user_id,cmrs1_0.chat_message_read_status_read_at,cmrs1_0.chat_message_read_status_read_yn from chat_message_read_status cmrs1_0 where cmrs1_0.chat_message_id=? and cmrs1_0.user_id=?
+[DETAIL] total=10000 case=page250 x20 SELECT u FROM User u LEFT JOIN FETCH u.department WHERE u.id = :id 
+[DETAIL] total=10000 case=page250 x1 [CRITERIA] select e1_0.email_id,e1_0.email_bounce_reason,e1_0.email_content,e1_0.email_delete_yn,e1_0.email_deleted_time,e1_0.email_folder,e1_0.email_id2,e1_0.email_read_at,e1_0.email_save_status_yn,e1_0.email_sent_time,e1_0.email_status,e1_0.email_title,e1_0.email_type,e1_0.favorite_status,e1_0.reply_to_email_id,e1_0.reserved_at,e1_0.sender_email,e1_0.sender_id from email e1_0 where e1_0.email_status=? and e1_0.reserved_at<=?
+[DETAIL] total=10000 case=page250 x1 [CRITERIA] select cru1_0.id,cru1_0.chat_room_id,cru1_0.joined_at,cru1_0.user_id from chat_room_user cru1_0 where cru1_0.chat_room_id=? and cru1_0.user_id=? order by cru1_0.id desc limit ?
+[DETAIL] total=10000 case=page250 x1 SELECT cru.user.id FROM ChatRoomUser cru WHERE cru.chatRoom.id = :chatRoomId
+[DETAIL] total=10000 case=page250 x1 SELECT count(DISTINCT c) FROM Chat c LEFT JOIN c.messageFiles LEFT JOIN c.sender WHERE c.chatRoom.id = :roomId AND (:joinedAt IS NULL OR c.sendAt >= :joinedAt)
+[DETAIL] total=10000 case=page250 x1 SELECT DISTINCT c FROM Chat c LEFT JOIN FETCH c.messageFiles LEFT JOIN FETCH c.sender WHERE c.chatRoom.id = :roomId AND (:joinedAt IS NULL OR c.sendAt >= :joinedAt) ORDER BY c.sendAt DESC
+[EXPLAIN] total=10000 old: 방 전체, sent_at만 정렬, LIMIT 없음 | type=ref key=idx_chat_room_read_yn rows=5468 Extra=Using index; Using filesort
+[EXPLAIN] total=10000 old: 방 전체, sent_at만 정렬, LIMIT 없음 | ANALYZE -> Sort: c.sent_at DESC  (cost=551 rows=5468) (actual time=24.7..26.6 rows=10000 loops=1) /     -> Index lookup on c using idx_chat_room_read_yn (chat_room_id=2)  (cost=551 rows=5468) (actual time=0.251..17.4 rows=10000 loops=1) / 
+[EXPLAIN] total=10000 new: 첫 페이지 id만 LIMIT | type=ref key=idx_chat_room_read_yn rows=5468 Extra=Using index; Using filesort
+[EXPLAIN] total=10000 new: 첫 페이지 id만 LIMIT | ANALYZE -> Limit: 20 row(s)  (cost=551 rows=20) (actual time=24.6..24.6 rows=20 loops=1) /     -> Sort: c.sent_at DESC, c.id DESC, limit input to 20 row(s) per chunk  (cost=551 rows=5468) (actual time=24.6..24.6 rows=20 loops=1) /         -> Index lookup on c using idx_chat_room_read_yn (chat_room_id=2)  (cost=551 rows=5468) (actual time=0.273..19.9 rows=10000 loops=1) / 
+[EXPLAIN] total=10000 new: 중간 페이지 OFFSET | type=ref key=idx_chat_room_read_yn rows=5468 Extra=Using index; Using filesort
+[EXPLAIN] total=10000 new: 중간 페이지 OFFSET | ANALYZE -> Limit/Offset: 20/5000 row(s)  (cost=551 rows=20) (actual time=26.9..26.9 rows=20 loops=1) /     -> Sort: c.sent_at DESC, c.id DESC, limit input to 5020 row(s) per chunk  (cost=551 rows=5468) (actual time=25.7..26.6 rows=5020 loops=1) /         -> Index lookup on c using idx_chat_room_read_yn (chat_room_id=2)  (cost=551 rows=5468) (actual time=0.277..16.6 rows=10000 loops=1) / 
+[EXPLAIN] total=10000 new: 커서 before | type=ref key=idx_chat_room_read_yn rows=5468 Extra=Using where; Using index; Using filesort
+[EXPLAIN] total=10000 new: 커서 before | ANALYZE -> Limit: 21 row(s)  (cost=304 rows=21) (actual time=11.6..11.6 rows=21 loops=1) /     -> Sort: c.sent_at DESC, c.id DESC, limit input to 21 row(s) per chunk  (cost=304 rows=5468) (actual time=11.6..11.6 rows=21 loops=1) /         -> Filter: ((c.sent_at < TIMESTAMP'2026-10-30 14:26:48.281711') or ((c.sent_at = TIMESTAMP'2026-10-30 14:26:48.281711') and (c.id < 6000)))  (cost=304 rows=5468) (actual time=6.07..9.91 rows=4999 loops=1) /             -> Index lookup on c using idx_chat_room_read_yn (chat_room_id=2)  (cost=304 rows=5468) (actual time=0.282..6.7 rows=10000 loops=1) / 

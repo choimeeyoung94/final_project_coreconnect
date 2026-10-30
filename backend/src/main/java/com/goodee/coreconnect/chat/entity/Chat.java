@@ -34,13 +34,17 @@ import lombok.NoArgsConstructor;
     name = "chat_message",
     indexes = {
         // ⭐ 채팅방별 메시지 조회 최적화 (가장 많이 사용되는 조회 패턴)
-        @Index(name = "idx_chat_room_sent_at", columnList = "chat_room_id, sent_at DESC"),
+        // 메시지 목록 정렬 (sent_at DESC, id DESC)·커서(before/after)를 인덱스 순서 그대로 읽음 (거꾸로 읽으면 최신순)
+        // 예전 (chat_room_id, sent_at DESC)은 뒤에 붙는 id가 오름차순이라 id DESC 동점 정렬에 filesort가 필요했음
+        // 운영(ddl-auto=validate)은 db/migration/add_chat_message_room_sent_id_index.sql을 배포 전에 실행
+        @Index(name = "idx_chat_room_sent_at_id", columnList = "chat_room_id, sent_at, id"),
         
         // ⭐ 발신자별 메시지 조회 최적화
         @Index(name = "idx_sender_sent_at", columnList = "sender_id, sent_at DESC"),
         
-        // ⭐ 읽지 않은 메시지 조회 최적화
-        @Index(name = "idx_chat_room_read_yn", columnList = "chat_room_id, read_yn, sent_at DESC"),
+        // idx_chat_room_read_yn (chat_room_id, read_yn, sent_at DESC)은 삭제함
+        // - 이 인덱스를 쓰는 조회(chat_message.read_yn으로 거르는 findByChatRoom_IdAndReadYnIsFalseWithSender)를 부르는 곳이 없음
+        // - 앞 열이 같은 chat_room_id라 MySQL이 메시지 목록 조회에 이 인덱스를 고르고 방 메시지 전부를 정렬(filesort)함 (EXPLAIN 확인)
         
         // ⭐ 전체 메시지 시간순 조회 최적화
         @Index(name = "idx_sent_at", columnList = "sent_at DESC")
