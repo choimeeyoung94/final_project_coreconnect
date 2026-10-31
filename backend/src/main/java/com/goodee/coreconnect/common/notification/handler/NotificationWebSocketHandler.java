@@ -4,14 +4,9 @@ import java.util.List;
 
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
-import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.goodee.coreconnect.common.notification.enums.NotificationType;
-import com.goodee.coreconnect.common.notification.service.NotificationService;
 import com.goodee.coreconnect.common.notification.service.WebSocketDeliveryService;
 import com.goodee.coreconnect.security.jwt.JwtProvider;
 import com.goodee.coreconnect.user.entity.User;
@@ -25,12 +20,10 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class NotificationWebSocketHandler extends TextWebSocketHandler {
 
-    private final NotificationService notificationService;
     private final JwtProvider jwtProvider;
     private final UserRepository userRepository;
     private final WebSocketDeliveryService webSocketDeliveryService;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * 클라이언트(WebSocket) 연결 시 호출
@@ -85,52 +78,8 @@ public class NotificationWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    /**
-     * 텍스트 메시지 수신 시 실행되는 콜백
-     * handleTextMessage에서 직접 sendMessage()하지 않고, 항상 service.sendNotification()만 호출
-     */
-    @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-    	 // 메시지(JSON) 파싱
-        JsonNode node = objectMapper.readTree(message.getPayload());
-
-        // 송신자 ID 추출 (attribute → fallback)
-        Integer senderId = (Integer) session.getAttributes().get("userId");
-        if (senderId == null) {
-            senderId = getUserIdFromSession(session);
-        }
-
-        // 수신자, 알림 타입, 메시지 내용 추출
-        Integer recipientId = node.has("recipientId") ? node.get("recipientId").asInt() : null;
-        String msg = node.has("message") ? node.get("message").asText() : null;
-        String typeStr = node.has("type") ? node.get("type").asText() : "EMAIL";
-        NotificationType type;
-        try {
-            type = NotificationType.valueOf(typeStr.toUpperCase());
-        } catch (Exception e) {
-            type = NotificationType.EMAIL;
-        }
-
-        // ⚠️ 부적절한 값(필수 id 없음) 체크!
-        if (recipientId == null) {
-//            log.warn("[WebSocket] handleTextMessage: recipientId가 null입니다. 메시지 무시.");
-            return;
-        }
-        if (senderId == null) {
-            log.warn("[WebSocket] handleTextMessage: senderId가 null입니다. 메시지 무시.");
-            return;
-        }
-
-        // 송신자 이름 조회
-        String senderName = null;
-        if (senderId != null) {
-            User user = userRepository.findById(senderId).orElse(null);
-            senderName = user != null ? user.getName() : null;
-        }
-
-        // 알림 저장 + 실시간 푸시는 NotificationService에서 일원화
-        notificationService.sendNotification(recipientId, type, msg, null, null, senderId, senderName, null);
-    }
+    // 클라이언트가 보낸 메시지로는 알림을 만들지 않는다. 알림은 서버 서비스에서만 생성한다
+    // 프론트의 PING은 TextWebSocketHandler 기본 동작으로 무시된다
 
     /**
      * WebSocketSession에서 JWT 토큰을 파싱하여 사용자 ID 추출 (백업용)
