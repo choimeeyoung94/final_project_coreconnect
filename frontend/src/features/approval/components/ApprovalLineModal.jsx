@@ -70,10 +70,14 @@ function ApprovalLineModal({
           setLoading(true);
           setError(null);
           const res = await getOrganizationChart();
-          setOrganizationUsers(res.data);
-          setFilteredUsers(res.data);
+          // 조직도 API는 부서가 없으면 "N/A"를 보낸다. 화면에는 빈칸으로 둔다
+          const users = res.data.map((user) =>
+            user.deptName === "N/A" ? { ...user, deptName: "" } : user
+          );
+          setOrganizationUsers(users);
+          setFilteredUsers(users);
 
-          const groupedData = res.data.reduce((acc, user) => {
+          const groupedData = users.reduce((acc, user) => {
             const dept = user.deptName || "소속 없음";
             if (!acc[dept]) {
               acc[dept] = [];
