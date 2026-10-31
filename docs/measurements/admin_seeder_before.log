@@ -1,0 +1,32 @@
+> Task :cleanTest
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :compileTestJava
+> Task :processTestResources UP-TO-DATE
+> Task :testClasses
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+
+> Task :test
+
+AdminSeederTest > 부서 시드는 관리자 시드보다 먼저 실행되도록 순서가 정해져 있다 FAILED
+    java.lang.AssertionError at AdminSeederTest.java:51
+
+AdminSeederTest > 최상위 부서를 찾지 못하면 만들어서 관리자를 소속시킨다 FAILED
+    java.lang.NullPointerException at AdminSeederTest.java:66
+
+3 tests completed, 2 failed
+
+> Task :test FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':test'.
+> There were failing tests. See the report at: file:///C:/dev/final_project_coreconnect/backend/build/reports/tests/test/index.html
+
+* Try:
+> Run with --scan to get full insights.
+
+BUILD FAILED in 37s
+6 actionable tasks: 3 executed, 3 up-to-date

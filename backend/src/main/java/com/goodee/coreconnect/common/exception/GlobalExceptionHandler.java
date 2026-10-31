@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -72,6 +73,24 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST) // 400
                 .body("입력값 오류: " + errorMessage);
+    }
+
+    /**
+     * 요청 본문을 읽을 수 없을 때 처리 (HTTP 400 Bad Request)
+     * (JSON 형식 오류, enum에 없는 값이나 빈 문자열 등)
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ResponseDTO<Void>> handleNotReadable(HttpMessageNotReadableException ex) {
+        log.warn("Not Readable: {}", ex.getMessage());
+
+        ResponseDTO<Void> res = ResponseDTO.<Void>builder()
+            .status(HttpStatus.BAD_REQUEST.value())
+            .message("입력한 값의 형식이 올바르지 않습니다. 입력 내용을 확인해 주세요.")
+            .build();
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST) // 400
+                .body(res);
     }
 
     /**

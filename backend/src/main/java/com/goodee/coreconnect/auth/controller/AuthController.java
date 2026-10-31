@@ -24,6 +24,7 @@ import com.goodee.coreconnect.auth.dto.response.LoginResponseDTO;
 import com.goodee.coreconnect.security.jwt.JwtProvider;
 import com.goodee.coreconnect.security.userdetails.CustomUserDetails;
 import com.goodee.coreconnect.user.entity.User;
+import com.goodee.coreconnect.user.enums.JobGrade;
 import com.goodee.coreconnect.user.enums.Role;
 import com.goodee.coreconnect.user.repository.UserRepository;
 
@@ -96,7 +97,7 @@ public class AuthController {
               email,
               null,                               // phone
               null,                               // department
-              null,                               // jobGrade
+              JobGrade.STAFF,                     // 기본 직급
               null                                // employeeNumber (unique, nullable)
           );
           user = userRepository.save(user);

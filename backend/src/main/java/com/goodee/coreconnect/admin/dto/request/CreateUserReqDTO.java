@@ -21,8 +21,10 @@ public record CreateUserReqDTO(
  
  String phone,
  
- Integer deptId,  
- 
+ @NotNull(message = "부서는 필수입니다.")
+ Integer deptId,
+
+ @NotNull(message = "직급은 필수입니다.")
  JobGrade jobGrade,
  
  @NotNull 

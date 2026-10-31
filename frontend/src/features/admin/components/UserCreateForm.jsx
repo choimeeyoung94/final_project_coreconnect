@@ -42,7 +42,7 @@ export default function UserCreateForm() {
       .get("/departments/flat")
       .then(({ data }) => setDepartments(data))
       .catch(() =>
-        showSnack("부서 목록을 불러오지 못했습니다. (부서 없이 생성 가능)", "info")
+        showSnack("부서 목록을 불러오지 못했습니다.", "warning")
       );
   }, [showSnack]);
 
@@ -114,6 +114,11 @@ export default function UserCreateForm() {
       return;
     }
 
+    if (!form.deptId || !form.role || !form.jobGrade) {
+      showSnack("부서 / 권한 / 직급은 필수입니다.", "error");
+      return;
+    }
+
     const payload = {
       email: form.email.trim(),
       name: form.name.trim(),
@@ -122,7 +127,7 @@ export default function UserCreateForm() {
       phone: form.phone ? form.phone.replace(/\D/g, "") : undefined,
       role: form.role,
       jobGrade: form.jobGrade,
-      ...(form.deptId ? { deptId: Number(form.deptId) } : {}), // 부서를 선택한 경우에만 추가 
+      deptId: Number(form.deptId),
     };
 
     setLoading(true);
@@ -142,7 +147,9 @@ export default function UserCreateForm() {
       });
     } catch (e) {
       const status = e.response?.status;
-      const message = e.response?.data?.message;
+      // 서버 검증 실패(@Valid)는 본문이 문자열로 온다
+      const data = e.response?.data;
+      const message = typeof data === "string" ? data : data?.message;
 
       if (status === 401) {
         showSnack("인증이 만료되었거나 권한이 없습니다. 다시 로그인하세요.", "error");
@@ -226,7 +233,7 @@ export default function UserCreateForm() {
                   }}
                 />
 
-                <FormControl fullWidth size="medium">
+                <FormControl fullWidth size="medium" required>
                   <InputLabel id="dept-select-label">부서</InputLabel>
                   <Select
                     labelId="dept-select-label"
@@ -235,7 +242,6 @@ export default function UserCreateForm() {
                     value={form.deptId}
                     onChange={onChange}
                   >
-                    <MenuItem value="">(선택 안 함)</MenuItem>
                     {departments.map((d) => (
                       <MenuItem key={d.id} value={d.id}>
                         {d.name}

@@ -61,6 +61,9 @@ export const ROLE_LABELS = {
 };
 
 export const getJobGradeLabel = key => JOB_GRADE_LABELS[key] || key;
+// 결재선 표시용: 직급이 없으면(null, 조직도 API의 "N/A") 안내 문구를 보여준다
+export const getJobGradeDisplay = key =>
+  !key || key === "N/A" ? "직급이 없습니다" : getJobGradeLabel(key);
 export const getLeaveRequestLabel = key => LEAVE_REQUEST_LABELS[key] || key;
 export const getLeaveTypeLabel = value => LEAVE_TYPE_LABELS[value] || value;
 export const getNotificationTypeLabel = type => NOTIFICATION_TYPE_LABELS[type] || type;

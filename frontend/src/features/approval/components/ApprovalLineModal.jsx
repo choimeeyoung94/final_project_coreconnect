@@ -22,7 +22,7 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
-import { getJobGradeLabel } from "../../../utils/labelUtils";
+import { getJobGradeDisplay } from "../../../utils/labelUtils";
 import { useSnackbarContext } from "../../../components/utils/SnackbarContext";
 
 const style = {
@@ -222,7 +222,7 @@ function ApprovalLineModal({
             {list.map((line, index) => (
               <ListItem key={line.userId} sx={{ borderBottom: '1px solid #eee', px: 0 }}>
                  <ListItemText
-                    primary={`${line.name} ${getJobGradeLabel(line.positionName)}`}
+                    primary={`${line.name} ${getJobGradeDisplay(line.positionName)}`}
                     secondary={line.deptName}
                     primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 'medium', whiteSpace: 'nowrap' }}
                   />
@@ -250,7 +250,7 @@ function ApprovalLineModal({
     <ListItem key={user.userId} disablePadding>
       <ListItemButton>
         <ListItemText
-          primary={`${user.name} (${getJobGradeLabel(user.positionName)})`}
+          primary={`${user.name} (${getJobGradeDisplay(user.positionName)})`}
           secondary={user.deptName}
         />
         <Box sx={{ display: 'flex', gap: 0.5 }}>

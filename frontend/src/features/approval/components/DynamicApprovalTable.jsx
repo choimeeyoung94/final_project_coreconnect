@@ -48,7 +48,8 @@ const DynamicApprovalTable = ({ approvers = [], drafter }) => {
           approvalStatus = line.approvalLineStatus || line.approvalStatus;
         } else {
           userId = line.userId;
-          positionName = getJobGradeLabel(line.positionName);
+          // 조직도 API는 직급이 없으면 "N/A"를 보낸다. 결재란은 빈칸으로 둔다
+          positionName = line.positionName === "N/A" ? "" : getJobGradeLabel(line.positionName);
           name = line.name;
           approvalStatus = line.approvalStatus || "";
         }

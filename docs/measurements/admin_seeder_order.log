@@ -1,0 +1,22 @@
+# 수정 전 코드, 빈 MySQL 8.0, 2026-10-31
+jar: users.dept_id=NULL, department=7
+2026-10-31T13:20:13.802+09:00  INFO 7580 --- [coreconnect] [           main] c.goodee.coreconnect.BackendApplication  : 
+dir: users.dept_id=NULL, department=7
+2026-10-31T13:31:08.939+09:00  INFO 22564 --- [coreconnect] [  restartedMain] c.goodee.coreconnect.BackendApplication  :
+sts: users.dept_id=NULL, department=7
+2026-10-31T13:33:54.353+09:00  INFO 24468 --- [coreconnect] [  restartedMain] c.goodee.coreconnect.BackendApplication  :
+# 수정 후 코드
+fixed.jar: users.dept_id=1, department=7
+2026-10-31T13:36:13.464+09:00  INFO 27404 --- [coreconnect] [           main] c.goodee.coreconnect.BackendApplication  :
+# 수정 전 코드, 스프링 테스트
+PROBE runners=[networkIdleTimeoutLogger, seedAdminRunner, initDepartments]
+PROBE adminSeeder=11 departmentSeeder=73
+PROBE 11 adminSeeder
+PROBE 73 departmentSeeder
+PROBE 105 seedAdminRunner
+PROBE 151 initDepartments
+PROBE2 rows=[{user_id=1, user_email=admin@coreconnect.io.kr, dept_id=null}]
+PROBE2 entityDept=null
+# 2026-10-24 로컬 binlog: users 위치 61419, department 위치 61866부터
+# 추가: 수정 전 코드, 스프링 테스트 AdminSeederDepartmentTest 2회 통과 (department 먼저 삽입)
+# 원인: spring-boot SpringApplication.callRunners가 IdentityHashMap으로 러너를 모음(javap로 확인), @Order 없으면 순서 비결정적

@@ -11,7 +11,7 @@ import VacationForm from '../forms/VacationForm';
 import DynamicApprovalTable from '../components/DynamicApprovalTable';
 import BusinessTripForm from '../forms/BusinessTripForm';
 import ExpenseForm from '../forms/ExpenseForm';
-import { getJobGradeLabel } from '../../../utils/labelUtils';
+import { getJobGradeDisplay } from '../../../utils/labelUtils';
 import { useSnackbarContext } from '../../../components/utils/SnackbarContext';
 import { UserProfileContext } from '../../../App';
 
@@ -451,7 +451,7 @@ function NewDocumentPage() {
               {approvalLine.map((line, index) => (
                 <ListItem key={line.lineId} disablePadding>
                   <ApprovalTypeChip type={line.type || line.approvalType} size="small" sx={{ mr: 1.5, minWidth: '50px' }} />
-                  <ListItemText primary={`${index + 1}. ${line.name} (${getJobGradeLabel(line.positionName)})`} secondary={line.deptName} />
+                  <ListItemText primary={`${index + 1}. ${line.name} (${getJobGradeDisplay(line.positionName)})`} secondary={line.deptName} />
                 </ListItem>
               ))}
             </List>
