@@ -269,6 +269,21 @@ class ChatRoomFlowTest extends AbstractIntegrationTest {
   }
 
   @Test
+  @DisplayName("화면이 받은 번호까지만 읽음이 되고, 그 뒤 메시지는 안 읽음으로 남는다")
+  void markAsRead_upToReceivedMessageOnly() {
+    User me = newUser("나");
+    User other = newUser("상대");
+    ChatRoom room = chatRoomService.createChatRoom("부분읽음방", ids(me, other), me.getEmail());
+    Chat received = chatRoomService.sendChatMessage(room.getId(), me.getId(), "받은 메시지");
+    Chat notReceived = chatRoomService.sendChatMessage(room.getId(), me.getId(), "못 받은 메시지");
+
+    chatRoomService.markMessagesAsRead(room.getId(), other.getId(), received.getId());
+
+    assertThat(chatRoomService.countUnreadByChatId(received.getId())).isZero();
+    assertThat(chatRoomService.countUnreadByChatId(notReceived.getId())).isEqualTo(1);
+  }
+
+  @Test
   @DisplayName("접속하지 않은 참여자는 보낸 메시지의 안 읽은 인원에 잡힌다")
   void sendMessage_countsUnreadForNotConnectedUsers() {
     User me = newUser("나");

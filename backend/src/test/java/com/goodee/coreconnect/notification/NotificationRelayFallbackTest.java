@@ -32,7 +32,7 @@ class NotificationRelayFallbackTest {
   void redisDown_deliversLocally() throws Exception {
     StringRedisTemplate redis = mock(StringRedisTemplate.class);
     doThrow(new RedisConnectionFailureException("down")).when(redis).convertAndSend(anyString(), any());
-    WebSocketDeliveryService service = new WebSocketDeliveryService(new ObjectMapper(), redis, mock(RedisMessageListenerContainer.class));
+    WebSocketDeliveryService service = new WebSocketDeliveryService(new ObjectMapper(), redis, new com.goodee.coreconnect.config.RedisGuard(), mock(RedisMessageListenerContainer.class));
     WebSocketSession local = mock(WebSocketSession.class);
     when(local.isOpen()).thenReturn(true);
     when(local.getId()).thenReturn("local");

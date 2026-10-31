@@ -45,7 +45,6 @@ import com.goodee.coreconnect.common.notification.event.NotificationPushEvent;
 import com.goodee.coreconnect.chat.dto.response.ChatMessageResponseDTO;
 import com.goodee.coreconnect.chat.event.ChatRoomMembersChangedEvent;
 import com.goodee.coreconnect.chat.event.ChatUnreadCountsChangedEvent;
-import com.goodee.coreconnect.chat.handler.ChatWebSocketHandler;
 import com.goodee.coreconnect.chat.pubsub.ChatPubSubService;
 import com.goodee.coreconnect.user.entity.User;
 import com.goodee.coreconnect.user.repository.UserRepository;
@@ -62,6 +61,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
     private final AccountLogRepository accountLogRepository;
 
 	private final ChatRoomUserRepository chatRoomUserRepository;
+	private final com.goodee.coreconnect.config.ChatRoomViewerRegistry chatRoomViewerRegistry;
 	private final ChatRoomRepository chatRoomRepository;
 	private final ChatRepository chatRepository;
 	private final NotificationRepository notificationRepository;
@@ -408,20 +408,8 @@ private final UserRepository userRepository;
 	    
 	    // ⭐ 현재 채팅방에 접속 중인 사용자 목록 조회 (실시간 WebSocket 세션 기반)
 	    // ⭐ userId 기준 접속자 집계: 같은 userId의 여러 브라우저/탭은 1명으로 집계
-	    log.info("🔥 [sendChatMessage] ========== 접속자 조회 시작 ========== roomId: {}", roomId);
-	    List<Integer> connectedUserIds = getConnectedUserIdsInRoom(roomId);
-	    
-	    // ⭐ 디버깅: 접속 중인 사용자 상세 정보
-	    log.info("🔥 [sendChatMessage] ⭐ 실시간 접속자 조회 (userId 기준) - roomId: {}, 접속자수: {}, 접속자Ids: {}", 
-	            roomId, connectedUserIds.size(), connectedUserIds);
-	    
-	    // ⭐ 디버깅: 참여자 목록 확인
-	    log.info("[sendChatMessage] 참여자 목록 조회 - roomId: {}, 참여자수: {}, 발신자Id: {}", 
-	            roomId, participants.size(), sender.getId());
-	    
 	    int savedCount = 0;
 	    int senderReadCount = 0;
-	    int connectedReadCount = 0;
 	    int otherReadCount = 0;
 	    
 	    for (ChatRoomUser cru : participants) {
@@ -455,19 +443,12 @@ private final UserRepository userRepository;
 	        
 	        // ⭐ 정책: 발신자 + 접속 중인 사용자는 모두 읽음 처리, 나머지는 unread
 	        boolean isSender = participant.getId().equals(sender.getId());
-	        boolean isConnected = connectedUserIds.contains(participant.getId());
 	        
 	        if (isSender) {
 	            // ⭐ 발신자는 읽음 처리
 	            readStatus.markRead();
 	            senderReadCount++;
 	            log.debug("[sendChatMessage] 발신자 읽음 처리 - userId: {}, chatId: {}", 
-	                    participant.getId(), chat.getId());
-	        } else if (isConnected) {
-	            // ⭐ 접속 중인 사용자는 자동으로 읽음 처리 (실시간으로 메시지를 볼 수 있으므로)
-	            readStatus.markRead();
-	            connectedReadCount++;
-	            log.debug("[sendChatMessage] 접속 중인 사용자 읽음 처리 - userId: {}, chatId: {}", 
 	                    participant.getId(), chat.getId());
 	        } else {
 	            // ⭐ 발신자가 아니고 접속 중이 아닌 경우 readYn=false
@@ -490,7 +471,7 @@ private final UserRepository userRepository;
 	    
 	    // ⭐ 디버깅: 저장 결과 확인
 	    log.info("[sendChatMessage] ChatMessageReadStatus 저장 완료 - chatId: {}, 총참여자수: {}, 저장된row수: {}, 발신자(readYn=true): {}, 접속중(readYn=true): {}, 미접속(readYn=false): {}", 
-	            chat.getId(), participants.size(), savedCount, senderReadCount, connectedReadCount, otherReadCount);
+	            chat.getId(), participants.size(), savedCount, senderReadCount, otherReadCount);
 	    
 	    // ⭐ 저장된 row 수가 참여자 수와 일치하는지 확인
 	    if (savedCount != participants.size()) {
@@ -537,17 +518,16 @@ private final UserRepository userRepository;
 	    
 	    // ⭐ 참여자 수 및 접속자 수 확인 (디버깅용)
 	    int totalParticipants = participants.size();
-	    int connectedUsersCount = connectedUserIds.size(); // 현재 접속 중인 사용자 수 (발신자 포함)
 	    
 	    // ⭐ unreadCount는 0 이상이어야 함
 	    if (confirmedUnreadCount < 0) {
-	        log.warn("[sendChatMessage] ⚠️ unreadCount가 음수입니다! - 총참여자수: {}, 접속중인사용자수: {}, unreadCount: {}", 
-	                totalParticipants, connectedUsersCount, confirmedUnreadCount);
+	        log.warn("[sendChatMessage] ⚠️ unreadCount가 음수입니다! - 총참여자수: {}, unreadCount: {}", 
+	                totalParticipants, confirmedUnreadCount);
 	        confirmedUnreadCount = 0;
 	    }
 	    
-	    log.info("[sendChatMessage] ⭐ unreadCount 최신 DB 조회 (flush 후) - chatId: {}, 총참여자수: {}, 접속중인사용자수: {}, 최신unreadCount: {}", 
-	            chat.getId(), totalParticipants, connectedUsersCount, confirmedUnreadCount);
+	    log.info("[sendChatMessage] ⭐ unreadCount 최신 DB 조회 (flush 후) - chatId: {}, 총참여자수: {}, 최신unreadCount: {}", 
+	            chat.getId(), totalParticipants, confirmedUnreadCount);
 	    
 	    // ⭐ Chat 엔티티에 최신 DB 값 설정 - 도메인 메서드 사용
 	    chat.updateUnreadCount(confirmedUnreadCount);
@@ -638,7 +618,13 @@ private final UserRepository userRepository;
 	// ⭐ 각 메시지의 unreadCount를 -1 감소시키는 로직 추가
 	@Transactional
 	public List<Integer> markMessagesAsRead(Integer roomId, Integer userId) {
-	    log.info("[markMessagesAsRead] 읽음 처리 시작 - roomId: {}, userId: {}", roomId, userId);
+	    return markMessagesAsRead(roomId, userId, null);
+	}
+
+	@Override
+	@Transactional
+	public List<Integer> markMessagesAsRead(Integer roomId, Integer userId, Integer upToChatId) {
+	    log.info("[markMessagesAsRead] 읽음 처리 시작 - roomId: {}, userId: {}, upToChatId: {}", roomId, userId, upToChatId);
 	    
 	    // 1. 해당 채팅방에서 내가 안읽은 메시지 상태 전부 조회
 	    List<ChatMessageReadStatus> unreadStatuses =
@@ -651,6 +637,10 @@ private final UserRepository userRepository;
 
 	    // 2. 상태를 모두 읽음 처리 및 시간 업데이트
 	    for (ChatMessageReadStatus status : unreadStatuses) {
+	    	// 화면이 받지 못한 메시지는 읽음으로 바꾸지 않는다
+	    	if (upToChatId != null && status.getChat() != null && status.getChat().getId() > upToChatId) {
+	    		continue;
+	    	}
 	    	// 확실히 안읽음 상태일 때만 markRead() 수행
 	    	if (Boolean.FALSE.equals(status.getReadYn()) && status.getReadAt() == null) {
 	    		status.markRead();// 내부적으로 readYn = true, readAt= now로 세팅
@@ -744,22 +734,14 @@ private final UserRepository userRepository;
 	}
 
 	/**
-	 * 채팅방에서 현재 접속 중인 인원 id 리스트 반환
-	 * ⭐ 실시간 WebSocket 세션 상태를 기반으로 정확한 접속자 수를 반환
-	 * 
-	 * 핵심: afterConnectionClosed에서 userSessions.remove(userId)가 제대로 호출되어야
-	 *       이 메서드가 정확한 실시간 접속자 수를 반환할 수 있음!
+	 * 채팅방을 지금 보고 있는 인원 id 리스트 반환 (STOMP 구독 기준, ChatRoomViewerRegistry)
 	 * 
 	 * @param roomId 채팅방 ID
-	 * @return 접속 중인 사용자 ID 목록 (발신자 포함)
+	 * @return 방을 구독 중인 사용자 ID 목록 (발신자 포함)
 	 */
     @Override
     public List<Integer> getConnectedUserIdsInRoom(Integer roomId) {
-        // ⭐ 순환 참조 방지: ChatWebSocketHandler의 static 메서드를 직접 호출
-        // ChatWebSocketHandler는 ChatRoomService를 주입받고,
-        // ChatRoomServiceImpl은 ChatWebSocketHandler를 주입받으려고 하면 순환 참조 발생
-        // 따라서 static 메서드를 통해 userSessions에 직접 접근
-        List<Integer> connectedUserIds = com.goodee.coreconnect.chat.handler.ChatWebSocketHandler.getConnectedUserIdsInRoomStatic(roomId);
+        List<Integer> connectedUserIds = chatRoomViewerRegistry.viewerIds(roomId);
         
         log.info("[ChatRoomService.getConnectedUserIdsInRoom] roomId: {}, 접속자수: {}, 접속자Ids: {}", 
                 roomId, connectedUserIds.size(), connectedUserIds);

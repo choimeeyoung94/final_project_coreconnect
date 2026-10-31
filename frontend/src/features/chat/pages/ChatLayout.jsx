@@ -132,6 +132,12 @@ export default function ChatLayout() {
   const messagesRef = useRef([]);
   useEffect(() => { messagesRef.current = messages; }, [messages]);
 
+  // 화면이 받은 마지막 메시지 번호. 받지 못한 메시지까지 읽음이 되지 않도록 읽음 처리에 함께 보낸다
+  const lastMessageIdOf = (list) => {
+    const ids = list.map((m) => m?.id).filter(Number.isInteger);
+    return ids.length > 0 ? Math.max(...ids) : undefined;
+  };
+
   // ---------- 연결이 끊긴 동안 놓친 메시지 받아 오기 (open_issues 9번 A) ----------
   // 실시간 메시지는 연결돼 있던 브라우저에만 감 → 다시 연결되면(onConnect) 화면의 가장 최신 메시지 뒤에 온 것을 after로 받아 붙임
   // 첫 연결이라 아직 이 방 메시지가 화면에 없으면 아무것도 안 함 (loadMessages가 받음)
@@ -823,6 +829,13 @@ export default function ChatLayout() {
       // ⭐ 처리 중 표시
       processingMessageIdsRef.current.add(numMsgId);
 
+      // 화면이 보이는 동안 받은 메시지만 읽음 처리한다. 탭이 숨겨져 있으면 돌아올 때 처리한다
+      if (document.visibilityState === "visible") {
+        markRoomMessagesAsRead(roomIdNum, numMsgId).catch((error) => {
+          console.error("[ChatLayout] 메시지 수신 후 읽음 처리 실패:", error);
+        });
+      }
+
       // ⭐ 다른 사람이 보낸 새 메시지의 unreadCount가 있으면 그대로 사용 (백엔드에서 실시간 계산된 값)
       // unreadCount가 없거나 undefined인 경우 0으로 설정
       // ⚠️ 중요: fileUrls를 명시적으로 포함하여 여러 파일이 제대로 표시되도록 함
@@ -1182,10 +1195,24 @@ export default function ChatLayout() {
     }
   };
 
+  // 숨겨진 탭으로 돌아오면 그동안 받은 메시지를 읽음 처리한다
+  useEffect(() => {
+    if (!selectedRoomId) return undefined;
+    const handleVisible = () => {
+      if (document.visibilityState === "visible") {
+        markRoomMessagesAsRead(selectedRoomId, lastMessageIdOf(messagesRef.current)).catch((error) => {
+          console.error("[ChatLayout] 화면 복귀 후 읽음 처리 실패:", error);
+        });
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisible);
+    return () => document.removeEventListener("visibilitychange", handleVisible);
+  }, [selectedRoomId]);
+
   // ---------- 스크롤로 읽음 처리 ----------
   const handleScrollRead = async () => {
     if (selectedRoomId && messages.length > 0) {
-      await markRoomMessagesAsRead(selectedRoomId);
+      await markRoomMessagesAsRead(selectedRoomId, lastMessageIdOf(messagesRef.current));
       loadRooms();
     }
   };
@@ -1559,11 +1586,12 @@ export default function ChatLayout() {
               console.log("🚫 [ChatLayout] 초기 접속 아님 - 스크롤 유지");
             }
 
-            // ⭐ 채팅방 접속 시 안읽은 메시지들을 읽음 처리
-            // ⭐ 중요: 메시지 로드 후 마커가 렌더링되고 스크롤이 완료된 후에 읽음 처리
-            // scrollToUnread가 true이면 ChatMessageList에서 스크롤 완료 후 onScrollToUnreadComplete 호출
-            // 그 시점에 읽음 처리를 하도록 변경 (아래 useEffect에서 처리)
-            // 여기서는 즉시 읽음 처리하지 않음
+            // 방에 들어와 메시지를 불러오면 읽음 처리한다
+            if (document.visibilityState === "visible") {
+              markRoomMessagesAsRead(selectedRoomId, lastMessageIdOf(messagesWithPendingUpdates)).catch((error) => {
+                console.error("[ChatLayout] 채팅방 접속 시 읽음 처리 실패:", error);
+              });
+            }
 
             // ⭐ 채팅방 변경 시 처리된 메시지 ID 초기화 (새 방의 메시지 로드)
             processedMessageIdsRef.current.clear();
@@ -1579,7 +1607,7 @@ export default function ChatLayout() {
             // scrollToUnread가 true이면 ChatMessageList에서 스크롤 완료 후 onScrollToUnreadComplete에서 읽음 처리
             if (!scrollToUnread) {
               try {
-                await markRoomMessagesAsRead(selectedRoomId);
+                await markRoomMessagesAsRead(selectedRoomId, lastMessageIdOf(messagesRef.current));
                 console.log("[ChatLayout] 채팅방 접속 시 메시지 읽음 처리 완료 - roomId:", selectedRoomId);
 
                 // ⭐ 채팅방 목록의 unreadCount를 0으로 업데이트
@@ -1846,7 +1874,7 @@ export default function ChatLayout() {
               // 스크롤 완료 후 읽음 처리
               if (selectedRoomId) {
                 try {
-                  await markRoomMessagesAsRead(selectedRoomId);
+                  await markRoomMessagesAsRead(selectedRoomId, lastMessageIdOf(messagesRef.current));
                   console.log("[ChatLayout] 스크롤 완료 후 메시지 읽음 처리 완료 - roomId:", selectedRoomId);
                   
                   // 채팅방 목록의 unreadCount를 0으로 업데이트
@@ -1874,7 +1902,7 @@ export default function ChatLayout() {
             onMarkAllAsRead={async () => {
               if (selectedRoomId) {
                 try {
-                  await markRoomMessagesAsRead(selectedRoomId);
+                  await markRoomMessagesAsRead(selectedRoomId, lastMessageIdOf(messagesRef.current));
                   loadRooms();
                   // 메시지 목록도 새로고침하여 읽음 상태 업데이트
                   if (selectedRoomId) {
