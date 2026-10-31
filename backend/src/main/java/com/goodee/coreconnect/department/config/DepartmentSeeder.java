@@ -3,6 +3,7 @@ package com.goodee.coreconnect.department.config;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 
 import com.goodee.coreconnect.department.service.DepartmentService;
 
@@ -14,6 +15,7 @@ import com.goodee.coreconnect.department.service.DepartmentService;
 public class DepartmentSeeder {
   
   @Bean
+  @Order(1) // 관리자 시드가 부서를 찾을 수 있도록 먼저 실행
   public CommandLineRunner initDepartments(DepartmentService departmentService) {
     return args -> {
       // 부서가 비어 있을 때만 실행

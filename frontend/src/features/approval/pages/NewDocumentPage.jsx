@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, useContext } from 'react';
+import React, { useEffect, useState, useCallback, useContext } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getTemplateDetail, submitDocument, saveDraft, getDocumentDetail, updateDraft, updateDocument } from '../api/approvalApi';
 import { Button, Alert, Box, CircularProgress, Paper, TextField, Typography, List, ListItem, ListItemText, TableContainer, Table, TableHead, TableRow, TableCell, TableBody } from '@mui/material';
@@ -11,7 +11,7 @@ import VacationForm from '../forms/VacationForm';
 import DynamicApprovalTable from '../components/DynamicApprovalTable';
 import BusinessTripForm from '../forms/BusinessTripForm';
 import ExpenseForm from '../forms/ExpenseForm';
-import { getJobGradeLabel } from '../../../utils/labelUtils';
+import { getJobGradeDisplay } from '../../../utils/labelUtils';
 import { useSnackbarContext } from '../../../components/utils/SnackbarContext';
 import { UserProfileContext } from '../../../App';
 
@@ -25,7 +25,7 @@ const getTodayDate = () => {
 };
 
 // 휴가 기간 계산 로직
-export const calculateDuration = (startDate, endDate) => {
+const calculateDuration = (startDate, endDate) => {
   if (!startDate || !endDate) return 0;
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -451,7 +451,7 @@ function NewDocumentPage() {
               {approvalLine.map((line, index) => (
                 <ListItem key={line.lineId} disablePadding>
                   <ApprovalTypeChip type={line.type || line.approvalType} size="small" sx={{ mr: 1.5, minWidth: '50px' }} />
-                  <ListItemText primary={`${index + 1}. ${line.name} (${getJobGradeLabel(line.positionName)})`} secondary={line.deptName} />
+                  <ListItemText primary={`${index + 1}. ${line.name} (${getJobGradeDisplay(line.positionName)})`} secondary={line.deptName} />
                 </ListItem>
               ))}
             </List>

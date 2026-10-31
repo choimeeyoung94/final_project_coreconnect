@@ -24,7 +24,7 @@ public class UserInfoResponseDTO {
               .userId(user.getId())
               .userName(user.getName())
               .userEmail(user.getEmail())
-              .deptName(user.getDepartment().getDeptName())
+              .deptName(user.getDepartment() != null ? user.getDepartment().getDeptName() : null)
               .positionName(user.getJobGrade())
               .role(user.getRole())
               .build();

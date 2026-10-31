@@ -1,6 +1,7 @@
 package com.goodee.coreconnect.admin.config;
 
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -38,8 +39,9 @@ public class AdminSeeder {
     private static final String ADMIN_RAW_PASSWORD = "1"; 
     private static final String ADMIN_DEPT_NAME = "코어커넥트 1.0"; 
 
-    /** Spring Boot 시작 시 자동 실행되는 CommandLineRunner Bean. */
+    /** Spring Boot 시작 시 자동 실행되는 CommandLineRunner Bean. 부서 시드 다음에 실행 */
     @Bean
+    @Order(2)
     CommandLineRunner seedAdminRunner() {
       return args -> seedAdminIfNeeded();
     }
@@ -52,12 +54,9 @@ public class AdminSeeder {
                 return; 
             }
 
-            Department dept = null;
-            if (ADMIN_DEPT_NAME != null) {
-                dept = departmentRepository.findByDeptName(ADMIN_DEPT_NAME)
-                        .orElse(null);
-            }
-            
+            Department dept = departmentRepository.findByDeptName(ADMIN_DEPT_NAME)
+                    .orElseGet(() -> departmentRepository.save(Department.createDepartment(ADMIN_DEPT_NAME, 10)));
+
             // 비밀번호 암호화
             String encoded = passwordEncoder.encode(ADMIN_RAW_PASSWORD);
 

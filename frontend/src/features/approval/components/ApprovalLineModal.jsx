@@ -22,7 +22,7 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
-import { getJobGradeLabel } from "../../../utils/labelUtils";
+import { getJobGradeDisplay } from "../../../utils/labelUtils";
 import { useSnackbarContext } from "../../../components/utils/SnackbarContext";
 
 const style = {
@@ -70,10 +70,14 @@ function ApprovalLineModal({
           setLoading(true);
           setError(null);
           const res = await getOrganizationChart();
-          setOrganizationUsers(res.data);
-          setFilteredUsers(res.data);
+          // 조직도 API는 부서가 없으면 "N/A"를 보낸다. 화면에는 빈칸으로 둔다
+          const users = res.data.map((user) =>
+            user.deptName === "N/A" ? { ...user, deptName: "" } : user
+          );
+          setOrganizationUsers(users);
+          setFilteredUsers(users);
 
-          const groupedData = res.data.reduce((acc, user) => {
+          const groupedData = users.reduce((acc, user) => {
             const dept = user.deptName || "소속 없음";
             if (!acc[dept]) {
               acc[dept] = [];
@@ -222,7 +226,7 @@ function ApprovalLineModal({
             {list.map((line, index) => (
               <ListItem key={line.userId} sx={{ borderBottom: '1px solid #eee', px: 0 }}>
                  <ListItemText
-                    primary={`${line.name} ${getJobGradeLabel(line.positionName)}`}
+                    primary={`${line.name} ${getJobGradeDisplay(line.positionName)}`}
                     secondary={line.deptName}
                     primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 'medium', whiteSpace: 'nowrap' }}
                   />
@@ -250,7 +254,7 @@ function ApprovalLineModal({
     <ListItem key={user.userId} disablePadding>
       <ListItemButton>
         <ListItemText
-          primary={`${user.name} (${getJobGradeLabel(user.positionName)})`}
+          primary={`${user.name} (${getJobGradeDisplay(user.positionName)})`}
           secondary={user.deptName}
         />
         <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -284,6 +288,8 @@ function ApprovalLineModal({
               />
                {loading ? (
                 <Box sx={{ display: "flex", justifyContent: "center", mt: 5 }}><CircularProgress /></Box>
+              ) : error ? (
+                <Typography variant="body2" color="error">{error}</Typography>
               ) : (
                 <List disablePadding sx={{ overflowY: "auto", flex: 1 }}>
                   {searchTerm ? (
