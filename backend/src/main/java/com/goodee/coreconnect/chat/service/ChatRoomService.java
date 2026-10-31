@@ -79,6 +79,9 @@ public interface ChatRoomService {
     // ⭐ 읽음 처리된 메시지 ID 리스트 반환 (WebSocket 알림용)
     List<Integer> markMessagesAsRead(Integer roomId, Integer userId);
 
+    /** upToChatId까지만 읽음 처리한다. 화면이 받지 못한 메시지가 읽음이 되지 않도록 화면이 받은 마지막 번호를 받는다 */
+    List<Integer> markMessagesAsRead(Integer roomId, Integer userId, Integer upToChatId);
+
     /** 채팅방에서 현재 접속 중인 인원 id 리스트 반환 */
     List<Integer> getConnectedUserIdsInRoom(Integer roomId);
 

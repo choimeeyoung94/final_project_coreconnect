@@ -1,10 +1,32 @@
-import React, { useRef, useContext, useLayoutEffect } from "react";
+import React, { useRef, useContext, useEffect, useLayoutEffect, useState } from "react";
 import { Box, Typography, Avatar, IconButton } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import { UserProfileContext } from "../../../App";
 
 // ChatMessageList: 과거 메시지 로딩 시 스크롤 튕김 방지를 위한 최적화 버전
 // useLayoutEffect를 사용하여 브라우저 페인트 전에 스크롤 위치를 보정합니다.
+
+// 방을 보는 상대의 읽음 확인이 도착하기 전에 숫자가 깜빡이지 않도록, 방금 보낸 메시지의 숫자는 잠시 뒤에 보여준다
+const UNREAD_DISPLAY_DELAY_MS = 2000;
+
+function UnreadCount({ count, sendAt }) {
+  const age = Date.now() - new Date(sendAt).getTime();
+  const [visible, setVisible] = useState(!(age < UNREAD_DISPLAY_DELAY_MS));
+
+  useEffect(() => {
+    if (visible) return undefined;
+    const delay = Math.min(UNREAD_DISPLAY_DELAY_MS, UNREAD_DISPLAY_DELAY_MS - age);
+    const timer = setTimeout(() => setVisible(true), delay);
+    return () => clearTimeout(timer);
+  }, [visible, age]);
+
+  if (!visible) return null;
+  return (
+    <Typography sx={{ fontSize: 11, color: "#f44336", fontWeight: 600 }}>
+      {count}
+    </Typography>
+  );
+}
 
 function ChatMessageList({
   messages,
@@ -245,15 +267,7 @@ function ChatMessageList({
                   }}
                 >
                   {msg.unreadCount != null && msg.unreadCount > 0 && (
-                    <Typography
-                      sx={{
-                        fontSize: 11,
-                        color: "#f44336",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {msg.unreadCount}
-                    </Typography>
+                    <UnreadCount count={msg.unreadCount} sendAt={msg.sendAt} />
                   )}
                   <Typography sx={{ fontSize: 11, color: "#999" }}>
                     {msg.sendAt

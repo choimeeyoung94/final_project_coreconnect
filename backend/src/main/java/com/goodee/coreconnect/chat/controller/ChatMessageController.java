@@ -1955,7 +1955,7 @@ public class ChatMessageController {
     @Operation(summary = "나에게 온 안읽은 메시지를 채팅방을 접속해서 다 읽으면 채팅방목록에서 안읽은 메시지 개수가 없어지게 만들기", description = "나에게 온 안읽은 메시지를 채팅방을 접속해서 다 읽으면 채팅방목록에서 안읽은 메시지 개수가 없어지게 만들기")
     @PatchMapping("/rooms/{roomId}/messages/read")
     @org.springframework.transaction.annotation.Transactional
-    public ResponseEntity<?> markRoomMessagesAsRead(@PathVariable Integer roomId, @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+    public ResponseEntity<?> markRoomMessagesAsRead(@PathVariable Integer roomId, @RequestParam(required = false) Integer upToChatId, @AuthenticationPrincipal CustomUserDetails customUserDetails) {
 		chatRoomService.assertMember(roomId, customUserDetails.getId()); // 방 참여자가 아니면 403
       String email = customUserDetails.getEmail();
     	User user = userRepository.findByEmail(email).orElseThrow();
@@ -1963,7 +1963,7 @@ public class ChatMessageController {
     	log.info("[markRoomMessagesAsRead] 읽음 처리 요청 - roomId: {}, userId: {}, email: {}", roomId, user.getId(), email);
     	
     	// ⭐ 메시지 읽음 처리 및 읽음 처리된 메시지 ID 리스트 반환
-    	List<Integer> readChatIds = chatRoomService.markMessagesAsRead(roomId, user.getId());
+    	List<Integer> readChatIds = chatRoomService.markMessagesAsRead(roomId, user.getId(), upToChatId);
     	
     	log.info("[markRoomMessagesAsRead] 읽음 처리 완료 - roomId: {}, userId: {}, 처리된 메시지 수: {}", roomId, user.getId(), readChatIds.size());
     	

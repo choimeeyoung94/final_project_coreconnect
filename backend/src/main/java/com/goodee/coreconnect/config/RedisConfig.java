@@ -1,9 +1,12 @@
 package com.goodee.coreconnect.config;
 
+import java.time.Duration;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -29,7 +32,11 @@ public class RedisConfig {
         if (redisPassword != null && !redisPassword.isEmpty()) {
             cfg.setPassword(redisPassword);
         }
-        return new LettuceConnectionFactory(cfg);
+        // 직접 만든 연결에는 spring.data.redis.timeout이 적용되지 않아 기본 60초로 기다리게 된다
+        LettuceClientConfiguration client = LettuceClientConfiguration.builder()
+                .commandTimeout(Duration.ofSeconds(1))
+                .build();
+        return new LettuceConnectionFactory(cfg, client);
     }
 
     @Bean

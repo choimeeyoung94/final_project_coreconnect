@@ -48,6 +48,7 @@ public class WebSocketDeliveryService implements MessageListener {
     private final ObjectMapper objectMapper;
 
     private final StringRedisTemplate redisTemplate;
+    private final com.goodee.coreconnect.config.RedisGuard redisGuard;
     private final RedisMessageListenerContainer redisListenerContainer;
 
     /** 비동기 전송용 작업 스레드풀 (I/O blocking 방지) */
@@ -107,10 +108,15 @@ public class WebSocketDeliveryService implements MessageListener {
             log.warn("[WebSocketDeliveryService] 메시지 직렬화 오류: userIds={}, error={}", userIds, e.getMessage());
             return false;
         }
+        if (!redisGuard.available()) {
+            userIds.forEach(uid -> deliverLocal(uid, text));
+            return true;
+        }
         try {
             redisTemplate.convertAndSend(CHANNEL, objectMapper.writeValueAsString(new Relay(userIds, text)));
             return true;
         } catch (Exception e) {
+            redisGuard.failed();
             log.warn("[WebSocketDeliveryService] Redis 발행 실패 → 이 서버 연결에만 전송: userIds={}, error={}", userIds, e.getMessage());
             userIds.forEach(uid -> deliverLocal(uid, text));
             return true;
