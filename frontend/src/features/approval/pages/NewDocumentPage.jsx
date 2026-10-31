@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, useContext } from 'react';
+import React, { useEffect, useState, useCallback, useContext } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getTemplateDetail, submitDocument, saveDraft, getDocumentDetail, updateDraft, updateDocument } from '../api/approvalApi';
 import { Button, Alert, Box, CircularProgress, Paper, TextField, Typography, List, ListItem, ListItemText, TableContainer, Table, TableHead, TableRow, TableCell, TableBody } from '@mui/material';
@@ -25,7 +25,7 @@ const getTodayDate = () => {
 };
 
 // 휴가 기간 계산 로직
-export const calculateDuration = (startDate, endDate) => {
+const calculateDuration = (startDate, endDate) => {
   if (!startDate || !endDate) return 0;
   const start = new Date(startDate);
   const end = new Date(endDate);

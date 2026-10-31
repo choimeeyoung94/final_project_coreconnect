@@ -284,6 +284,8 @@ function ApprovalLineModal({
               />
                {loading ? (
                 <Box sx={{ display: "flex", justifyContent: "center", mt: 5 }}><CircularProgress /></Box>
+              ) : error ? (
+                <Typography variant="body2" color="error">{error}</Typography>
               ) : (
                 <List disablePadding sx={{ overflowY: "auto", flex: 1 }}>
                   {searchTerm ? (
